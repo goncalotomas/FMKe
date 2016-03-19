@@ -1,0 +1,16 @@
+{application, 'fmk',
+ [{description, "Distributed System for Medical Information Management"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, {'fmk_app', []}},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.
