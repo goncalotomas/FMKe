@@ -6,7 +6,7 @@
 -compile(export_all). %% #############TODO change this
 
 %% Server API, public exports
--export([start/2, stop/1]).
+-export([init/1,terminate/2,code_change/3,handle_call/3,handle_cast/2,handle_info/2]).
 
 %% Type definitions
 -type string() :: [char(),...].
@@ -16,20 +16,18 @@
 
 %% Defines
 -define(MAXKEY,1000000).
+-define(TIMEOUT,5000).
 
-%% ----------------------------------------------------------------------------
-%% Server API
-%% ----------------------------------------------------------------------------
-start(_Type, _Args) ->
-  start().
+% init(State) ->
+%   loop(State).
 
-stop(_State) ->
-  ok.
-
--spec start() -> ok | {error, reason()}.
-start() ->
-  io:format("Starting FMK Server~n"),
-    ok.
+% loop(State) ->
+%   receive
+%     {patient_add, Patient} ->
+%       ok.
+%   after ?TIMEOUT ->
+%       {error, timeout}.
+%   end.
 
 %% @doc Adds a Patient to the server
 %% Input : Name and address of the patient
