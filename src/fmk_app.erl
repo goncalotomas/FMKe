@@ -15,7 +15,8 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    fmk_sup:start_link().
+    fmk_sup:start_link(),
+    fmk_core:test_antidote_maps().
 
 %%--------------------------------------------------------------------
 stop(_State) ->

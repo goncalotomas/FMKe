@@ -1,5 +1,5 @@
 {application, fmk,
- [{description, "FMK-- Prototype Application"},
+ [{description, "FMK Prototype Application"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, { fmk_app, []}},
