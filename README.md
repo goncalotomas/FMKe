@@ -5,7 +5,7 @@ To adhere to modern standarts of Erlang build tools, I have decided to use rebar
 
 ## Build Tool
 
-[Antidote][3] used rebar2 internally as the official build tool, but with a newer and much improved version, there is no good reason for developing FMK-- with rebar3. As such, I will refer you to the [rebar3 official documentation][1] for installation support.
+The FMK-- prototype application uses rebar3 as its official build tool. For anything other than the instructions listed below, I will refer you to the [rebar3 official documentation][1] for installation support.
 
 ### Quick instalation guide
 
@@ -26,7 +26,7 @@ Building a project using rebar3 is as easy as changing directory to the project 
 Rebar3 uses EUnit to perform unit testing. There are multiple tests already on the repository. To check that everything is ok, run the following command:
 ```
 	rebar3 eunit
-```
+``
 
 
 [1]: https://www.rebar3.org/docs/getting-started
