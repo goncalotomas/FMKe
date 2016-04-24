@@ -26,7 +26,7 @@ Building a project using rebar3 is as easy as changing directory to the project 
 Rebar3 uses EUnit to perform unit testing. There are multiple tests already on the repository. To check that everything is ok, run the following command:
 ```
 	rebar3 eunit
-``
+```
 
 
 [1]: https://www.rebar3.org/docs/getting-started
