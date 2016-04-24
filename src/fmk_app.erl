@@ -15,8 +15,11 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    fmk_sup:start_link(),
-    fmk_core:test_antidote_maps().
+    Response = fmk_sup:start_link(),
+    io:format("FMK server starting, testing if antidote is up...~n"),
+    fmk_core:test_antidote(),
+    io:format("Tests completed, server started.~n"),
+    Response.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
