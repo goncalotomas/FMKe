@@ -20,6 +20,3 @@ read_patient(PatientId) ->
   PatientObject = create_patient_bucket(PatientId),
   ok = antidote_lib:read_object(PatientObject,Txn),
   ok = antidote_lib:commit_txn(Txn).
-
-
-

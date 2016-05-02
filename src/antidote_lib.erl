@@ -7,14 +7,22 @@
 -module(antidote_lib).
 -include("fmk.hrl").
 
+%% These exports supply managed transactions, to make it easier to work with Antidote. Use these
+%% if you don't need fine grained control over transactions.
 -export ([
-  build_object/2,
-  start_txn/0,
-  read_object/2,
-  read_objects/2,
-  write_object/2,
-  write_objects/2,
-  commit_txn/1
+  create_bucket/2,
+  get/2,
+  put/2
+  ]).
+
+%% These exports can help you make your own transactions, you can manage them as you please.
+-export ([
+  txn_start/0,
+  txn_read_object/2,
+  txn_read_objects/2,
+  txn_write_object/2,
+  txn_write_objects/2,
+  txn_commit/1
 	]).
 
 %% Old API exports, these functions should only be used for performance testing
@@ -24,32 +32,47 @@
   ]).
 
 %% ------------------------------------------------------------------------------------------------
-%% Antidote's transaction API - Use these functions
+%% Simple API - Recommended way to interact with Antidote
 %% ------------------------------------------------------------------------------------------------
-
-build_object(Key,Type) ->
+create_bucket(Key,Type) ->
   {Key,Type,bucket}.
 
-start_txn() ->
+get(Key,Type) ->
+  Bucket = create_bucket(Key,Type),
+  TxnDetails = txn_start(),
+  Value = txn_read_object(Bucket,TxnDetails),
+  ok = txn_commit(TxnDetails),
+  Value.
+
+put(Bucket) ->
+  TxnDetails = txn_start(),
+  ok = txn_write_object(Bucket,TxnDetails),
+  ok = txn_commit(TxnDetails),
+  ok.
+
+%% ------------------------------------------------------------------------------------------------
+%% Antidote's transaction API wrapper - Use when you need fine grain control over transactions
+%% ------------------------------------------------------------------------------------------------
+txn_start() ->
   {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[ignore,[]]),
   TxnDetails.
 
-read_object(Object,TxnDetails) ->
-  {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,read_objects,[[Object],TxnDetails]),
+txn_read_object(Object,TxnDetails) ->
+  {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,txn_read_objects,[[Object],TxnDetails]),
   Value.
 
-read_objects(Objects,TxnDetails) ->
-  {ok,Values} = rpc:call(?ANTIDOTE,antidote,read_objects,[Objects,TxnDetails]),
+txn_read_objects(Objects,TxnDetails) ->
+  {ok,Values} = rpc:call(?ANTIDOTE,antidote,txn_read_objects,[Objects,TxnDetails]),
   Values.
 
-write_object(Object,TxnDetails) ->
+txn_write_object(Object,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[[Object],TxnDetails]).
 
-write_objects(Objects,TxnDetails) ->
+txn_write_objects(Objects,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[Objects,TxnDetails]).
 
-commit_txn(TxnDetails) ->
-  {ok,_Smthng} = rpc:call(?ANTIDOTE,antidote,commit_txn,[TxnDetails]),
+txn_commit(TxnDetails) ->
+  {ok,_Smthng} = rpc:call(?ANTIDOTE,antidote,txn_commit,[TxnDetails]),
   ok.
 
 %% ------------------------------------------------------------------------------------------------

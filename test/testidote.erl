@@ -8,6 +8,7 @@
 
 %% ============================================================================
 %% EUnit tests
+%% NOTE: THESE TESTS REQUIRE AN ANTIDOTE NODE RUNNING ON LOCALHOST!!!
 %% TODO: initializer test should be a fixture.
 %% See https://github.com/erlang/rebar3/issues/1166
 %% ============================================================================
