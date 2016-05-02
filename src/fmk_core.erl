@@ -2,31 +2,24 @@
 -include("fmk.hrl").
 
 -export([
-  write_to_antidote/3,
-  read_from_antidote/2,
-  txn_start/0,
-  txn_read_objects/0,
-  txn_write_objects/0,
-  txn_commit/0
+  create_patient_bucket/1,
+  update_patient/1,
+  read_patient/1
   ]).
 
-txn_start() ->
-	ok.
+create_patient_bucket(PatientId) ->
+  antidote_lib:create_object(PatientId,riak_dt_map).
 
-txn_read_objects() ->
-	ok.
+update_patient(PatientObject) ->
+  Txn = antidote_lib:start_txn(),
+  ok = antidote_lib:write_object(PatientObject,Txn),
+  ok = antidote_lib:commit_txn(Txn).
 
-txn_write_objects() ->
-  ok.
+read_patient(PatientId) ->
+  Txn = antidote_lib:start_txn(),
+  PatientObject = create_patient_bucket(PatientId),
+  ok = antidote_lib:read_object(PatientObject,Txn),
+  ok = antidote_lib:commit_txn(Txn).
 
-txn_commit() ->
-  ok.
 
-%% ------------------------------------------------------------------------------------------------
-%% ANTIDOTE'S OLD API - DEPRECATED? Avoid using at all costs
-%% ------------------------------------------------------------------------------------------------
-write_to_antidote(Key,Type,Params) ->
-	rpc:call(?ANTIDOTE,antidote,append,[Key,Type,{Params,self()}]).
 
-read_from_antidote(Key,Type) ->
-	rpc:call(?ANTIDOTE,antidote,read,[Key,Type]).
