@@ -1,11 +1,16 @@
-{application, 'fmk',
- [{description, "FMK Application Prototype"},
+{application, fmk,
+ [{description, "FMK Prototype Application"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, {'fmk_app', []}},
+  {mod, { fmk_app, []}},
   {applications,
    [kernel,
     stdlib
    ]},
-  {env,[]}
+  {env,[]},
+  {modules, []},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
  ]}.
