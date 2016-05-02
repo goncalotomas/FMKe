@@ -5,6 +5,7 @@
 %% with the following macros:
 %% ANTIDOTE: Node where Antidote is running. Usually 'antidote@127.0.0.1'
 -module(antidote_lib).
+-include("fmk.hrl").
 
 -export ([
   build_object/2,
@@ -48,7 +49,7 @@ write_objects(Objects,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[Objects,TxnDetails]).
 
 commit_txn(TxnDetails) ->
-  {ok,Smthng} = rpc:call(?ANTIDOTE,antidote,commit_txn,[TxnDetails]),
+  {ok,_Smthng} = rpc:call(?ANTIDOTE,antidote,commit_txn,[TxnDetails]),
   ok.
 
 %% ------------------------------------------------------------------------------------------------
