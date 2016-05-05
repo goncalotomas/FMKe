@@ -16,14 +16,14 @@ create_patient(Id,Name,Address) ->
   IdOp = {update,{patient_id, riak_dt_gcounter},{increment, Id}},
   NameOp = {update,{patient_name, riak_dt_lwwreg},{assign, list_to_binary(Name)}},
   AddressOp = {update,{patient_address, riak_dt_lwwreg},{assign, list_to_binary(Address)}},
-  _EventsOp = {update,{key, riak_dt_map},{assign, <<"patient_events">>}},
+  EventsOp = {update,{patient_events, riak_dt_map},{update,{num_events,riak_dt_pncounter},{increment,0}}},
   _TreatmentsOp = {update,{key, riak_dt_lwwreg},{assign, <<"patient_treatments">>}},
   _PrescriptionsKey = {update,{key, riak_dt_lwwreg},{assign, <<"patient_prescriptions">>}},
-  OpList = [IdOp,NameOp,AddressOp],
-  {ok,_Something} = antidote_lib:write_to_antidote(list_to_atom("patient_"+Id),riak_dt_map,{update,OpList}).
+  OpList = [IdOp,NameOp,AddressOp,EventsOp],
+  {ok,_Something} = antidote_lib:write_to_antidote(list_to_atom("patient_"+Id),riak_dt_map,{update,OpList}). %% TODO SWITCH THIS TO THE NEW API
 
 update_patient(Key,PatientUpdate) ->
-  antidote_lib:write_to_antidote(Key,riak_dt_map,PatientUpdate).
+  antidote_lib:write_to_antidote(Key,riak_dt_map,{PatientUpdate}).
 
 % create_patient_bucket(PatientId) ->
 %   antidote_lib:create_bucket(PatientId,riak_dt_map).
