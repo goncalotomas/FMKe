@@ -26,6 +26,11 @@
   txn_commit/1
 	]).
 
+-export ([
+  build_map_update/1,
+  build_map_op/3
+  ]).
+
 %% Old API exports, these functions should only be used for performance testing
 -export ([
   write_to_antidote/3,
@@ -78,6 +83,15 @@ txn_update_objects(Objects,TxnDetails) ->
 txn_commit(TxnDetails) ->
   {ok,CommitTime} = rpc:call(?ANTIDOTE,antidote,commit_transaction,[TxnDetails]),
   CommitTime.
+
+%% ------------------------------------------------------------------------------------------------
+%% Helper functions to assist in map updates
+%% ------------------------------------------------------------------------------------------------
+build_map_update(OpList) ->
+  {update, OpList}.
+
+build_map_op(Key,Type,Op) ->
+  {update, {Key,Type}, Op}.
 
 %% ------------------------------------------------------------------------------------------------
 %% ANTIDOTE'S OLD API - Should only be used for performance testing

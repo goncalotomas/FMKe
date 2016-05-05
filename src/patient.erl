@@ -21,7 +21,7 @@
 %% Finds a patient in the Antidote Key-Value store by Patient ID.
 -spec findpatient(Id::pos_integer()) -> riak_dt_map:map().
 findpatient(Id) ->
-  Patients = antidote_lib:read_from_antidote(patients,riak_dt_map),
+  Patients = antidote_lib:read_from_antidote(?FMK_PATIENTS,riak_dt_map),
   case lists:keyfind({Id,riak_dt_map},1,Patients) of
     false -> not_found;
     {{Id,riak_dt_map},Patient} -> Patient
@@ -29,16 +29,22 @@ findpatient(Id) ->
 
 -spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> {ok,_Something}.
 new(Id,Name,Address) ->
-  IdOp = {update,{patient_id, riak_dt_gcounter},{increment, Id}},
-  NameOp = {update,{patient_name, riak_dt_lwwreg},{assign, list_to_binary(Name)}},
-  AddressOp = {update,{patient_address, riak_dt_lwwreg},{assign, list_to_binary(Address)}},
-  EventsOp = {update,{patient_events, riak_dt_map},{update,{num_events,riak_dt_pncounter},{increment,0}}},
-  _TreatmentsOp = {update,{key, riak_dt_lwwreg},{assign, <<"patient_treatments">>}},
-  _PrescriptionsKey = {update,{key, riak_dt_lwwreg},{assign, <<"patient_prescriptions">>}},
-  OpList = [IdOp,NameOp,AddressOp,EventsOp],
-  {ok,_Something} = antidote_lib:write_to_antidote(Id,riak_dt_map,{update,OpList}). %% TODO SWITCH THIS TO THE NEW API
+  IdOp = antidote_lib:build_map_op(patient_id,riak_dt_gcounter,{increment,Id}),
+  NameOp = antidote_lib:build_map_op(patient_name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
+  AddressOp = antidote_lib:build_map_op(patient_address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
+  %% build nested map operations
+  EventMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_events,riak_dt_pncounter,{increment,0})]),
+  PrescriptionMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
+  TreatmentMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
+  %% build top level map operations
+  EventsOp = antidote_lib:build_map_op(patient_events,riak_dt_map,EventMapOp),
+  PrescriptionsOp = antidote_lib:build_map_op(patient_prescriptions,riak_dt_map,PrescriptionMapOp),
+  TreatmentsOp = antidote_lib:build_map_op(patient_treatments,riak_dt_map,TreatmentMapOp),
+  %% put everything in a big bulky map update
+  MapUpdate = antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]),
+  {ok,_Something} = antidote_lib:write_to_antidote(Id,riak_dt_map,MapUpdate). %% TODO SWITCH THIS TO THE NEW API
 
--spec new(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op() -> {ok,_Something}.
+-spec update_patient(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
 update_patient(Id,PatientUpdate) ->
   antidote_lib:write_to_antidote(Id,riak_dt_map,{PatientUpdate}).
 
@@ -57,42 +63,42 @@ update_patient(Id,PatientUpdate) ->
 %   _CommitTime = antidote_lib:commit_txn(Txn),
 %   Value.
 
--spec new(Patient::riak_dt_map:map()) -> string().
+-spec name(Patient::riak_dt_map:map()) -> string().
 name(Patient) ->
   case lists:keyfind({patient_name,riak_dt_lwwreg},1,Patient) of
     false -> "";
     {{patient_name,riak_dt_lwwreg},Name} -> binary_to_list(Name)
   end.
 
--spec new(Patient::riak_dt_map:map()) -> pos_integer().
+-spec id(Patient::riak_dt_map:map()) -> pos_integer().
 id(Patient) ->
   case lists:keyfind({patient_id,riak_dt_gcounter},1,Patient) of
     false -> 0;
     {{patient_id,riak_dt_gcounter},Id} -> Id
   end.
 
--spec new(Patient::riak_dt_map:map()) -> string().
+-spec address(Patient::riak_dt_map:map()) -> string().
 address(Patient) ->
   case lists:keyfind({patient_address,riak_dt_lwwreg},1,Patient) of
     false -> "";
     {{patient_address,riak_dt_lwwreg},Address} -> binary_to_list(Address)
   end.
 
--spec new(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec treatments(Patient::riak_dt_map:map()) -> riak_dt_map:map().
 treatments(Patient) ->
   case lists:keyfind({patient_treatments,riak_dt_map},1,Patient) of
     false -> [];
     {{patient_treatments,riak_dt_map},Treatments} -> Treatments
   end.
 
--spec new(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec prescriptions(Patient::riak_dt_map:map()) -> riak_dt_map:map().
 prescriptions(Patient) ->
   case lists:keyfind({patient_prescriptions,riak_dt_map},1,Patient) of
     false -> [];
     {{patient_prescriptions,riak_dt_map},Prescriptions} -> Prescriptions
   end.
 
--spec new(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec events(Patient::riak_dt_map:map()) -> riak_dt_map:map().
 events(Patient) ->
   case lists:keyfind({patient_events,riak_dt_map},1,Patient) of
     false -> [];
