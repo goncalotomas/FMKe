@@ -1,18 +1,31 @@
 -module(patient).
 -include("fmk.hrl").
 
+%% Functions to handle patients at data-center level
 -export ([
-  create_patient/3,
+  findpatient/1
+  ]).
+
+%% Functions to handle single patient objects
+-export ([
+  new/3,
   update_patient/2,
-  full_name/1,
-  patient_id/1,
+  name/1,
+  id/1,
   address/1,
   treatments/1,
   prescriptions/1,
   events/1
   ]).
 
-create_patient(Id,Name,Address) ->
+findpatient(Id) ->
+  Patients = antidote_lib:read_from_antidote(patients,riak_dt_map),
+  case lists:keyfind({Id,riak_dt_map},1,Patients) of
+    false -> not_found;
+    {{Id,riak_dt_map},Patient} -> Patient
+  end.
+
+new(Id,Name,Address) ->
   IdOp = {update,{patient_id, riak_dt_gcounter},{increment, Id}},
   NameOp = {update,{patient_name, riak_dt_lwwreg},{assign, list_to_binary(Name)}},
   AddressOp = {update,{patient_address, riak_dt_lwwreg},{assign, list_to_binary(Address)}},
@@ -20,7 +33,7 @@ create_patient(Id,Name,Address) ->
   _TreatmentsOp = {update,{key, riak_dt_lwwreg},{assign, <<"patient_treatments">>}},
   _PrescriptionsKey = {update,{key, riak_dt_lwwreg},{assign, <<"patient_prescriptions">>}},
   OpList = [IdOp,NameOp,AddressOp,EventsOp],
-  {ok,_Something} = antidote_lib:write_to_antidote(list_to_atom("patient_"+Id),riak_dt_map,{update,OpList}). %% TODO SWITCH THIS TO THE NEW API
+  {ok,_Something} = antidote_lib:write_to_antidote(Id,riak_dt_map,{update,OpList}). %% TODO SWITCH THIS TO THE NEW API
 
 update_patient(Key,PatientUpdate) ->
   antidote_lib:write_to_antidote(Key,riak_dt_map,{PatientUpdate}).
@@ -40,20 +53,38 @@ update_patient(Key,PatientUpdate) ->
 %   _CommitTime = antidote_lib:commit_txn(Txn),
 %   Value.
 
-full_name(_PatientObject) ->
-  "Bilbo".
+name(Patient) ->
+  case lists:keyfind({patient_name,riak_dt_lwwreg},1,Patient) of
+    false -> "";
+    {{patient_name,riak_dt_lwwreg},Name} -> binary_to_list(Name)
+  end.
 
-patient_id(_PatientObject) ->
-  1.
+id(Patient) ->
+  case lists:keyfind({patient_id,riak_dt_gcounter},1,Patient) of
+    false -> 0;
+    {{patient_id,riak_dt_gcounter},Id} -> Id
+  end.
 
-address(_PatientObject) ->
-  "Sessame Street".
+address(Patient) ->
+  case lists:keyfind({patient_address,riak_dt_lwwreg},1,Patient) of
+    false -> "";
+    {{patient_address,riak_dt_lwwreg},Address} -> binary_to_list(Address)
+  end.
 
-treatments(_PatientObject) ->
-  [pet_kittens].
+treatments(Patient) ->
+  case lists:keyfind({patient_treatments,riak_dt_map},1,Patient) of
+    false -> [];
+    {{patient_treatments,riak_dt_map},Treatments} -> Treatments
+  end.
 
-prescriptions(_PatientObject) ->
-  [pet_kittens].
+prescriptions(Patient) ->
+  case lists:keyfind({patient_prescriptions,riak_dt_map},1,Patient) of
+    false -> [];
+    {{patient_prescriptions,riak_dt_map},Prescriptions} -> Prescriptions
+  end.
 
-events(_PatientObject) ->
-  [kitten_was_pet].
+events(Patient) ->
+  case lists:keyfind({patient_events,riak_dt_map},1,Patient) of
+    false -> [];
+    {{patient_events,riak_dt_map},Events} -> Events
+  end.
