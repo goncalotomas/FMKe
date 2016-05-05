@@ -1,10 +1,6 @@
 -module(patient).
 -include("fmk.hrl").
 
-%% Functions to handle patients at data-center level
--export ([
-  findpatient/1
-  ]).
 
 %% Functions to handle single patient objects
 -export ([
@@ -17,15 +13,6 @@
   prescriptions/1,
   events/1
   ]).
-
-%% Finds a patient in the Antidote Key-Value store by Patient ID.
--spec findpatient(Id::pos_integer()) -> riak_dt_map:map().
-findpatient(Id) ->
-  Patients = antidote_lib:read_from_antidote(?FMK_PATIENTS,riak_dt_map),
-  case lists:keyfind({Id,riak_dt_map},1,Patients) of
-    false -> not_found;
-    {{Id,riak_dt_map},Patient} -> Patient
-  end.
 
 -spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> {ok,_Something}.
 new(Id,Name,Address) ->
@@ -42,11 +29,11 @@ new(Id,Name,Address) ->
   TreatmentsOp = antidote_lib:build_map_op(patient_treatments,riak_dt_map,TreatmentMapOp),
   %% put everything in a big bulky map update
   MapUpdate = antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]),
-  {ok,_Something} = antidote_lib:write_to_antidote(Id,riak_dt_map,MapUpdate). %% TODO SWITCH THIS TO THE NEW API
+  {ok,_Something} = antidote_lib:put(Id,riak_dt_map,MapUpdate). %% TODO SWITCH THIS TO THE NEW API
 
 -spec update_patient(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
 update_patient(Id,PatientUpdate) ->
-  antidote_lib:write_to_antidote(Id,riak_dt_map,{PatientUpdate}).
+  antidote_lib:put(Id,riak_dt_map,{PatientUpdate}).
 
 % create_patient_bucket(PatientId) ->
 %   antidote_lib:create_bucket(PatientId,riak_dt_map).

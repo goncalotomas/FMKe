@@ -12,7 +12,7 @@
 -export ([
   create_bucket/2,
   get/2,
-  update/3
+  put/3
   ]).
 
 %% These exports can help you make your own transactions, you can manage them as you please.
@@ -44,16 +44,21 @@ create_bucket(Key,Type) ->
   {Key,Type,bucket}.
 
 get(Key,Type) ->
-  Bucket = create_bucket(Key,Type),
-  TxnDetails = txn_start(),
-  Value = txn_read_object(Bucket,TxnDetails),
-  ok = txn_commit(TxnDetails),
-  Value.
+  %% TODO: UPDATE TO CURRENT API
+  % Bucket = create_bucket(Key,Type),
+  % TxnDetails = txn_start(),
+  % {ok, Value} = txn_read_object(Bucket,TxnDetails),
+  % ok = txn_commit(TxnDetails),
+  % Value.
+  read_from_antidote(Key,Type).
 
-update(Bucket,Op,Param) ->
-  TxnDetails = txn_start(),
-  ok = txn_update_object({Bucket,Op,Param},TxnDetails),
-  ok = txn_commit(TxnDetails),
+put(Key,Type,UpdateOp) ->
+  %% TODO: UPDATE TO CURRENT API
+  % TxnDetails = txn_start(),
+  % ok = txn_update_object({Bucket,Op,Param},TxnDetails),
+  % ok = txn_commit(TxnDetails),
+  % ok.
+  {ok, _Smthng} = write_to_antidote(Key,Type,UpdateOp),
   ok.
 
 %% ------------------------------------------------------------------------------------------------
