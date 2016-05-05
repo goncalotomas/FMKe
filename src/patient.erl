@@ -1,37 +1,59 @@
 -module(patient).
 -include("fmk.hrl").
 
--export ([function/arity]).
+-export ([
+  create_patient/3,
+  update_patient/2,
+  full_name/1,
+  patient_id/1,
+  address/1,
+  treatments/1,
+  prescriptions/1,
+  events/1
+  ]).
 
-create_patient_bucket(PatientId) ->
-  antidote_lib:create_bucket(PatientId,riak_dt_map).
+create_patient(Id,Name,Address) ->
+  IdOp = {update,{patient_id, riak_dt_gcounter},{increment, Id}},
+  NameOp = {update,{patient_name, riak_dt_lwwreg},{assign, list_to_binary(Name)}},
+  AddressOp = {update,{patient_address, riak_dt_lwwreg},{assign, list_to_binary(Address)}},
+  _EventsOp = {update,{key, riak_dt_map},{assign, <<"patient_events">>}},
+  _TreatmentsOp = {update,{key, riak_dt_lwwreg},{assign, <<"patient_treatments">>}},
+  _PrescriptionsKey = {update,{key, riak_dt_lwwreg},{assign, <<"patient_prescriptions">>}},
+  OpList = [IdOp,NameOp,AddressOp],
+  {ok,_Something} = antidote_lib:write_to_antidote(list_to_atom("patient_"+Id),riak_dt_map,{update,OpList}).
 
-update_patient(PatientObject) ->
-  Txn = antidote_lib:start_txn(),
-  ok = antidote_lib:write_object(PatientObject,Txn),
-  ok = antidote_lib:commit_txn(Txn).
+update_patient(Key,PatientUpdate) ->
+  antidote_lib:write_to_antidote(Key,riak_dt_map,PatientUpdate).
 
-read_patient(PatientId) ->
-  Txn = antidote_lib:start_txn(),
-  PatientBucket = create_patient_bucket(PatientId),
-  Value = antidote_lib:read_object(PatientBucket,Txn),
-  {ok} = antidote_lib:commit_txn(Txn),
-  Value.
+% create_patient_bucket(PatientId) ->
+%   antidote_lib:create_bucket(PatientId,riak_dt_map).
 
-full_name(PatientObject) ->
+% update_patient(PatientObject) ->
+%   Txn = antidote_lib:start_txn(),
+%   ok = antidote_lib:write_object(PatientObject,Txn),
+%   ok = antidote_lib:commit_txn(Txn).
+
+% read_patient(PatientId) ->
+%   Txn = antidote_lib:start_txn(),
+%   PatientBucket = create_patient_bucket(PatientId),
+%   Value = antidote_lib:read_object(PatientBucket,Txn),
+%   _CommitTime = antidote_lib:commit_txn(Txn),
+%   Value.
+
+full_name(_PatientObject) ->
   "Bilbo".
 
-patient_id(PatientObject) ->
+patient_id(_PatientObject) ->
   1.
 
-address(PatientObject) ->
+address(_PatientObject) ->
   "Sessame Street".
 
-treatments(PatientObject) ->
+treatments(_PatientObject) ->
   [pet_kittens].
 
-prescriptions(PatientObject) ->
+prescriptions(_PatientObject) ->
   [pet_kittens].
 
-events(PatientObject) ->
+events(_PatientObject) ->
   [kitten_was_pet].

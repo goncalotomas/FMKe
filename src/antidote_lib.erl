@@ -12,16 +12,17 @@
 -export ([
   create_bucket/2,
   get/2,
-  put/2
+  update/3
   ]).
 
 %% These exports can help you make your own transactions, you can manage them as you please.
 -export ([
   txn_start/0,
+  txn_start/1,
   txn_read_object/2,
   txn_read_objects/2,
-  txn_write_object/2,
-  txn_write_objects/2,
+  txn_update_object/2,
+  txn_update_objects/2,
   txn_commit/1
 	]).
 
@@ -44,9 +45,9 @@ get(Key,Type) ->
   ok = txn_commit(TxnDetails),
   Value.
 
-put(Bucket) ->
+update(Bucket,Op,Param) ->
   TxnDetails = txn_start(),
-  ok = txn_write_object(Bucket,TxnDetails),
+  ok = txn_update_object({Bucket,Op,Param},TxnDetails),
   ok = txn_commit(TxnDetails),
   ok.
 
@@ -56,24 +57,27 @@ put(Bucket) ->
 txn_start() ->
   {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[ignore,[]]),
   TxnDetails.
+txn_start(TimeStamp) -> 
+  {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[TimeStamp,[]]),
+  TxnDetails.
 
 txn_read_object(Object,TxnDetails) ->
-  {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,txn_read_objects,[[Object],TxnDetails]),
+  {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,read_objects,[[Object],TxnDetails]),
   Value.
 
 txn_read_objects(Objects,TxnDetails) ->
-  {ok,Values} = rpc:call(?ANTIDOTE,antidote,txn_read_objects,[Objects,TxnDetails]),
+  {ok,Values} = rpc:call(?ANTIDOTE,antidote,read_objects,[Objects,TxnDetails]),
   Values.
 
-txn_write_object(Object,TxnDetails) ->
+txn_update_object(Object,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[[Object],TxnDetails]).
 
-txn_write_objects(Objects,TxnDetails) ->
+txn_update_objects(Objects,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[Objects,TxnDetails]).
 
 txn_commit(TxnDetails) ->
-  {ok,_Smthng} = rpc:call(?ANTIDOTE,antidote,txn_commit,[TxnDetails]),
-  ok.
+  {ok,CommitTime} = rpc:call(?ANTIDOTE,antidote,commit_transaction,[TxnDetails]),
+  CommitTime.
 
 %% ------------------------------------------------------------------------------------------------
 %% ANTIDOTE'S OLD API - Should only be used for performance testing
