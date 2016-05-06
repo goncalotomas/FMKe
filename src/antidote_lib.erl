@@ -30,7 +30,8 @@
 %% therefore are a little bit harder to handle than other CRDTs
 -export ([
   build_map_update/1,
-  build_map_op/3
+  build_map_op/3,
+  find_key/3
   ]).
 
 %% Old API exports, these functions should only be used for performance testing
@@ -100,6 +101,15 @@ build_map_update(OpList) ->
 
 build_map_op(Key,Type,Op) ->
   {update, {Key,Type}, Op}.
+
+%% Searches for a Value within a map that is associated with a specific key.
+%% All riak_dt_map entries are of type {{key_name,key_type},Value}. Having this function avoids repeating
+%% the following code numerous times when searching for an element within a map.
+find_key(Map, Key, KeyType) ->
+  case lists:keyfind({Key,KeyType},1,Map) of
+    false -> not_found;
+    {{Key,KeyType},Value} -> Value
+  end.
 
 %% ------------------------------------------------------------------------------------------------
 %% ANTIDOTE'S OLD API - Should only be used for performance testing
