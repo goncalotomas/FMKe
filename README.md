@@ -28,6 +28,14 @@ Rebar3 uses EUnit to perform unit testing. There are multiple tests already on t
 	rebar3 eunit
 ```
 
+**Important note:** FMK needs a running Antidote instance on localhost for the unit tests to succeed. You can start an Antidote instance by cloning the [Antidote repository][3] and executing the following command in the repository root:
+
+```
+  rel/antidote/bin/antidote start
+  rel/antidote/bin/antidote attach
+```
+
+Once you see a large amount of log messages, it means Antidote has finished its setup and is ready to take requests.
 
 [1]: https://www.rebar3.org/docs/getting-started
 [2]: https://syncfree.lip6.fr/

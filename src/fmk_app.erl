@@ -15,11 +15,7 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    Response = fmk_sup:start_link(),
-    io:format("FMK server starting, testing if antidote is up...~n"),
-    fmk_core:test_antidote(),
-    io:format("Tests completed, server started.~n"),
-    Response.
+    fmk_sup:start_link().
 
 %%--------------------------------------------------------------------
 stop(_State) ->
