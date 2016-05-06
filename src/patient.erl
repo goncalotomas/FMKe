@@ -14,7 +14,7 @@
   events/1
   ]).
 
--spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> {ok,_Something}.
+-spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> riak_dt_map:map_op().
 new(Id,Name,Address) ->
   IdOp = antidote_lib:build_map_op(patient_id,riak_dt_gcounter,{increment,Id}),
   NameOp = antidote_lib:build_map_op(patient_name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
@@ -27,9 +27,8 @@ new(Id,Name,Address) ->
   EventsOp = antidote_lib:build_map_op(patient_events,riak_dt_map,EventMapOp),
   PrescriptionsOp = antidote_lib:build_map_op(patient_prescriptions,riak_dt_map,PrescriptionMapOp),
   TreatmentsOp = antidote_lib:build_map_op(patient_treatments,riak_dt_map,TreatmentMapOp),
-  %% put everything in a big bulky map update
-  MapUpdate = antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]),
-  {ok,_Something} = antidote_lib:put(Id,riak_dt_map,MapUpdate). %% TODO SWITCH THIS TO THE NEW API
+  %% put everything in a big bulky map update and return it
+  antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]).
 
 -spec update_patient(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
 update_patient(Id,PatientUpdate) ->

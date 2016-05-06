@@ -26,6 +26,8 @@
   txn_commit/1
 	]).
 
+%% These are utility functions, most of them related to updating maps, which can be nested and
+%% therefore are a little bit harder to handle than other CRDTs
 -export ([
   build_map_update/1,
   build_map_op/3
