@@ -6,6 +6,6 @@
 -define (FMK_MEDICAL_STAFF, staff).
 
 %% Test macros
--define(COUNTER_TYPE, riak_dt_pncounter).
+-define(TEST_COUNTER_TYPE, riak_dt_pncounter).
 -define(TEST_COUNTER_KEY, 'fmk_counter_test').
 -define(TEST_MAP_KEY, 'fmk_map_test').
