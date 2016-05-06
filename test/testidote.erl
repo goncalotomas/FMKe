@@ -32,8 +32,19 @@ counter_test() ->
 
 map_test() ->
   RegisterUpdate = antidote_lib:build_map_op(lwwreg,riak_dt_lwwreg,{assign, <<"Awesome">>}),
-  CounterUpdate = antidote_lib:build_map_op(counter,riak_dt_gcounter,{increment,2}),
+  CounterUpdate = antidote_lib:build_map_op(counter,riak_dt_pncounter,{increment,0}),
   ok = antidote_lib:put(?TEST_MAP_KEY,riak_dt_map, antidote_lib:build_map_update([RegisterUpdate,CounterUpdate])),
-  _Map = antidote_lib:get(?TEST_MAP_KEY,riak_dt_map).
+  Map = antidote_lib:get(?TEST_MAP_KEY,riak_dt_map),
+  ?assertEqual(0, antidote_lib:find_key(Map,counter,riak_dt_pncounter)),
+  ?assertEqual(<<"Awesome">>, antidote_lib:find_key(Map,lwwreg,riak_dt_lwwreg)).
+
+nested_map_test() ->
+  RegisterUpdate = antidote_lib:build_map_op(lwwreg,riak_dt_lwwreg,{assign, <<"Awesome">>}),
+  MapUpdate = antidote_lib:build_map_update([RegisterUpdate]),
+  NestedMapOp = antidote_lib:build_map_op(?TEST_NESTED_MAP_KEY,riak_dt_map,MapUpdate),
+  ok = antidote_lib:put(?TEST_MAP_KEY,riak_dt_map, antidote_lib:build_map_update([NestedMapOp])),
+  Map = antidote_lib:get(?TEST_MAP_KEY,riak_dt_map),
+  NestedMap = antidote_lib:find_key(Map,?TEST_NESTED_MAP_KEY,riak_dt_map),
+  ?assertEqual(<<"Awesome">>, antidote_lib:find_key(NestedMap,lwwreg,riak_dt_lwwreg)).
 
 -endif.
