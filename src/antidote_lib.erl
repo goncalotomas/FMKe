@@ -52,7 +52,8 @@ get(Key,Type) ->
   % {ok, Value} = txn_read_object(Bucket,TxnDetails),
   % ok = txn_commit(TxnDetails),
   % Value.
-  read_from_antidote(Key,Type).
+  {ok, Value} = read_from_antidote(Key,Type),
+  Value.
 
 put(Key,Type,UpdateOp) ->
   %% TODO: UPDATE TO CURRENT API

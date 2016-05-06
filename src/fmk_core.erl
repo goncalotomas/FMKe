@@ -9,8 +9,8 @@
   ]).
 
 %% Finds a patient in the Antidote Key-Value store by Patient ID.
--spec findpatient(Id::pos_integer()) -> riak_dt_map:map().
-findpatient(Id) ->
+-spec find_patient(Id::pos_integer()) -> riak_dt_map:map().
+find_patient(Id) ->
   Patients = antidote_lib:read_from_antidote(?FMK_PATIENTS,riak_dt_map),
   case lists:keyfind({Id,riak_dt_map},1,Patients) of
     false -> not_found;

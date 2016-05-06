@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<testsuite tests="4" failures="0" errors="0" skipped="0" time="0.213" name="module 'testidote'">
-  <testcase time="0.058" name="testidote:0 initializer_test">
+<testsuite tests="4" failures="0" errors="0" skipped="0" time="0.143" name="module 'testidote'">
+  <testcase time="0.025" name="testidote:0 initializer_test">
     <system-out>
     </system-out>
   </testcase>
-  <testcase time="0.053" name="testidote:0 antidote_ping_test">
+  <testcase time="0.031" name="testidote:0 antidote_ping_test">
     <system-out>
     </system-out>
   </testcase>
-  <testcase time="0.080" name="testidote:0 counter_test">
+  <testcase time="0.068" name="testidote:0 counter_test">
     <system-out>
     </system-out>
   </testcase>
-  <testcase time="0.010" name="testidote:0 map_test">
+  <testcase time="0.006" name="testidote:0 map_test">
     <system-out>
     </system-out>
   </testcase>
