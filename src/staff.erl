@@ -9,8 +9,7 @@
   address/1,
   speciality/1,
   treatments/1,
-  prescriptions/1,
-  events/1
+  prescriptions/1
   ]).
 
 -spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string(), Speciality::nonempty_string()) -> riak_dt_map:map_op().
@@ -23,8 +22,8 @@ new(Id,Name,Address,Speciality) ->
   PrescriptionsMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
   TreatmentsMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
   %% build top level map operations
-  PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionMapOp),
-  TreatmentsOp = antidote_lib:build_map_op(treatments,riak_dt_map,TreatmentMapOp),
+  PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionsMapOp),
+  TreatmentsOp = antidote_lib:build_map_op(treatments,riak_dt_map,TreatmentsMapOp),
   %% put everything in a big bulky map update and return it
   antidote_lib:build_map_update([IdOp,NameOp,AddressOp,SpecialityOp,TreatmentsOp,PrescriptionsOp]).
 
@@ -69,7 +68,7 @@ address(Staff) ->
   end.
 
 -spec speciality(Staff::riak_dt_map:map()) -> string().
-name(Staff) ->
+speciality(Staff) ->
   case antidote_lib:findkey(Staff,speciality,riak_dt_lwwreg) of
     not_found -> "";
     Speciality -> binary_to_list(Speciality)
