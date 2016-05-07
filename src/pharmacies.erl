@@ -1,1 +1,1 @@
--module (pharmacies).
+-module(pharmacies).
