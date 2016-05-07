@@ -51,7 +51,7 @@ update(Id,PatientUpdate) ->
 
 -spec name(Patient::riak_dt_map:map()) -> string().
 name(Patient) ->
-  case antidote_lib:findkey(Patient,name,riak_dt_lwwreg) of
+  case antidote_lib:findkey(Patient,patient_name,riak_dt_lwwreg) of
     not_found -> "";
     Name -> binary_to_list(Name)
   end.

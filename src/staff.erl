@@ -31,21 +31,6 @@ new(Id,Name,Address,Speciality) ->
 update(Id,StaffUpdate) ->
   antidote_lib:put(Id,riak_dt_map,{StaffUpdate}).
 
-% create_Staff_bucket(StaffId) ->
-%   antidote_lib:create_bucket(StaffId,riak_dt_map).
-
-% update_Staff(StaffObject) ->
-%   Txn = antidote_lib:start_txn(),
-%   ok = antidote_lib:write_object(StaffObject,Txn),
-%   ok = antidote_lib:commit_txn(Txn).
-
-% read_Staff(StaffId) ->
-%   Txn = antidote_lib:start_txn(),
-%   StaffBucket = create_Staff_bucket(StaffId),
-%   Value = antidote_lib:read_object(StaffBucket,Txn),
-%   _CommitTime = antidote_lib:commit_txn(Txn),
-%   Value.
-
 -spec name(Staff::riak_dt_map:map()) -> string().
 name(Staff) ->
   case antidote_lib:findkey(Staff,name,riak_dt_lwwreg) of
