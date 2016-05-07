@@ -13,7 +13,7 @@
   ]).
 
 -spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string(), Type::nonempty_string()) -> riak_dt_map:map_op().
-new(Id,Name,Address,Speciality) ->
+new(Id,Name,Address,Type) ->
   IdOp = antidote_lib:build_map_op(id,riak_dt_gcounter,{increment,Id}),
   NameOp = antidote_lib:build_map_op(name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
   AddressOp = antidote_lib:build_map_op(address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
