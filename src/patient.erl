@@ -14,7 +14,7 @@
   events/1
   ]).
 
--spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> riak_dt_map:map_op().
+-spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> ?NESTED_MAP:map_op().
 new(Id,Name,Address) ->
   IdOp = antidote_lib:build_map_op(patient_id,riak_dt_gcounter,{increment,Id}),
   NameOp = antidote_lib:build_map_op(patient_name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
@@ -24,18 +24,26 @@ new(Id,Name,Address) ->
   PrescriptionMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
   TreatmentMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
   %% build top level map operations
-  EventsOp = antidote_lib:build_map_op(patient_events,riak_dt_map,EventMapOp),
-  PrescriptionsOp = antidote_lib:build_map_op(patient_prescriptions,riak_dt_map,PrescriptionMapOp),
-  TreatmentsOp = antidote_lib:build_map_op(patient_treatments,riak_dt_map,TreatmentMapOp),
+  EventsOp = antidote_lib:build_map_op(patient_events,?NESTED_MAP,EventMapOp),
+  PrescriptionsOp = antidote_lib:build_map_op(patient_prescriptions,?NESTED_MAP,PrescriptionMapOp),
+  TreatmentsOp = antidote_lib:build_map_op(patient_treatments,?NESTED_MAP,TreatmentMapOp),
   %% put everything in a big bulky map update and return it
-  antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]).
+  MapUpdate = antidote_lib:build_map_update([
+    IdOp
+    ,NameOp
+    ,AddressOp
+    ,EventsOp
+    ,TreatmentsOp
+    ,PrescriptionsOp
+  ]),
+  antidote_lib:build_map_op(Id,?NESTED_MAP,MapUpdate).
 
--spec update_patient(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
+-spec update_patient(Id::pos_integer(), PatientUpdate::?NESTED_MAP:map_op()) -> {ok,_Something}.
 update_patient(Id,PatientUpdate) ->
-  antidote_lib:put(Id,riak_dt_map,{PatientUpdate}).
+  antidote_lib:put(Id,?NESTED_MAP,PatientUpdate,fmk).
 
 % create_patient_bucket(PatientId) ->
-%   antidote_lib:create_bucket(PatientId,riak_dt_map).
+%   antidote_lib:create_bucket(PatientId,?NESTED_MAP).
 
 % update_patient(PatientObject) ->
 %   Txn = antidote_lib:start_txn(),
@@ -49,44 +57,44 @@ update_patient(Id,PatientUpdate) ->
 %   _CommitTime = antidote_lib:commit_txn(Txn),
 %   Value.
 
--spec name(Patient::riak_dt_map:map()) -> string().
+-spec name(Patient::?NESTED_MAP:map()) -> string().
 name(Patient) ->
   case lists:keyfind({patient_name,riak_dt_lwwreg},1,Patient) of
     false -> "";
     {{patient_name,riak_dt_lwwreg},Name} -> binary_to_list(Name)
   end.
 
--spec id(Patient::riak_dt_map:map()) -> pos_integer().
+-spec id(Patient::?NESTED_MAP:map()) -> pos_integer().
 id(Patient) ->
   case lists:keyfind({patient_id,riak_dt_gcounter},1,Patient) of
     false -> 0;
     {{patient_id,riak_dt_gcounter},Id} -> Id
   end.
 
--spec address(Patient::riak_dt_map:map()) -> string().
+-spec address(Patient::?NESTED_MAP:map()) -> string().
 address(Patient) ->
   case lists:keyfind({patient_address,riak_dt_lwwreg},1,Patient) of
     false -> "";
     {{patient_address,riak_dt_lwwreg},Address} -> binary_to_list(Address)
   end.
 
--spec treatments(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec treatments(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 treatments(Patient) ->
-  case lists:keyfind({patient_treatments,riak_dt_map},1,Patient) of
+  case lists:keyfind({patient_treatments,?NESTED_MAP},1,Patient) of
     false -> [];
-    {{patient_treatments,riak_dt_map},Treatments} -> Treatments
+    {{patient_treatments,?NESTED_MAP},Treatments} -> Treatments
   end.
 
--spec prescriptions(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec prescriptions(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 prescriptions(Patient) ->
-  case lists:keyfind({patient_prescriptions,riak_dt_map},1,Patient) of
+  case lists:keyfind({patient_prescriptions,?NESTED_MAP},1,Patient) of
     false -> [];
-    {{patient_prescriptions,riak_dt_map},Prescriptions} -> Prescriptions
+    {{patient_prescriptions,?NESTED_MAP},Prescriptions} -> Prescriptions
   end.
 
--spec events(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+-spec events(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 events(Patient) ->
-  case lists:keyfind({patient_events,riak_dt_map},1,Patient) of
+  case lists:keyfind({patient_events,?NESTED_MAP},1,Patient) of
     false -> [];
-    {{patient_events,riak_dt_map},Events} -> Events
+    {{patient_events,?NESTED_MAP},Events} -> Events
   end.

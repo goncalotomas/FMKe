@@ -22,8 +22,8 @@ antidote_ping_test() ->
 
 counter_test() ->
   ok = antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {increment,1}),
-  ok = antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {increment, 2}),
-  ok = antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {increment, 3}),
+  ok = antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {increment,2}),
+  ok = antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {increment,3}),
   ?assertEqual(6, antidote_lib:get(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE)),
   antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {decrement,1}),
   antidote_lib:put(?TEST_COUNTER_KEY,?TEST_COUNTER_TYPE, {decrement, 2}),
