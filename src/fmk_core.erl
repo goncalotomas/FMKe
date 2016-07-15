@@ -5,31 +5,33 @@
   get_patient/1,
   create_patient/3,
   update_patient/1,
-  get_patients/0
+  add_prescription/1
   ]).
 
 %% Finds a patient in the Antidote Key-Value store by Patient ID.
 -spec get_patient(Id::pos_integer()) -> riak_dt_map:map().
 get_patient(Id) ->
-  Patients = antidote_lib:get(?FMK_PATIENTS,?MAP),
-  case Patients of
-    [] -> no_patients;
-    ListPatients -> 
-      case antidote_lib:find_key(ListPatients,Id,?NESTED_MAP) of
-        not_found -> {error,not_found};
-        Patient -> Patient
-      end
+  Patient = antidote_lib:get(concatenate_patient_id(Id),?MAP),
+  case Patient of
+    [] -> {error,not_found};
+    PatientMap -> PatientMap
   end.
   
-
 create_patient(Id,Name,Address) ->
+  %%TODO create name->id index in Antidote
   Patient = patient:new(Id,Name,Address),
-  ok = antidote_lib:put(?FMK_PATIENTS,?MAP,Patient,fmk).
+  PatientKey = concatenate_patient_id(Id),
+  ok = antidote_lib:put(PatientKey,?MAP,Patient,fmk).
 
 update_patient(PatientObject) ->
   Txn = antidote_lib:start_txn(),
   ok = antidote_lib:write_object(PatientObject,Txn),
   ok = antidote_lib:commit_txn(Txn).
 
-get_patients() ->
-  antidote_lib:get(?FMK_PATIENTS,?MAP).
+add_prescription(PatientId) ->
+  Patient = get_patient(PatientId),
+  PatientId = antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT).
+  %% TODO complete
+
+concatenate_patient_id(Id) ->
+  list_to_atom(lists:flatten(io_lib:format("patient~p", [Id]))).

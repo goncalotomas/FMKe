@@ -13,15 +13,20 @@
   create_bucket/2,
   get/2,
   put/3,
-  put/4,
-  txn_start/0,
-  txn_start/1,
-  txn_read_object/2,
-  txn_read_objects/2,
-  txn_update_map/4,
-  txn_update_object/2,
-  txn_update_objects/2,
-  txn_commit/1
+  put/4
+  ]).
+
+%% This export is internally used by the put and get functions. These functions are exported in order
+%% to provide finer-grained transactional support.
+-export ([
+    txn_start/0,
+    txn_start/1,
+    txn_read_object/2,
+    txn_read_objects/2,
+    txn_update_map/4,
+    txn_update_object/2,
+    txn_update_objects/2,
+    txn_commit/1
   ]).
 
 %% These are utility functions, most of them related to updating maps, which can be nested and
@@ -120,7 +125,6 @@ put(Key,Type,UpdateOp) ->
 put(Key,Type,UpdateOp,Actor) ->
   TxnDetails = txn_start(),
   Bucket = create_bucket(Key,Type),
-  io:format("~p", [[UpdateOp]]),
   ok = txn_update_map(Bucket,[UpdateOp],TxnDetails,Actor),
   ok = txn_commit(TxnDetails).
 
