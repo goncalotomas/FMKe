@@ -7,7 +7,7 @@
 -define (MAP, antidote_crdt_map).
 -define (NESTED_MAP, riak_dt_map).
 -define (MVREG, riak_dt_mvreg).
--define (ORSET, riak_dt_orset).
+-define (ORSET, antidote_crdt_orset).
 -define (RGA, riak_dt_rga).
 
 %% Patient macros
@@ -24,7 +24,18 @@
 -define (PATIENT_EVENTS, patient_events).
 -define (PATIENT_EVENTS_CRDT, riak_dt_map).
 
+%% Pharmacy macros
+-define (PHARMACY_ID, pharmacy_id).
+-define (PHARMACY_ID_CRDT, riak_dt_gcounter).
+-define (PHARMACY_NAME, pharmacy_name).
+-define (PHARMACY_NAME_CRDT, riak_dt_lwwreg).
+-define (PHARMACY_ADDRESS, patient_address).
+-define (PHARMACY_ADDRESS_CRDT, riak_dt_lwwreg).
+-define (PHARMACY_PRESCRIPTIONS, patient_prescriptions).
+-define (PHARMACY_PRESCRIPTIONS_CRDT, riak_dt_map).
+
 %% FMK macros
+-define (FMK_PATIENT_NAME_INDEX, <<"patient_name_index">>).
 -define (FMK_PATIENTS, fmk_patients).
 -define (FMK_PRESCRIPTIONS, fmk_prescriptions).
 -define (FMK_TREATMENT_FACILITIES, fmk_facilities).

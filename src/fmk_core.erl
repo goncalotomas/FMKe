@@ -19,10 +19,16 @@ get_patient(Id) ->
   
 create_patient(Id,Name,Address) ->
   %%TODO create name->id index in Antidote
-  Patient = patient:new(Id,Name,Address),
-  PatientKey = concatenate_patient_id(Id),
-  ok = antidote_lib:put(PatientKey,?MAP,Patient,fmk).
-
+  case get_patient(Id) of
+    {error,not_found} ->
+      Patient = patient:new(Id,Name,Address),
+      PatientKey = concatenate_patient_id(Id),
+      ok = index_patient(Id,Name),
+      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,fmk);
+    _Patient ->
+      {error, patient_id_taken}
+  end.
+  
 update_patient(PatientObject) ->
   Txn = antidote_lib:start_txn(),
   ok = antidote_lib:write_object(PatientObject,Txn),
@@ -33,5 +39,9 @@ add_prescription(PatientId) ->
   PatientId = antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT).
   %% TODO complete
 
+index_patient(Id,Name) ->
+  AddOperation = {list_to_binary(Name),concatenate_patient_id(Id)},
+  ok = antidote_lib:put(?FMK_PATIENT_NAME_INDEX,?ORSET,add,AddOperation).
+
 concatenate_patient_id(Id) ->
-  list_to_atom(lists:flatten(io_lib:format("patient~p", [Id]))).
+  list_to_binary(lists:flatten(io_lib:format("patient~p", [Id]))).

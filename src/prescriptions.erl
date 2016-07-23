@@ -1,30 +1,32 @@
 -module (prescriptions).
+-include("fmk.hrl").
 
 % %% Functions to handle single Facility objects
-% -export ([
-%   new/4,
+-export ([
+  new/5
 %   update/2,
 %   name/1,
 %   id/1,
 %   address/1,
 %   type/1,
 %   prescriptions/1
-%   ]).
+  ]).
 
-% -spec new(Id::pos_integer(), Patient::riak_dt_map:map(), Prescriber::riak_dt_map:map(),
-%   DatePrescribed::pos_integer(),Drugs::list()) -> riak_dt_map:map_op().
-% new(Id,Patient,Prescriber,DatePrescribed,Drugs) ->
-%   IdOp = antidote_lib:build_map_op(id,riak_dt_gcounter,{increment,Id}),
-%   NameOp = antidote_lib:build_map_op(name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
-%   AddressOp = antidote_lib:build_map_op(address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
-%   TypeOp = antidote_lib:build_map_op(type,riak_dt_lwwreg,{assign, list_to_binary(Type)}),
-%   %% build nested map operations
-%   PrescriptionsMapOp = antidote_lib:build_map_update(
-%     [antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
-%   %% build top level map operations
-%   PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionsMapOp),
-%   %% put everything in a big bulky map update and return it
-%   antidote_lib:build_map_update([IdOp,NameOp,AddressOp,TypeOp,PrescriptionsOp]).
+-spec new(_Id::pos_integer(), _Patient::riak_dt_map:map(), _Prescriber::riak_dt_map:map(),
+  _DatePrescribed::pos_integer(),_Drugs::list()) -> riak_dt_map:map_op().
+new(_Id,_Patient,_Prescriber,_DatePrescribed,_Drugs) ->
+  % IdOp = antidote_lib:build_map_op(id,riak_dt_gcounter,{increment,Id}),
+  % NameOp = antidote_lib:build_map_op(name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
+  % AddressOp = antidote_lib:build_map_op(address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
+  % TypeOp = antidote_lib:build_map_op(type,riak_dt_lwwreg,{assign, list_to_binary(Type)}),
+  % %% build nested map operations
+  % PrescriptionsMapOp = antidote_lib:build_map_update(
+  %   [antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
+  % %% build top level map operations
+  % PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionsMapOp),
+  % %% put everything in a big bulky map update and return it
+  % antidote_lib:build_map_update([IdOp,NameOp,AddressOp,TypeOp,PrescriptionsOp]).
+  ok.
 
 % -spec update(Id::pos_integer(), FacilityUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
 % update(Id,FacilityUpdate) ->

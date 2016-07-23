@@ -14,11 +14,12 @@
   events/1
   ]).
 
+%% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
 -spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> ?NESTED_MAP:map_op().
 new(Id,Name,Address) ->
-  IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,{increment,Id}),
-  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,{assign, list_to_binary(Name)}),
-  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,{assign, list_to_binary(Address)}),
+  IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(Id)),
+  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
+  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
   %% build nested map operations
   EventMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_events,riak_dt_pncounter,{increment,0})]),
   PrescriptionMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
@@ -38,63 +39,54 @@ new(Id,Name,Address) ->
   ]),
   antidote_lib:build_map_op(Id,?NESTED_MAP,MapUpdate).
 
--spec update_patient(Id::pos_integer(), PatientUpdate::?NESTED_MAP:map_op()) -> {ok,_Something}.
-update_patient(Id,PatientUpdate) ->
+-spec update(Id::pos_integer(), PatientUpdate::?NESTED_MAP:map_op()) -> {ok,_Something}.
+update(Id,PatientUpdate) ->
   antidote_lib:put(Id,?NESTED_MAP,PatientUpdate,fmk).
 
-% create_patient_bucket(PatientId) ->
-%   antidote_lib:create_bucket(PatientId,?NESTED_MAP).
-
-% update_patient(PatientObject) ->
-%   Txn = antidote_lib:start_txn(),
-%   ok = antidote_lib:write_object(PatientObject,Txn),
-%   ok = antidote_lib:commit_txn(Txn).
-
-% read_patient(PatientId) ->
-%   Txn = antidote_lib:start_txn(),
-%   PatientBucket = create_patient_bucket(PatientId),
-%   Value = antidote_lib:read_object(PatientBucket,Txn),
-%   _CommitTime = antidote_lib:commit_txn(Txn),
-%   Value.
-
+%% Returns the patient name as a list from a patient object
 -spec name(Patient::?NESTED_MAP:map()) -> string().
 name(Patient) ->
-  case lists:keyfind({?PATIENT_NAME,?PATIENT_NAME_CRDT},1,Patient) of
-    false -> "";
-    {{?PATIENT_NAME,?PATIENT_NAME_CRDT},Name} -> binary_to_list(Name)
+  case antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT) of
+    not_found -> {error,not_found};
+    Name -> binary_to_list(Name)
   end.
 
+%% Returns the patient id as an integer from a patient object
 -spec id(Patient::?NESTED_MAP:map()) -> pos_integer().
 id(Patient) ->
-  case lists:keyfind({?PATIENT_ID,?PATIENT_ID_CRDT},1,Patient) of
-    false -> 0;
-    {{?PATIENT_ID,?PATIENT_ID_CRDT},Id} -> Id
+  case antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT) of
+    not_found -> {error,not_found};
+    Id -> Id
   end.
 
+%% Returns the patient address as a list from a patient object
 -spec address(Patient::?NESTED_MAP:map()) -> string().
 address(Patient) ->
-  case lists:keyfind({?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT},1,Patient) of
-    false -> "";
-    {{?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT},Address} -> binary_to_list(Address)
+  case antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT) of
+    not_found -> "";
+    Address -> binary_to_list(Address)
   end.
 
+%% Returns the patient treatments as a Riak map from a patient object
 -spec treatments(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 treatments(Patient) ->
-  case lists:keyfind({?PATIENT_TREATMENTS,?NESTED_MAP},1,Patient) of
-    false -> [];
-    {{?PATIENT_TREATMENTS,?NESTED_MAP},Treatments} -> Treatments
+  case antidote_lib:find_key(Patient,?PATIENT_TREATMENTS,?NESTED_MAP) of
+    not_found -> [];
+    Treatments -> Treatments
   end.
 
+%% Returns the patient prescriptions as a Riak map from a patient object
 -spec prescriptions(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 prescriptions(Patient) ->
-  case lists:keyfind({?PATIENT_PRESCRIPTIONS,?NESTED_MAP},1,Patient) of
-    false -> [];
-    {{?PATIENT_PRESCRIPTIONS,?NESTED_MAP},Prescriptions} -> Prescriptions
+  case antidote_lib:find_key(Patient,?PATIENT_PRESCRIPTIONS,?NESTED_MAP) of
+    not_found -> [];
+    Prescriptions -> Prescriptions
   end.
 
+%% Returns the patient events as a Riak map from a patient object
 -spec events(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 events(Patient) ->
-  case lists:keyfind({?PATIENT_EVENTS,?NESTED_MAP},1,Patient) of
-    false -> [];
-    {{?PATIENT_EVENTS,?NESTED_MAP},Events} -> Events
+  case antidote_lib:find_key(Patient,?PATIENT_EVENTS,?NESTED_MAP) of
+    not_found -> [];
+    Events -> Events
   end.

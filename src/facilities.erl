@@ -1,5 +1,5 @@
 -module(facilities).
-
+-include("fmk.hrl").
 
 %% Functions to handle single Facility objects
 -export ([
@@ -36,6 +36,13 @@ name(Facility) ->
     Name -> binary_to_list(Name)
   end.
 
+-spec type(Facility::riak_dt_map:map()) -> string().
+type(Facility) ->
+  case antidote_lib:findkey(Facility,type,riak_dt_lwwreg) of
+    not_found -> "";
+    Type -> binary_to_list(Type)
+  end.
+
 -spec id(Facility::riak_dt_map:map()) -> pos_integer().
 id(Facility) ->
   case antidote_lib:findkey(Facility,id,riak_dt_gcounter) of
@@ -48,13 +55,6 @@ address(Facility) ->
   case antidote_lib:findkey(Facility,address,riak_dt_lwwreg) of
     not_found -> "";
     Address -> binary_to_list(Address)
-  end.
-
--spec type(Facility::riak_dt_map:map()) -> string().
-speciality(Facility) ->
-  case antidote_lib:findkey(Facility,type,riak_dt_lwwreg) of
-    not_found -> "";
-    Type -> binary_to_list(Type)
   end.
 
 -spec prescriptions(Facility::riak_dt_map:map()) -> riak_dt_map:map().

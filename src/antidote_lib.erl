@@ -4,6 +4,7 @@
 %% If you want to use this module in your application, you need an Erlang Header file (.hrl)
 %% with the following macros:
 %% ANTIDOTE: Node where Antidote is running. Usually 'antidote@127.0.0.1'
+%% TODO add operations to increment/decrement counters
 -module(antidote_lib).
 -include("fmk.hrl").
 
@@ -12,8 +13,8 @@
 -export ([
   create_bucket/2,
   get/2,
-  put/3,
-  put/4
+  put/4,
+  put/5
   ]).
 
 %% This export is internally used by the put and get functions. These functions are exported in order
@@ -23,7 +24,7 @@
     txn_start/1,
     txn_read_object/2,
     txn_read_objects/2,
-    txn_update_map/4,
+    txn_update_map/5,
     txn_update_object/2,
     txn_update_objects/2,
     txn_commit/1
@@ -34,7 +35,10 @@
 -export ([
   build_map_update/1,
   build_map_op/3,
-  find_key/3
+  find_key/3,
+  counter_increment/1,
+  counter_decrement/1,
+  lwwreg_assign/1
   ]).
 
 %% Old API exports, these functions should only be used for benchmarking
@@ -42,8 +46,6 @@
   write_to_antidote/3,
   read_from_antidote/2
   ]).
-
-
 
 %% ------------------------------------------------------------------------------------------------
 %% Antidote's transaction API wrapper - Use when you need fine grain control over transactions
@@ -78,18 +80,13 @@ txn_commit(TxnDetails) ->
 %% Helper functions to assist in map updates
 %% ------------------------------------------------------------------------------------------------
 build_map_update(OpList) ->
-  %[{update,{key,riak_dt_lwwreg},{assign, <<"A">>}},{update,{val,riak_dt_pncounter},{increment,4}}].
   {update, OpList}.
 
 build_map_op(Key,Type,Op) ->
   {update, {Key,Type}, Op}.
 
-txn_update_map(Bucket,ListOps,TxnDetails,Actor)->
-  txn_update_object({Bucket,update,{ListOps,Actor}},TxnDetails).
-
-% build_map_update(Key,KeyType,KeyUpdate,ValueType,ValueUpdate)
-%   ->
-%   [{update,{Key,KeyType},KeyUpdate},{update,{val,ValueType},ValueUpdate}].
+txn_update_map(Bucket,Op,ListOps,TxnDetails,Actor)->
+  txn_update_object({Bucket,Op,{ListOps,Actor}},TxnDetails).
 
 %% Searches for a Value within a map that is associated with a specific key.
 %% All riak_dt_map entries are of type {{key_name,key_type},Value}. Having this function avoids repeating
@@ -116,16 +113,16 @@ get(Key,Type) ->
     Value -> Value
   end.
 
-put(Key,Type,UpdateOp) ->
+put(Key,Type,Op,Param) ->
   TxnDetails = txn_start(),
   Bucket = create_bucket(Key,Type),
-  ok = txn_update_object({Bucket,UpdateOp},TxnDetails),
+  ok = txn_update_object({Bucket,Op,Param},TxnDetails),
   ok = txn_commit(TxnDetails).
 
-put(Key,Type,UpdateOp,Actor) ->
+put(Key,Type,Op,Param,Actor) ->
   TxnDetails = txn_start(),
   Bucket = create_bucket(Key,Type),
-  ok = txn_update_map(Bucket,[UpdateOp],TxnDetails,Actor),
+  ok = txn_update_map(Bucket,Op,[Param],TxnDetails,Actor),
   ok = txn_commit(TxnDetails).
 
 %% ------------------------------------------------------------------------------------------------
@@ -136,3 +133,15 @@ write_to_antidote(Key,Type,Params) ->
 
 read_from_antidote(Key,Type) ->
   rpc:call(?ANTIDOTE,antidote,read,[Key,Type]).
+
+%% ------------------------------------------------------------------------------------------------
+%% CRDT operations: because CRDT interfaces may change over time...?
+%% ------------------------------------------------------------------------------------------------
+counter_increment(Amount) ->
+  {increment,Amount}.
+
+counter_decrement(Amount) ->
+  {decrement,Amount}.
+
+lwwreg_assign(Value) ->
+  {assign,Value}.
