@@ -122,7 +122,7 @@ put(Key,Type,Op,Param) ->
 put(Key,Type,Op,Param,Actor) ->
   TxnDetails = txn_start(),
   Bucket = create_bucket(Key,Type),
-  ok = txn_update_map(Bucket,Op,[Param],TxnDetails,Actor),
+  ok = txn_update_map(Bucket,Op,Param,TxnDetails,Actor),
   ok = txn_commit(TxnDetails).
 
 %% ------------------------------------------------------------------------------------------------

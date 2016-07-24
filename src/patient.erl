@@ -5,7 +5,7 @@
 %% Functions to handle single patient objects
 -export ([
   new/3,
-  update/2,
+  update_personal_details/2,
   name/1,
   id/1,
   address/1,
@@ -15,7 +15,6 @@
   ]).
 
 %% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
--spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> ?NESTED_MAP:map_op().
 new(Id,Name,Address) ->
   IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(Id)),
   NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
@@ -29,19 +28,19 @@ new(Id,Name,Address) ->
   PrescriptionsOp = antidote_lib:build_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PrescriptionMapOp),
   TreatmentsOp = antidote_lib:build_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,TreatmentMapOp),
   %% put everything in a big bulky map update and return it
-  MapUpdate = antidote_lib:build_map_update([
+  [
     IdOp
     ,NameOp
     ,AddressOp
     ,EventsOp
     ,TreatmentsOp
     ,PrescriptionsOp
-  ]),
-  antidote_lib:build_map_op(Id,?NESTED_MAP,MapUpdate).
+  ].
 
--spec update(Id::pos_integer(), PatientUpdate::?NESTED_MAP:map_op()) -> {ok,_Something}.
-update(Id,PatientUpdate) ->
-  antidote_lib:put(Id,?NESTED_MAP,PatientUpdate,fmk).
+update_personal_details(Name,Address) ->
+  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
+  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+  [NameOp,AddressOp].
 
 %% Returns the patient name as a list from a patient object
 -spec name(Patient::?NESTED_MAP:map()) -> string().
