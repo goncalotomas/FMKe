@@ -1,4 +1,4 @@
--module(facilities).
+-module(facility).
 -include("fmk.hrl").
 
 %% Functions to handle single Facility objects
@@ -23,7 +23,7 @@ new(Id,Name,Address,Type) ->
   %% build top level map operations
   PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionsMapOp),
   %% put everything in a big bulky map update and return it
-  antidote_lib:build_map_update([IdOp,NameOp,AddressOp,TypeOp,PrescriptionsOp]).
+  [IdOp,NameOp,AddressOp,TypeOp,PrescriptionsOp].
 
 -spec update(Id::pos_integer(), FacilityUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
 update(Id,FacilityUpdate) ->

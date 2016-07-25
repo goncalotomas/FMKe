@@ -35,6 +35,8 @@
 -define (PHARMACY_PRESCRIPTIONS_CRDT, riak_dt_map).
 
 %% FMK macros
+-define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
+-define (FMK_PHARMACY_NAME_INDEX, <<"pharmacy_name_index">>).
 -define (FMK_PATIENT_NAME_INDEX, <<"patient_name_index">>).
 -define (FMK_PATIENTS, fmk_patients).
 -define (FMK_PRESCRIPTIONS, fmk_prescriptions).
