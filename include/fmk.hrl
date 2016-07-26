@@ -48,6 +48,20 @@
 -define (STAFF_TREATMENTS, staff_treatments).
 -define (STAFF_TREATMENTS_CRDT, riak_dt_map).
 
+%% Facility macros
+-define (FACILITY_ID, facility_id).
+-define (FACILITY_ID_CRDT, riak_dt_gcounter).
+-define (FACILITY_NAME, facility_name).
+-define (FACILITY_NAME_CRDT, riak_dt_lwwreg).
+-define (FACILITY_ADDRESS, facility_address).
+-define (FACILITY_ADDRESS_CRDT, riak_dt_lwwreg).
+-define (FACILITY_TYPE, facility_type).
+-define (FACILITY_TYPE_CRDT, riak_dt_lwwreg).
+-define (FACILITY_PRESCRIPTIONS, facility_prescriptions).
+-define (FACILITY_PRESCRIPTIONS_CRDT, riak_dt_map).
+-define (FACILITY_TREATMENTS, facility_treatments).
+-define (FACILITY_TREATMENTS_CRDT, riak_dt_map).
+
 %% FMK macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
 -define (FMK_PHARMACY_NAME_INDEX, <<"pharmacy_name_index">>).

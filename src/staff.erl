@@ -32,9 +32,9 @@ new(Id,Name,Address,Speciality) ->
 
 %% Update operation: updates only the staff member's personal details, including prescriptions and treatments
 update_personal_details(Name,Address,Speciality) ->
-  NameOp = antidote_lib:build_map_op(name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
-  AddressOp = antidote_lib:build_map_op(address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
-  SpecialityOp = antidote_lib:build_map_op(speciality,riak_dt_lwwreg,{assign, list_to_binary(Speciality)}),
+  NameOp = antidote_lib:build_map_op(?STAFF_NAME,?STAFF_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
+  AddressOp = antidote_lib:build_map_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+  SpecialityOp = antidote_lib:build_map_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Speciality))),
   [NameOp,AddressOp,SpecialityOp].
 
 %% Returns the name in the form of a list from a staff member object.

@@ -19,23 +19,7 @@ new(Id,Name,Address) ->
   IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(Id)),
   NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
   AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
-  %% build nested map operations
-  EventMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_events,riak_dt_pncounter,{increment,0})]),
-  PrescriptionMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
-  TreatmentMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
-  %% build top level map operations
-  EventsOp = antidote_lib:build_map_op(?PATIENT_EVENTS,?NESTED_MAP,EventMapOp),
-  PrescriptionsOp = antidote_lib:build_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PrescriptionMapOp),
-  TreatmentsOp = antidote_lib:build_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,TreatmentMapOp),
-  %% put everything in a big bulky map update and return it
-  [
-    IdOp
-    ,NameOp
-    ,AddressOp
-    ,EventsOp
-    ,TreatmentsOp
-    ,PrescriptionsOp
-  ].
+  [IdOp,NameOp,AddressOp].
 
 update_personal_details(Name,Address) ->
   NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
