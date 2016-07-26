@@ -40,7 +40,7 @@ update_personal_details(Name,Address,Speciality) ->
 %% Returns the name in the form of a list from a staff member object.
 -spec name(Staff::riak_dt_map:map()) -> string().
 name(Staff) ->
-  case antidote_lib:find_key(Staff,name,riak_dt_lwwreg) of
+  case antidote_lib:find_key(Staff,?STAFF_NAME,?STAFF_NAME_CRDT) of
     not_found -> "";
     Name -> binary_to_list(Name)
   end.
@@ -48,7 +48,7 @@ name(Staff) ->
 %% Returns the id in the form of an integer from a staff member object.
 -spec id(Staff::riak_dt_map:map()) -> pos_integer().
 id(Staff) ->
-  case antidote_lib:find_key(Staff,id,riak_dt_gcounter) of
+  case antidote_lib:find_key(Staff,?STAFF_ID,?STAFF_ID_CRDT) of
     not_found -> 0;
     Id -> Id
   end.
@@ -56,7 +56,7 @@ id(Staff) ->
 %% Returns the address in the form of a list from a staff member object.
 -spec address(Staff::riak_dt_map:map()) -> string().
 address(Staff) ->
-  case antidote_lib:find_key(Staff,address,riak_dt_lwwreg) of
+  case antidote_lib:find_key(Staff,?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT) of
     not_found -> "";
     Address -> binary_to_list(Address)
   end.
@@ -64,7 +64,7 @@ address(Staff) ->
 %% Returns the members' speciality as a Riak map from a staff member object
 -spec speciality(Staff::riak_dt_map:map()) -> string().
 speciality(Staff) ->
-  case antidote_lib:find_key(Staff,speciality,riak_dt_lwwreg) of
+  case antidote_lib:find_key(Staff,?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT) of
     not_found -> "";
     Speciality -> binary_to_list(Speciality)
   end.
@@ -72,7 +72,7 @@ speciality(Staff) ->
 %% Returns the treatments as a Riak map from a staff member object
 -spec treatments(Staff::riak_dt_map:map()) -> riak_dt_map:map().
 treatments(Staff) ->
-  case antidote_lib:find_key(Staff,treatments,riak_dt_map) of
+  case antidote_lib:find_key(Staff,?STAFF_TREATMENTS,?NESTED_MAP) of
     not_found -> [];
     Treatments -> Treatments
   end.
@@ -80,7 +80,7 @@ treatments(Staff) ->
 %% Returns the prescriptions as a Riak map from a staff member object
 -spec prescriptions(Staff::riak_dt_map:map()) -> riak_dt_map:map().
 prescriptions(Staff) ->
-  case antidote_lib:find_key(Staff,prescriptions,riak_dt_map) of
+  case antidote_lib:find_key(Staff,?STAFF_PRESCRIPTIONS,?NESTED_MAP) of
     not_found -> [];
     Prescriptions -> Prescriptions
   end.
