@@ -1,6 +1,7 @@
 -module (fmk_index).
 -include("fmk.hrl").
 
+%% Useful functions for this module
 -export ([
     get_patient_name_index/0,
     get_pharmacy_name_index/0,
@@ -8,6 +9,10 @@
     get_staff_name_index/0,
     is_indexed/2,
     search_index/2,
+  ]).
+
+%% Function exports needed for other modules
+-export ([
     index_patient/2,
     index_pharmacy/2,
     index_facility/2,

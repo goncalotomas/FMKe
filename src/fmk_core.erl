@@ -13,6 +13,7 @@
   update_patient_details/3,
   update_pharmacy_details/3,
   update_facility_details/4,
+  update_staff_details/4,
   %update_pharmacy/3,
   %update_facility/3,
   add_prescription/1
@@ -153,6 +154,25 @@ update_facility_details(Id,Name,Address,Type) ->
           ok;
         false ->
           ok = fmk_index:reindex_facility(Id,FacilityName,Name)
+      end
+  end.
+
+update_staff_details(Id,Name,Address,Speciality) ->
+  case get_staff(Id) of
+    {error,not_found} ->
+      {error,no_such_staff_member};
+    Staff ->
+      %% Patient already exists, prepare update operation and check if
+      %% we need to re-index him/her.
+      StaffKey = binary_pharmacy_key(Id),
+      StaffName = staff:name(Staff),
+      StaffUpdate = staff:update_personal_details(Name,Address,Speciality),
+      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,fmk),
+      case string:equal(StaffName,Name) of
+        true ->
+          ok;
+        false ->
+          ok = fmk_index:reindex_staff(Id,StaffName,Name)
       end
   end.
 
