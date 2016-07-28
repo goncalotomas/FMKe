@@ -145,3 +145,9 @@ counter_decrement(Amount) ->
 
 lwwreg_assign(Value) ->
   {assign,Value}.
+
+set_add_elements(List) ->
+  {add, List}.
+
+set_remove_elements(List) ->
+  {remove, List}.
