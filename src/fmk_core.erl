@@ -14,9 +14,12 @@
   update_pharmacy_details/3,
   update_facility_details/4,
   update_staff_details/4,
-  %update_pharmacy/3,
-  %update_facility/3,
-  add_prescription/1
+  add_prescription/5,
+  add_treatment/5,
+  add_event/5,
+  update_prescription_details/5,
+  update_treatment_details/5,
+  update_event_details/5
   ]).
 
 %% Export needed for other modules
@@ -176,10 +179,46 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
-add_prescription(PatientId) ->
-  Patient = get_patient(PatientId),
-  PatientId = antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT).
-  %% TODO complete
+add_prescription(PrescriptionId, PatientName, PrescriberName, DatePrescribed, Drugs) ->
+  PatientNameIndex = fmk_index:get_patient_name_index(),
+  case fmk_index:is_indexed(PatientName,PatientNameIndex) of
+    false -> {error, no_such_patient};
+    true ->
+      %% Patient is indexed, still need to check the prescriber
+      StaffNameIndex = fmk_index:get_staff_name_index(),
+      case fmk_index:is_indexed(PrescriberName,StaffNameIndex) of
+        false -> {error, no_such_staff_member};
+        true ->
+          %% Both the patient and the prescriber are indexed, the transaction can take place
+          %% TODO fetch update operation for prescriber
+          %% TODO fetch update operation for patient
+          %% TODO fetch update operation for prescriptions
+          %% TODO fetch update operation for pharmacies
+          %% update everything in a single transaction and commit
+          Txn = antidote_lib:start_txn(),
+          ok = txn_commit(Txn).
+      end      
+  end.
+
+  add_treatment(_1,_2,_3,_4,_5) ->
+    %% TODO!
+    ok.
+
+  add_event(_1,_2,_3,_4,_5) ->
+    %% TODO!
+    ok.
+
+  update_prescription_details(_1,_2,_3,_4,_5) ->
+    %% TODO!
+    ok.
+
+  update_treatment_details(_1,_2,_3,_4,_5) ->
+    %% TODO!
+    ok.
+    
+  update_event_details(_1,_2,_3,_4,_5) ->
+    %% TODO!
+    ok.
 
 binary_patient_key(Id) ->
   list_to_binary(concatenate_patient_id(Id)).
