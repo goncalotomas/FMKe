@@ -1,7 +1,7 @@
 -module (prescription).
 -include("fmk.hrl").
 
-% %% Functions to handle single Facility objects
+%% Functions to handle single Facility objects
 -export ([
     id/1,
     new/7,
@@ -9,6 +9,7 @@
     patient/1,
     drugs/1,
     process/1,
+    is_processed/1,
     date_prescribed/1,
     date_processed/1,
     add_drugs/1,
@@ -61,6 +62,13 @@ drugs(Prescription) ->
   case antidote_lib:find_key(Prescription,?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT) of
     not_found -> [];
     Drugs -> Drugs
+  end.
+
+is_processed(Prescription) ->
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT) of
+    not_found -> unknown;
+    <<"0">> -> no;
+    <<"1">> -> yes
   end.
 
 process(CurrentDate) ->
