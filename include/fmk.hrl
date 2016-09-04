@@ -102,6 +102,14 @@
 -define (FACILITY_TREATMENTS, <<"facility_treatments">>).
 -define (FACILITY_TREATMENTS_CRDT, riak_dt_map).
 
+%% Event macros
+-define (EVENT_ID, <<"event_id">>).
+-define (EVENT_ID_CRDT, riak_dt_gcounter).
+-define (EVENT_DESCRIPTION, <<"event_description">>).
+-define (EVENT_DESCRIPTION_CRDT, riak_dt_lwwreg).
+-define (EVENT_TIMESTAMP, <<"event_timestamp">>).
+-define (EVENT_TIMESTAMP_CRDT, riak_dt_lwwreg).
+
 %% FMK Index macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
 -define (FMK_PHARMACY_NAME_INDEX, <<"pharmacy_name_index">>).
