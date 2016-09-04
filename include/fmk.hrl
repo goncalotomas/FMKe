@@ -54,6 +54,26 @@
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, riak_dt_orset).
 
+%% Treatment macros
+-define (TREATMENT_ID, <<"treatment_id">>).
+-define (TREATMENT_ID_CRDT, riak_dt_gcounter).
+-define (TREATMENT_PATIENT_NAME, <<"treatment_patient_name">>).
+-define (TREATMENT_PATIENT_NAME_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_PRESCRIBER_NAME, <<"treatment_prescriber_name">>).
+-define (TREATMENT_PRESCRIBER_NAME_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_FACILITY_NAME, <<"treatment_facility_name">>).
+-define (TREATMENT_FACILITY_NAME_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_DATE_PRESCRIBED, <<"treatment_date_prescribed">>).
+-define (TREATMENT_DATE_PRESCRIBED_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_HAS_ENDED, <<"treatment_has_ended">>).
+-define (TREATMENT_HAS_ENDED_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_DATE_ENDED, <<"treatment_date_ended">>).
+-define (TREATMENT_DATE_ENDED_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_PRESCRIPTIONS, <<"treatment_prescriptions">>).
+-define (TREATMENT_PRESCRIPTIONS_CRDT, riak_dt_map).
+-define (TREATMENT_EVENTS, <<"treatment_events">>).
+-define (TREATMENT_EVENTS_CRDT, riak_dt_map).
+
 %% Medical Staff macros
 -define (STAFF_ID, <<"staff_id">>).
 -define (STAFF_ID_CRDT, riak_dt_gcounter).
