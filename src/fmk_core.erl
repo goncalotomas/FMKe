@@ -1,6 +1,9 @@
 -module(fmk_core).
 -include("fmk.hrl").
 
+%%-----------------------------------------------------------------------------
+%% Public API for FMK Core
+%%-----------------------------------------------------------------------------
 -export([
   create_patient/3,
   create_pharmacy/3,
@@ -22,7 +25,7 @@
   update_event_details/5
   ]).
 
-%% Export needed for other modules
+%% Exports needed for other modules
 -export ([
     concatenate_patient_id/1,
     concatenate_pharmacy_id/1,
@@ -30,6 +33,10 @@
     concatenate_staff_id/1
   ]).
 
+%% Adds a patient to the FMK system, needing only an ID, Name and Address.
+%% A check is done to determine if a patient with the given ID already exists,
+%% and if so the operation fails. If there isn't any indexed patient, he/she
+%% will be added to the system and indexed by both Name and ID.
 create_patient(Id,Name,Address) ->
   case get_patient(Id) of
     {error,not_found} ->
@@ -41,6 +48,9 @@ create_patient(Id,Name,Address) ->
       {error, patient_id_taken}
   end.
 
+%% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
+%% been seen. If the operation succeeds, the pharmacy will be indexed by both
+%% Name and ID.
 create_pharmacy(Id,Name,Address) ->
   case get_pharmacy(Id) of
     {error,not_found} ->
@@ -179,24 +189,26 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
-add_prescription(PrescriptionId, PatientName, PrescriberName, DatePrescribed, Drugs) ->
+add_prescription(_PrescriptionId, PatientName, PrescriberName, _DatePrescribed, _Drugs) ->
   PatientNameIndex = fmk_index:get_patient_name_index(),
   case fmk_index:is_indexed(PatientName,PatientNameIndex) of
     false -> {error, no_such_patient};
     true ->
       %% Patient is indexed, still need to check the prescriber
       StaffNameIndex = fmk_index:get_staff_name_index(),
+      PatientNameIndex = fmk_index:get_patient_name_index(),
       case fmk_index:is_indexed(PrescriberName,StaffNameIndex) of
         false -> {error, no_such_staff_member};
         true ->
           %% Both the patient and the prescriber are indexed, the transaction can take place
+
           %% TODO fetch update operation for prescriber
           %% TODO fetch update operation for patient
           %% TODO fetch update operation for prescriptions
           %% TODO fetch update operation for pharmacies
           %% update everything in a single transaction and commit
           Txn = antidote_lib:start_txn(),
-          ok = txn_commit(Txn).
+          ok = antidote_lib:txn_commit(Txn)
       end      
   end.
 
