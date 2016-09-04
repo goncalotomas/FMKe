@@ -1,7 +1,7 @@
 -define(ANTIDOTE, 'antidote@127.0.0.1').
 %% Useful shortcut macros
 -define (BCOUNTER, riak_dt_bcounter).
--define (COUNTER, riak_dt__counter).
+-define (GCOUNTER, riak_dt_gcounter).
 -define (GSET, riak_dt_gset).
 -define (LWWREG, riak_dt_lwwreg).
 -define (MAP, antidote_crdt_map).
