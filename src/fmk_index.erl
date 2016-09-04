@@ -8,7 +8,7 @@
     get_facility_name_index/0,
     get_staff_name_index/0,
     is_indexed/2,
-    search_index/2,
+    search_index/2
   ]).
 
 %% Function exports needed for other modules
@@ -42,15 +42,8 @@ is_indexed(Key,Index) ->
     _Result -> true
   end.
 
-search_index(_Key,[]) -> not_found;
-search_index(Key,[H | T]) ->
-  case H of
-    {Key, _} ->
-      H;
-    {_OtherKey, _} ->
-      search_index(Key,T);
-    [] -> search_index(Key,T)
-  end.
+search_index(Key,Index) ->
+  proplists:get_value(Key,Index,not_found).
 
 index_patient(Id,Name) ->
   AddOperation = build_binary_tuple(Name,concatenate_patient_id(Id)),
