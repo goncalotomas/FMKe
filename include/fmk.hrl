@@ -41,6 +41,10 @@
 -define (PRESCRIPTION_PATIENT_NAME_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_PRESCRIBER_NAME, <<"prescription_prescriber_name">>).
 -define (PRESCRIPTION_PRESCRIBER_NAME_CRDT, riak_dt_lwwreg).
+-define (PRESCRIPTION_PHARMACY_NAME, <<"prescription_pharmacy_name">>).
+-define (PRESCRIPTION_PHARMACY_NAME_CRDT, riak_dt_lwwreg).
+-define (PRESCRIPTION_FACILITY_NAME, <<"prescription_facility_name">>).
+-define (PRESCRIPTION_FACILITY_NAME_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_DATE_PRESCRIBED, <<"prescription_date_prescribed">>).
 -define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_IS_PROCESSED, <<"prescription_is_processed">>).
