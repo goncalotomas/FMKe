@@ -105,10 +105,14 @@
 %% Event macros
 -define (EVENT_ID, <<"event_id">>).
 -define (EVENT_ID_CRDT, riak_dt_gcounter).
+-define (EVENT_PATIENT_NAME, <<"event_patient_name">>).
+-define (EVENT_PATIENT_NAME_CRDT, riak_dt_lwwreg).
 -define (EVENT_DESCRIPTION, <<"event_description">>).
 -define (EVENT_DESCRIPTION_CRDT, riak_dt_lwwreg).
 -define (EVENT_TIMESTAMP, <<"event_timestamp">>).
 -define (EVENT_TIMESTAMP_CRDT, riak_dt_lwwreg).
+-define (EVENT_STAFF_MEMBER_NAME, <<"event_staff_member_name">>).
+-define (EVENT_STAFF_MEMBER_NAME_CRDT, riak_dt_lwwreg).
 
 %% FMK Index macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
