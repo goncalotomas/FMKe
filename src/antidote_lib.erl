@@ -38,7 +38,9 @@
   find_key/3,
   counter_increment/1,
   counter_decrement/1,
-  lwwreg_assign/1
+  lwwreg_assign/1,
+  set_add_elements/1,
+  set_remove_elements/1
   ]).
 
 %% Old API exports, these functions should only be used for benchmarking
