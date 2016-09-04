@@ -5,7 +5,7 @@
 %% Functions to handle single patient objects
 -export ([
   new/3,
-  update_patient/2,
+  update_personal_details/2,
   name/1,
   id/1,
   address/1,
@@ -14,79 +14,62 @@
   events/1
   ]).
 
--spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string()) -> riak_dt_map:map_op().
+%% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
 new(Id,Name,Address) ->
-  IdOp = antidote_lib:build_map_op(patient_id,riak_dt_gcounter,{increment,Id}),
-  NameOp = antidote_lib:build_map_op(patient_name,riak_dt_lwwreg,{assign, list_to_binary(Name)}),
-  AddressOp = antidote_lib:build_map_op(patient_address,riak_dt_lwwreg,{assign, list_to_binary(Address)}),
-  %% build nested map operations
-  EventMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_events,riak_dt_pncounter,{increment,0})]),
-  PrescriptionMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
-  TreatmentMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
-  %% build top level map operations
-  EventsOp = antidote_lib:build_map_op(patient_events,riak_dt_map,EventMapOp),
-  PrescriptionsOp = antidote_lib:build_map_op(patient_prescriptions,riak_dt_map,PrescriptionMapOp),
-  TreatmentsOp = antidote_lib:build_map_op(patient_treatments,riak_dt_map,TreatmentMapOp),
-  %% put everything in a big bulky map update and return it
-  antidote_lib:build_map_update([IdOp,NameOp,AddressOp,EventsOp,TreatmentsOp,PrescriptionsOp]).
+  IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(Id)),
+  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
+  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+  [IdOp,NameOp,AddressOp].
 
--spec update_patient(Id::pos_integer(), PatientUpdate::riak_dt_map:map_op()) -> {ok,_Something}.
-update_patient(Id,PatientUpdate) ->
-  antidote_lib:put(Id,riak_dt_map,{PatientUpdate}).
+update_personal_details(Name,Address) ->
+  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
+  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+  [NameOp,AddressOp].
 
-% create_patient_bucket(PatientId) ->
-%   antidote_lib:create_bucket(PatientId,riak_dt_map).
-
-% update_patient(PatientObject) ->
-%   Txn = antidote_lib:start_txn(),
-%   ok = antidote_lib:write_object(PatientObject,Txn),
-%   ok = antidote_lib:commit_txn(Txn).
-
-% read_patient(PatientId) ->
-%   Txn = antidote_lib:start_txn(),
-%   PatientBucket = create_patient_bucket(PatientId),
-%   Value = antidote_lib:read_object(PatientBucket,Txn),
-%   _CommitTime = antidote_lib:commit_txn(Txn),
-%   Value.
-
--spec name(Patient::riak_dt_map:map()) -> string().
+%% Returns the patient name as a list from a patient object
+-spec name(Patient::?NESTED_MAP:map()) -> string().
 name(Patient) ->
-  case lists:keyfind({patient_name,riak_dt_lwwreg},1,Patient) of
-    false -> "";
-    {{patient_name,riak_dt_lwwreg},Name} -> binary_to_list(Name)
+  case antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT) of
+    not_found -> {error,not_found};
+    Name -> binary_to_list(Name)
   end.
 
--spec id(Patient::riak_dt_map:map()) -> pos_integer().
+%% Returns the patient id as an integer from a patient object
+-spec id(Patient::?NESTED_MAP:map()) -> pos_integer().
 id(Patient) ->
-  case lists:keyfind({patient_id,riak_dt_gcounter},1,Patient) of
-    false -> 0;
-    {{patient_id,riak_dt_gcounter},Id} -> Id
+  case antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT) of
+    not_found -> {error,not_found};
+    Id -> Id
   end.
 
--spec address(Patient::riak_dt_map:map()) -> string().
+%% Returns the patient address as a list from a patient object
+-spec address(Patient::?NESTED_MAP:map()) -> string().
 address(Patient) ->
-  case lists:keyfind({patient_address,riak_dt_lwwreg},1,Patient) of
-    false -> "";
-    {{patient_address,riak_dt_lwwreg},Address} -> binary_to_list(Address)
+  case antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT) of
+    not_found -> "";
+    Address -> binary_to_list(Address)
   end.
 
--spec treatments(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+%% Returns the patient treatments as a Riak map from a patient object
+-spec treatments(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 treatments(Patient) ->
-  case lists:keyfind({patient_treatments,riak_dt_map},1,Patient) of
-    false -> [];
-    {{patient_treatments,riak_dt_map},Treatments} -> Treatments
+  case antidote_lib:find_key(Patient,?PATIENT_TREATMENTS,?NESTED_MAP) of
+    not_found -> [];
+    Treatments -> Treatments
   end.
 
--spec prescriptions(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+%% Returns the patient prescriptions as a Riak map from a patient object
+-spec prescriptions(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 prescriptions(Patient) ->
-  case lists:keyfind({patient_prescriptions,riak_dt_map},1,Patient) of
-    false -> [];
-    {{patient_prescriptions,riak_dt_map},Prescriptions} -> Prescriptions
+  case antidote_lib:find_key(Patient,?PATIENT_PRESCRIPTIONS,?NESTED_MAP) of
+    not_found -> [];
+    Prescriptions -> Prescriptions
   end.
 
--spec events(Patient::riak_dt_map:map()) -> riak_dt_map:map().
+%% Returns the patient events as a Riak map from a patient object
+-spec events(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 events(Patient) ->
-  case lists:keyfind({patient_events,riak_dt_map},1,Patient) of
-    false -> [];
-    {{patient_events,riak_dt_map},Events} -> Events
+  case antidote_lib:find_key(Patient,?PATIENT_EVENTS,?NESTED_MAP) of
+    not_found -> [];
+    Events -> Events
   end.
