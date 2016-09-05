@@ -43,7 +43,10 @@ is_indexed(Key,Index) ->
   end.
 
 search_index(Key,Index) ->
-  proplists:get_value(Key,Index,not_found).
+  case proplists:get_all_values(Key,Index) of
+    [] -> not_found;
+    Results -> Results
+  end.
 
 index_patient(Id,Name) ->
   AddOperation = build_binary_tuple(Name,concatenate_patient_id(Id)),

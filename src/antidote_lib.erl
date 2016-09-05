@@ -1,4 +1,4 @@
-%% A module to interact with the Antidote platform
+%% An erlang module to interact with the Antidote key value store
 %% https://github.com/SyncFree/antidote/
 %% This module should be easily integrated in your OTP application.
 %% If you want to use this module in your application, you need an Erlang Header file (.hrl)
