@@ -96,7 +96,7 @@ get_patient_by_id(Id) ->
 get_patient_by_name(Name) ->
   case search_patient_index(list_to_binary(Name)) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H);
+    [H] -> antidote_lib:get(H,?MAP);
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
@@ -107,6 +107,13 @@ get_pharmacy(Id) ->
     PharmacyMap -> PharmacyMap
   end.
 
+get_pharmacy_by_name(Name) ->
+  case search_pharmacy_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H,?MAP);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+  end.
+
 get_facility(Id) ->
   Facility = antidote_lib:get(binary_facility_key(Id),?MAP),
   case Facility of
@@ -114,11 +121,25 @@ get_facility(Id) ->
     FacilityMap -> FacilityMap
   end.
 
+get_facility_by_name(Name) ->
+  case search_facility_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H,?MAP);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+  end.
+
 get_staff(Id) ->
   Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
   case Staff of
     [] -> {error,not_found};
     StaffMap -> StaffMap
+  end.
+
+get_staff_by_name(Name) ->
+  case search_staff_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H,?MAP);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
 update_patient_details(Id,Name,Address) ->
@@ -267,3 +288,15 @@ concatenate_staff_id(Id) ->
 search_patient_index(Name) ->
   PatientNameIndex = fmk_index:get_patient_name_index(),
   fmk_index:search_index(Name,PatientNameIndex).
+
+search_pharmacy_index(Name) ->
+  PharmactNameIndex = fmk_index:get_pharmacy_name_index(),
+  fmk_index:search_index(Name,PharmactNameIndex).
+
+search_facility_index(Name) ->
+  FacilityNameIndex = fmk_index:get_facility_name_index(),
+  fmk_index:search_index(Name,FacilityNameIndex).
+
+search_staff_index(Name) ->
+  StaffNameIndex = fmk_index:get_staff_name_index(),
+  fmk_index:search_index(Name,StaffNameIndex).
