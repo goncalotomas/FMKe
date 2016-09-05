@@ -9,7 +9,8 @@
   create_pharmacy/3,
   create_facility/4,
   create_staff/4,
-  get_patient/1,
+  get_patient_by_id/1,
+  get_patient_by_name/1,
   get_pharmacy/1,
   get_facility/1,
   get_staff/1,
@@ -38,7 +39,7 @@
 %% and if so the operation fails. If there isn't any indexed patient, he/she
 %% will be added to the system and indexed by both Name and ID.
 create_patient(Id,Name,Address) ->
-  case get_patient(Id) of
+  case get_patient_by_id(Id) of
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
@@ -85,11 +86,18 @@ create_staff(Id,Name,Address,Speciality) ->
   end.
 
 %% Finds a patient in the Antidote Key-Value store by Patient ID.
-get_patient(Id) ->
+get_patient_by_id(Id) ->
   Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
   case Patient of
     [] -> {error,not_found};
     PatientMap -> PatientMap
+  end.
+
+get_patient_by_name(Name) ->
+  case search_patient_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
 get_pharmacy(Id) ->
@@ -114,7 +122,7 @@ get_staff(Id) ->
   end.
 
 update_patient_details(Id,Name,Address) ->
-  case get_patient(Id) of
+  case get_patient_by_id(Id) of
     {error,not_found} ->
       {error,no_such_patient};
     Patient ->
@@ -255,3 +263,7 @@ concatenate_facility_id(Id) ->
 
 concatenate_staff_id(Id) ->
   lists:flatten(io_lib:format("staff_member~p", [Id])).
+
+search_patient_index(Name) ->
+  PatientNameIndex = fmk_index:get_patient_name_index(),
+  fmk_index:search_index(Name,PatientNameIndex).
