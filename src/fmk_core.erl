@@ -8,25 +8,29 @@
   create_patient/3,
   create_pharmacy/3,
   create_facility/4,
-  create_staff/4,
+  create_staff/4,  
+  create_prescription/7,
+  create_prescription/8,
+  get_event_by_id/1,
+  get_facility_by_id/1,
+  get_facility_by_name/1,
+  get_facility_prescriptions/1,
+  get_facility_treatments/1,
   get_patient_by_id/1,
   get_patient_by_name/1,
   get_pharmacy_by_id/1,
   get_pharmacy_by_name/1,
   get_pharmacy_prescriptions/1,
-  get_facility_by_id/1,
-  get_facility_by_name/1,
-  get_facility_prescriptions/1,
-  get_facility_treatments/1,
+  get_prescription_by_id/1,
   get_staff_by_id/1,
   get_staff_by_name/1,
   get_staff_prescriptions/1,
   get_staff_treatments/1,
+  get_treatment_by_id/1,
   update_patient_details/3,
   update_pharmacy_details/3,
   update_facility_details/4,
   update_staff_details/4,
-  add_prescription/5,
   add_treatment/5,
   add_event/5,
   update_prescription_details/5,
@@ -39,7 +43,10 @@
     concatenate_patient_id/1,
     concatenate_pharmacy_id/1,
     concatenate_facility_id/1,
-    concatenate_staff_id/1
+    concatenate_staff_id/1,
+    concatenate_treatment_id/1,
+    concatenate_prescription_id/1,
+    concatenate_event_id/1
   ]).
 
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
@@ -93,33 +100,11 @@ create_staff(Id,Name,Address,Speciality) ->
       {error, staff_id_taken}
   end.
 
-%% Finds a patient in the Antidote Key-Value store by Patient ID.
-get_patient_by_id(Id) ->
-  Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
-  case Patient of
+get_event_by_id(Id) ->
+  Event = antidote_lib:get(binary_event_key(Id),?MAP),
+  case Event of
     [] -> {error,not_found};
-    PatientMap -> PatientMap
-  end.
-
-get_patient_by_name(Name) ->
-  case search_patient_index(list_to_binary(Name)) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
-
-get_pharmacy_by_id(Id) ->
-  Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
-  case Pharmacy of
-    [] -> {error,not_found};
-    PharmacyMap -> PharmacyMap
-  end.
-
-get_pharmacy_by_name(Name) ->
-  case search_pharmacy_index(list_to_binary(Name)) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+    EventMap -> EventMap
   end.
 
 get_facility_by_id(Id) ->
@@ -136,6 +121,60 @@ get_facility_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
+get_facility_prescriptions(FacilityId) ->
+  case get_facility_by_id(FacilityId) of
+    {error,not_found} -> {error,no_such_facility};
+    Facility -> facility:prescriptions(Facility)
+  end.
+
+get_facility_treatments(FacilityId) ->
+  case get_facility_by_id(FacilityId) of
+    {error,not_found} -> {error,no_such_facility};
+    Facility -> facility:treatments(Facility)
+  end.
+
+get_pharmacy_by_id(Id) ->
+  Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
+  case Pharmacy of
+    [] -> {error,not_found};
+    PharmacyMap -> PharmacyMap
+  end.
+
+%% Finds a patient in the Antidote Key-Value store by Patient ID.
+get_patient_by_id(Id) ->
+  Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
+  case Patient of
+    [] -> {error,not_found};
+    PatientMap -> PatientMap
+  end.
+
+get_patient_by_name(Name) ->
+  case search_patient_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H,?MAP);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+  end.
+
+get_pharmacy_by_name(Name) ->
+  case search_pharmacy_index(list_to_binary(Name)) of
+    not_found -> not_found;
+    [H] -> antidote_lib:get(H,?MAP);
+    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+  end.
+
+get_pharmacy_prescriptions(PharmacyId) ->
+  case get_pharmacy_by_id(PharmacyId) of
+    {error,not_found} -> {error,no_such_pharmacy};
+    Pharmacy -> pharmacy:prescriptions(Pharmacy)
+  end.
+
+get_prescription_by_id(Id) ->
+  Prescription = antidote_lib:get(binary_prescription_key(Id),?MAP),
+  case Prescription of
+    [] -> {error,not_found};
+    PrescriptionMap -> PrescriptionMap
+  end.
+
 get_staff_by_id(Id) ->
   Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
   case Staff of
@@ -150,24 +189,6 @@ get_staff_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
-get_pharmacy_prescriptions(PharmacyId) ->
-  case get_pharmacy_by_id(PharmacyId) of
-    {error,not_found} -> {error,no_such_pharmacy};
-    Pharmacy -> pharmacy:prescriptions(Pharmacy)
-  end.
-
-get_facility_prescriptions(FacilityId) ->
-  case get_facility_by_id(FacilityId) of
-    {error,not_found} -> {error,no_such_facility};
-    Facility -> facility:prescriptions(Facility)
-  end.
-
-get_facility_treatments(FacilityId) ->
-  case get_facility_by_id(FacilityId) of
-    {error,not_found} -> {error,no_such_facility};
-    Facility -> facility:treatments(Facility)
-  end.
-
 get_staff_prescriptions(StaffId) ->
   case get_staff_by_id(StaffId) of
     {error,not_found} -> {error,no_such_facility};
@@ -178,6 +199,13 @@ get_staff_treatments(StaffId) ->
   case get_staff_by_id(StaffId) of
     {error,not_found} -> {error,no_such_facility};
     Staff -> staff:treatments(Staff)
+  end.
+
+get_treatment_by_id(Id) ->
+  Treatment = antidote_lib:get(binary_treatment_key(Id),?MAP),
+  case Treatment of
+    [] -> {error,not_found};
+    TreatmentMap -> TreatmentMap
   end.
 
 update_patient_details(Id,Name,Address) ->
@@ -256,28 +284,45 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
-add_prescription(_PrescriptionId, PatientName, PrescriberName, _DatePrescribed, _Drugs) ->
-  PatientNameIndex = fmk_index:get_patient_name_index(),
-  case fmk_index:is_indexed(PatientName,PatientNameIndex) of
-    false -> {error, no_such_patient};
-    true ->
-      %% Patient is indexed, still need to check the prescriber
-      StaffNameIndex = fmk_index:get_staff_name_index(),
-      PatientNameIndex = fmk_index:get_patient_name_index(),
-      case fmk_index:is_indexed(PrescriberName,StaffNameIndex) of
-        false -> {error, no_such_staff_member};
-        true ->
-          %% Both the patient and the prescriber are indexed, the transaction can take place
+% add_prescription(_PrescriptionId, PatientName, PrescriberName, _DatePrescribed, _Drugs) ->
+%   PatientNameIndex = fmk_index:get_patient_name_index(),
+%   case fmk_index:is_indexed(PatientName,PatientNameIndex) of
+%     false -> {error, no_such_patient};
+%     true ->
+%       %% Patient is indexed, still need to check the prescriber
+%       StaffNameIndex = fmk_index:get_staff_name_index(),
+%       PatientNameIndex = fmk_index:get_patient_name_index(),
+%       case fmk_index:is_indexed(PrescriberName,StaffNameIndex) of
+%         false -> {error, no_such_staff_member};
+%         true ->
+%           %% Both the patient and the prescriber are indexed, the transaction can take place
+%           %% create prescription object (may be different for different purposes)
+%           %% It makes sense to perform all operations in a single transaction
+%           Txn = antidote_lib:start_txn(),
 
-          %% TODO fetch update operation for prescriber
-          %% TODO fetch update operation for patient
-          %% TODO fetch update operation for prescriptions
-          %% TODO fetch update operation for pharmacies
-          %% update everything in a single transaction and commit
-          Txn = antidote_lib:start_txn(),
-          ok = antidote_lib:txn_commit(Txn)
-      end      
+%           %% update patient's prescriptions
+%           %% update prescriber's prescriptions
+%           %% update facility's prescriptions
+%           %% update pharmacy's prescriptions
+%           %% Update treatment's prescriptions
+%           %% update everything in a single transaction and commit
+          
+%           ok = antidote_lib:txn_commit(Txn)
+%       end      
+%   end.
+
+create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+  case get_prescription_by_id(_PrescriptionId) of
+    {error, not_found} ->
+      %% Valid ID for a new prescription
+      %% TODO create prescription
+      _Treatment = get_treatment_by_id(_TreatmentId),
+      ok;
+    _Prescription -> {error, prescription_id_taken}
   end.
+
+create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+  ok.
 
   add_treatment(_1,_2,_3,_4,_5) ->
     %% TODO!
@@ -311,17 +356,38 @@ binary_facility_key(Id) ->
 binary_staff_key(Id) ->
   list_to_binary(concatenate_staff_id(Id)).
 
+binary_prescription_key(Id) ->
+  list_to_binary(concatenate_prescription_id(Id)).
+
+binary_treatment_key(Id) ->
+  list_to_binary(concatenate_treatment_id(Id)).
+  
+binary_event_key(Id) ->
+  list_to_binary(concatenate_event_id(Id)).
+
 concatenate_patient_id(Id) ->
-  lists:flatten(io_lib:format("patient~p", [Id])).
+  concatenate_list_with_id("patient_~p",Id).
 
 concatenate_pharmacy_id(Id) ->
-  lists:flatten(io_lib:format("pharmacy~p", [Id])).
+  concatenate_list_with_id("pharmacy_~p",Id).
 
 concatenate_facility_id(Id) ->
-  lists:flatten(io_lib:format("facility~p", [Id])).
+  concatenate_list_with_id("facility_~p",Id).
 
 concatenate_staff_id(Id) ->
-  lists:flatten(io_lib:format("staff_member~p", [Id])).
+  concatenate_list_with_id("staff_member_~p",Id).
+
+concatenate_prescription_id(Id) ->
+  concatenate_list_with_id("prescription_~p",Id).
+
+concatenate_treatment_id(Id) ->
+  concatenate_list_with_id("treatment_~p",Id).
+
+concatenate_event_id(Id) ->
+  concatenate_list_with_id("event_~p",Id).
+
+concatenate_list_with_id(List,Id) ->
+  lists:flatten(io_lib:format(List, [Id])).
 
 search_patient_index(Name) ->
   PatientNameIndex = fmk_index:get_patient_name_index(),
