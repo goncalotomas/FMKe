@@ -11,9 +11,17 @@
   create_staff/4,
   get_patient_by_id/1,
   get_patient_by_name/1,
-  get_pharmacy/1,
-  get_facility/1,
-  get_staff/1,
+  get_pharmacy_by_id/1,
+  get_pharmacy_by_name/1,
+  get_pharmacy_prescriptions/1,
+  get_facility_by_id/1,
+  get_facility_by_name/1,
+  get_facility_prescriptions/1,
+  get_facility_treatments/1,
+  get_staff_by_id/1,
+  get_staff_by_name/1,
+  get_staff_prescriptions/1,
+  get_staff_treatments/1,
   update_patient_details/3,
   update_pharmacy_details/3,
   update_facility_details/4,
@@ -53,7 +61,7 @@ create_patient(Id,Name,Address) ->
 %% been seen. If the operation succeeds, the pharmacy will be indexed by both
 %% Name and ID.
 create_pharmacy(Id,Name,Address) ->
-  case get_pharmacy(Id) of
+  case get_pharmacy_by_id(Id) of
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
@@ -64,7 +72,7 @@ create_pharmacy(Id,Name,Address) ->
   end.
 
 create_facility(Id,Name,Address,Type) ->
-  case get_facility(Id) of
+  case get_facility_by_id(Id) of
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
@@ -75,7 +83,7 @@ create_facility(Id,Name,Address,Type) ->
   end.
 
 create_staff(Id,Name,Address,Speciality) ->
-  case get_staff(Id) of
+  case get_staff_by_id(Id) of
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
@@ -100,7 +108,7 @@ get_patient_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
-get_pharmacy(Id) ->
+get_pharmacy_by_id(Id) ->
   Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
   case Pharmacy of
     [] -> {error,not_found};
@@ -114,7 +122,7 @@ get_pharmacy_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
-get_facility(Id) ->
+get_facility_by_id(Id) ->
   Facility = antidote_lib:get(binary_facility_key(Id),?MAP),
   case Facility of
     [] -> {error,not_found};
@@ -128,7 +136,7 @@ get_facility_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
-get_staff(Id) ->
+get_staff_by_id(Id) ->
   Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
   case Staff of
     [] -> {error,not_found};
@@ -140,6 +148,36 @@ get_staff_by_name(Name) ->
     not_found -> not_found;
     [H] -> antidote_lib:get(H,?MAP);
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
+  end.
+
+get_pharmacy_prescriptions(PharmacyId) ->
+  case get_pharmacy_by_id(PharmacyId) of
+    {error,not_found} -> {error,no_such_pharmacy};
+    Pharmacy -> pharmacy:prescriptions(Pharmacy)
+  end.
+
+get_facility_prescriptions(FacilityId) ->
+  case get_facility_by_id(FacilityId) of
+    {error,not_found} -> {error,no_such_facility};
+    Facility -> facility:prescriptions(Facility)
+  end.
+
+get_facility_treatments(FacilityId) ->
+  case get_facility_by_id(FacilityId) of
+    {error,not_found} -> {error,no_such_facility};
+    Facility -> facility:treatments(Facility)
+  end.
+
+get_staff_prescriptions(StaffId) ->
+  case get_staff_by_id(StaffId) of
+    {error,not_found} -> {error,no_such_facility};
+    Staff -> staff:prescriptions(Staff)
+  end.
+
+get_staff_treatments(StaffId) ->
+  case get_staff_by_id(StaffId) of
+    {error,not_found} -> {error,no_such_facility};
+    Staff -> staff:treatments(Staff)
   end.
 
 update_patient_details(Id,Name,Address) ->
@@ -162,7 +200,7 @@ update_patient_details(Id,Name,Address) ->
   end.
 
 update_pharmacy_details(Id,Name,Address) ->
-  case get_pharmacy(Id) of
+  case get_pharmacy_by_id(Id) of
     {error,not_found} ->
       {error,no_such_pharmacy};
     Pharmacy ->
@@ -181,7 +219,7 @@ update_pharmacy_details(Id,Name,Address) ->
   end.
 
 update_facility_details(Id,Name,Address,Type) ->
-  case get_facility(Id) of
+  case get_facility_by_id(Id) of
     {error,not_found} ->
       {error,no_such_facility};
     Facility ->
@@ -200,7 +238,7 @@ update_facility_details(Id,Name,Address,Type) ->
   end.
 
 update_staff_details(Id,Name,Address,Speciality) ->
-  case get_staff(Id) of
+  case get_staff_by_id(Id) of
     {error,not_found} ->
       {error,no_such_staff_member};
     Staff ->
