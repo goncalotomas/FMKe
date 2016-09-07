@@ -16,6 +16,7 @@
     add_event/1
 	]).
 
+%% nested treatment
 new(Id,PatientName,PrescriberName,FacilityName,DatePrescribed) ->
   IdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(Id)),
   PatientOp = antidote_lib:build_map_op(?TREATMENT_PATIENT_NAME,?TREATMENT_PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(PatientName))),

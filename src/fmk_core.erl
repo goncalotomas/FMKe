@@ -390,17 +390,23 @@ concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
 
 search_patient_index(Name) ->
-  PatientNameIndex = fmk_index:get_patient_name_index(),
-  fmk_index:search_index(Name,PatientNameIndex).
+  search_fmk_index(patient,Name).
 
 search_pharmacy_index(Name) ->
-  PharmactNameIndex = fmk_index:get_pharmacy_name_index(),
-  fmk_index:search_index(Name,PharmactNameIndex).
+  search_fmk_index(pharmacy,Name).
 
 search_facility_index(Name) ->
-  FacilityNameIndex = fmk_index:get_facility_name_index(),
-  fmk_index:search_index(Name,FacilityNameIndex).
+  search_fmk_index(facility,Name).
 
 search_staff_index(Name) ->
-  StaffNameIndex = fmk_index:get_staff_name_index(),
-  fmk_index:search_index(Name,StaffNameIndex).
+  search_fmk_index(staff,Name).
+
+search_fmk_index(staff,Name) ->
+  fmk_index:search_index(Name,fmk_index:get_staff_name_index());
+search_fmk_index(facility,Name) ->
+  fmk_index:search_index(Name,fmk_index:get_facility_name_index());
+search_fmk_index(patient,Name) ->
+  fmk_index:search_index(Name,fmk_index:get_patient_name_index());
+search_fmk_index(pharmacy, Name) ->
+  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index()).
+
