@@ -11,6 +11,7 @@
   create_staff/4,  
   create_prescription/7,
   create_prescription/8,
+  create_event/7,
   get_event_by_id/1,
   get_facility_by_id/1,
   get_facility_by_name/1,
@@ -311,18 +312,72 @@ update_staff_details(Id,Name,Address,Speciality) ->
 %       end      
 %   end.
 
+create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+  free = check_prescription_id(_PrescriptionId),
+  taken = check_patient_id(_PatientId),
+  taken = check_staff_id(_PrescriberId),
+  taken = check_pharmacy_id(_PharmacyId),
+  taken = check_facility_id(_FacilityId),
+  ok.
+
 create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
-  case get_prescription_by_id(_PrescriptionId) of
-    {error, not_found} ->
-      %% Valid ID for a new prescription
-      %% TODO create prescription
-      _Treatment = get_treatment_by_id(_TreatmentId),
-      ok;
-    _Prescription -> {error, prescription_id_taken}
+  free = check_prescription_id(_PrescriptionId),
+  taken = check_patient_id(_PatientId),
+  taken = check_treatment_id(_TreatmentId),
+  taken = check_staff_id(_PrescriberId),
+  taken = check_pharmacy_id(_PharmacyId),
+  taken = check_facility_id(_FacilityId),
+  ok.
+
+create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_Description) ->
+  free = check_event_id(_EventId),
+  taken = check_patient_id(_PatientId),
+  taken = check_treatment_id(_TreatmentId),
+  taken = check_staff_id(_StaffId),
+  taken = check_facility_id(_FacilityId),
+  ok.
+
+check_prescription_id(Id) ->
+  case antidote_lib:get_prescription_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
   end.
 
-create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
-  ok.
+check_staff_id(Id) ->
+  case get_staff_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
+
+check_patient_id(Id) ->
+  case get_patient_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
+
+check_pharmacy_id(Id) ->
+  case get_pharmacy_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
+
+check_facility_id(Id) ->
+  case get_facility_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
+
+check_treatment_id(Id) ->
+  case get_treatment_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
+
+check_event_id(Id) ->
+  case get_event_by_id(Id) of
+    [] -> free;
+    _Map  -> taken
+  end.
 
   add_treatment(_1,_2,_3,_4,_5) ->
     %% TODO!
