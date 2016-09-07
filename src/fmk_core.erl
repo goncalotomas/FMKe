@@ -41,13 +41,7 @@
 
 %% Exports needed for other modules
 -export ([
-    concatenate_patient_id/1,
-    concatenate_pharmacy_id/1,
-    concatenate_facility_id/1,
-    concatenate_staff_id/1,
-    concatenate_treatment_id/1,
-    concatenate_prescription_id/1,
-    concatenate_event_id/1
+    concatenate_id/2
   ]).
 
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
@@ -313,6 +307,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
 %   end.
 
 create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+  %% check required pre-conditions
   free = check_prescription_id(_PrescriptionId),
   taken = check_patient_id(_PatientId),
   taken = check_staff_id(_PrescriberId),
@@ -321,6 +316,7 @@ create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_Facili
   ok.
 
 create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+  %% check required pre-conditions
   free = check_prescription_id(_PrescriptionId),
   taken = check_patient_id(_PatientId),
   taken = check_treatment_id(_TreatmentId),
@@ -330,6 +326,7 @@ create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_Pharm
   ok.
 
 create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_Description) ->
+  %% check required pre-conditions
   free = check_event_id(_EventId),
   taken = check_patient_id(_PatientId),
   taken = check_treatment_id(_TreatmentId),
@@ -339,43 +336,43 @@ create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_D
 
 check_prescription_id(Id) ->
   case antidote_lib:get_prescription_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_staff_id(Id) ->
   case get_staff_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_patient_id(Id) ->
   case get_patient_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_pharmacy_id(Id) ->
   case get_pharmacy_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_facility_id(Id) ->
   case get_facility_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_treatment_id(Id) ->
   case get_treatment_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
 check_event_id(Id) ->
   case get_event_by_id(Id) of
-    [] -> free;
+    {error,not_found} -> free;
     _Map  -> taken
   end.
 
@@ -400,46 +397,27 @@ check_event_id(Id) ->
     ok.
 
 binary_patient_key(Id) ->
-  list_to_binary(concatenate_patient_id(Id)).
+  list_to_binary(concatenate_id(patient,Id)).
 
 binary_pharmacy_key(Id) ->
-  list_to_binary(concatenate_pharmacy_id(Id)).
+  list_to_binary(concatenate_id(pharmacy,Id)).
 
 binary_facility_key(Id) ->
-  list_to_binary(concatenate_facility_id(Id)).
+  list_to_binary(concatenate_id(facility,Id)).
 
 binary_staff_key(Id) ->
-  list_to_binary(concatenate_staff_id(Id)).
+  list_to_binary(concatenate_id(staff,Id)).
 
 binary_prescription_key(Id) ->
-  list_to_binary(concatenate_prescription_id(Id)).
+  list_to_binary(concatenate_id(prescription,Id)).
 
 binary_treatment_key(Id) ->
-  list_to_binary(concatenate_treatment_id(Id)).
+  list_to_binary(concatenate_id(treatment,Id)).
   
 binary_event_key(Id) ->
-  list_to_binary(concatenate_event_id(Id)).
+  list_to_binary(concatenate_id(event,Id)).
 
-concatenate_patient_id(Id) ->
-  concatenate_list_with_id("patient_~p",Id).
 
-concatenate_pharmacy_id(Id) ->
-  concatenate_list_with_id("pharmacy_~p",Id).
-
-concatenate_facility_id(Id) ->
-  concatenate_list_with_id("facility_~p",Id).
-
-concatenate_staff_id(Id) ->
-  concatenate_list_with_id("staff_member_~p",Id).
-
-concatenate_prescription_id(Id) ->
-  concatenate_list_with_id("prescription_~p",Id).
-
-concatenate_treatment_id(Id) ->
-  concatenate_list_with_id("treatment_~p",Id).
-
-concatenate_event_id(Id) ->
-  concatenate_list_with_id("event_~p",Id).
 
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
@@ -456,6 +434,23 @@ search_facility_index(Name) ->
 search_staff_index(Name) ->
   search_fmk_index(staff,Name).
 
+concatenate_id(patient,Id) ->
+  concatenate_list_with_id("patient_~p",Id);
+concatenate_id(pharmacy,Id) ->
+  concatenate_list_with_id("pharmacy_~p",Id);
+concatenate_id(facility,Id) ->
+  concatenate_list_with_id("facility_~p",Id);
+concatenate_id(staff,Id) ->
+  concatenate_list_with_id("staff_member_~p",Id);
+concatenate_id(prescription,Id) ->
+  concatenate_list_with_id("prescription_~p",Id);
+concatenate_id(treatment,Id) ->
+  concatenate_list_with_id("treatment_~p",Id);
+concatenate_id(event,Id) ->
+  concatenate_list_with_id("event_~p",Id);
+concatenate_id(_,_) ->
+  undefined.
+
 search_fmk_index(staff,Name) ->
   fmk_index:search_index(Name,fmk_index:get_staff_name_index());
 search_fmk_index(facility,Name) ->
@@ -464,4 +459,3 @@ search_fmk_index(patient,Name) ->
   fmk_index:search_index(Name,fmk_index:get_patient_name_index());
 search_fmk_index(pharmacy, Name) ->
   fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index()).
-

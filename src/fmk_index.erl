@@ -96,13 +96,13 @@ build_binary_tuple(List1,List2) ->
   {list_to_binary(List1),list_to_binary(List2)}.
 
 concatenate_patient_id(Id) ->
-  fmk_core:concatenate_patient_id(Id).
+  fmk_core:concatenate_id(patient,Id).
 
 concatenate_pharmacy_id(Id) ->
-  fmk_core:concatenate_pharmacy_id(Id).
+  fmk_core:concatenate_id(pharmacy,Id).
 
 concatenate_facility_id(Id) ->
-  fmk_core:concatenate_facility_id(Id).
+  fmk_core:concatenate_id(facility,Id).
 
 concatenate_staff_id(Id) ->
-  fmk_core:concatenate_staff_id(Id).
+  fmk_core:concatenate_id(staff,Id).
