@@ -12,6 +12,7 @@
   create_prescription/7,
   create_prescription/8,
   create_event/7,
+  create_treatment/5,
   get_event_by_id/1,
   get_facility_by_id/1,
   get_facility_by_name/1,
@@ -32,8 +33,6 @@
   update_pharmacy_details/3,
   update_facility_details/4,
   update_staff_details/4,
-  add_treatment/5,
-  add_event/5,
   update_prescription_details/5,
   update_treatment_details/5,
   update_event_details/5
@@ -313,6 +312,8 @@ create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_Facili
   taken = check_staff_id(_PrescriberId),
   taken = check_pharmacy_id(_PharmacyId),
   taken = check_facility_id(_FacilityId),
+  _Txn = antidote_lib:start_txn(),
+
   ok.
 
 create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
@@ -323,6 +324,7 @@ create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_Pharm
   taken = check_staff_id(_PrescriberId),
   taken = check_pharmacy_id(_PharmacyId),
   taken = check_facility_id(_FacilityId),
+  _Txn = antidote_lib:start_txn(),
   ok.
 
 create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_Description) ->
@@ -332,6 +334,24 @@ create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_D
   taken = check_treatment_id(_TreatmentId),
   taken = check_staff_id(_StaffId),
   taken = check_facility_id(_FacilityId),
+  _Txn = antidote_lib:start_txn(),
+  ok.
+
+create_treatment(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp) ->
+  %% check required pre-conditions
+  %% TODO I'm performing a get for each operation below, can it be improved?
+  free = check_treatment_id(TreatmentId),
+  taken = check_patient_id(PatientId),
+  taken = check_staff_id(StaffId),
+  taken = check_facility_id(FacilityId),
+  %% prepare for transaction, gather update operations
+  FacilityObject = get_facility_by_id(FacilityId),
+  StaffObject = get_staff_by_id(StaffId),
+  _TreatmentOp = treatment:new(TreatmentId,staff:name(StaffObject),facility:name(FacilityObject),TimeStamp),
+
+  %PatientUpdateOp = patient:add_treatment(TreatmentId,)
+
+  _Txn = antidote_lib:start_txn(),
   ok.
 
 check_prescription_id(Id) ->
@@ -376,14 +396,6 @@ check_event_id(Id) ->
     _Map  -> taken
   end.
 
-  add_treatment(_1,_2,_3,_4,_5) ->
-    %% TODO!
-    ok.
-
-  add_event(_1,_2,_3,_4,_5) ->
-    %% TODO!
-    ok.
-
   update_prescription_details(_1,_2,_3,_4,_5) ->
     %% TODO!
     ok.
@@ -416,8 +428,6 @@ binary_treatment_key(Id) ->
   
 binary_event_key(Id) ->
   list_to_binary(concatenate_id(event,Id)).
-
-
 
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
@@ -458,6 +468,6 @@ search_fmk_index(facility,Name) ->
 search_fmk_index(patient,Name) ->
   fmk_index:search_index(Name,fmk_index:get_patient_name_index());
 search_fmk_index(pharmacy, Name) ->
-  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index()).
+  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index());
 search_fmk_index(_,_) ->
   undefined.
