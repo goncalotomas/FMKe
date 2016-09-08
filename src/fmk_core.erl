@@ -459,3 +459,5 @@ search_fmk_index(patient,Name) ->
   fmk_index:search_index(Name,fmk_index:get_patient_name_index());
 search_fmk_index(pharmacy, Name) ->
   fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index()).
+search_fmk_index(_,_) ->
+  undefined.
