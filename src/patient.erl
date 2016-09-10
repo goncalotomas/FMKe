@@ -99,7 +99,7 @@ add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted, DateEnded) ->
   [PatientTreatmentsOp].
 
 add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
-  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
+  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID,antidote_lib:counter_increment(PrescriptionId)),
   PrescriberIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
   PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
   FacilityIdOp = antidote_lib:build_map_op(?FACILITY_ID,?FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
