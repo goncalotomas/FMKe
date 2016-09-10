@@ -40,7 +40,9 @@
 
 %% Exports needed for other modules
 -export ([
-    concatenate_id/2
+    concatenate_id/2,
+    binary_patient_key/1,
+    binary_treatment_key/1
   ]).
 
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
@@ -344,14 +346,22 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp) ->
   taken = check_patient_id(PatientId),
   taken = check_staff_id(StaffId),
   taken = check_facility_id(FacilityId),
-  %% prepare for transaction, gather update operations
-  FacilityObject = get_facility_by_id(FacilityId),
-  StaffObject = get_staff_by_id(StaffId),
-  _TreatmentOp = treatment:new(TreatmentId,staff:name(StaffObject),facility:name(FacilityObject),TimeStamp),
-
-  %PatientUpdateOp = patient:add_treatment(TreatmentId,)
-
-  _Txn = antidote_lib:start_txn(),
+  %% gather required antidote keys
+  TreatmentKey = binary_treatment_key(TreatmentId),
+  PatientKey = binary_patient_key(PatientId),
+  FacilityKey = binary_facility_key(FacilityId),
+  %% build top level update for treatment objects
+  TopLevelTreatment = treatment:new(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp),
+  %% build nested updates for facilities and patients
+  PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,TimeStamp),
+  FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,TimeStamp),
+  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
+  %% add top level domain
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  %% add to patient treatments
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  %% add to facility treatments
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
 check_prescription_id(Id) ->
