@@ -13,6 +13,7 @@
   create_prescription/8,
   create_event/7,
   create_treatment/5,
+  create_treatment/6,
   get_event_by_id/1,
   get_facility_by_id/1,
   get_facility_by_name/1,
@@ -339,7 +340,7 @@ create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_D
   _Txn = antidote_lib:start_txn(),
   ok.
 
-create_treatment(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp) ->
+create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
   %% TODO I'm performing a get for each operation below, can it be improved?
   free = check_treatment_id(TreatmentId),
@@ -351,10 +352,35 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp) ->
   PatientKey = binary_patient_key(PatientId),
   FacilityKey = binary_facility_key(FacilityId),
   %% build top level update for treatment objects
-  TopLevelTreatment = treatment:new(TreatmentId,PatientId,StaffId,FacilityId,TimeStamp),
+  TopLevelTreatment = treatment:new(TreatmentId,PatientId,StaffId,FacilityId,DateStarted),
   %% build nested updates for facilities and patients
-  PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,TimeStamp),
-  FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,TimeStamp),
+  PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted),
+  FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
+  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
+  %% add top level domain
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  %% add to patient treatments
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  %% add to facility treatments
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  ok.
+
+create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
+  %% check required pre-conditions
+  %% TODO I'm performing a get for each operation below, can it be improved?
+  free = check_treatment_id(TreatmentId),
+  taken = check_patient_id(PatientId),
+  taken = check_staff_id(StaffId),
+  taken = check_facility_id(FacilityId),
+  %% gather required antidote keys
+  TreatmentKey = binary_treatment_key(TreatmentId),
+  PatientKey = binary_patient_key(PatientId),
+  FacilityKey = binary_facility_key(FacilityId),
+  %% build top level update for treatment objects
+  TopLevelTreatment = treatment:new(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded),
+  %% build nested updates for facilities and patients
+  PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
+  FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
   %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level domain
   antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
