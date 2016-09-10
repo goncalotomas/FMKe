@@ -84,3 +84,15 @@ prescriptions(Staff) ->
     not_found -> [];
     Prescriptions -> Prescriptions
   end.
+
+add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
+  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
+  PatientIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
+  FacilityIdOp = antidote_lib:build_map_op(?FACILITY_ID,?FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  [DrugsOp] = prescription:add_drugs(Drugs),
+  ListOps = [PrescriptionIdOp,PatientIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
+  PatientPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
+  [PatientPrescriptionsOp].
