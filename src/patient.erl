@@ -13,7 +13,8 @@
   prescriptions/1,
   events/1,
   add_treatment/4,
-  add_treatment/5
+  add_treatment/5,
+  add_prescription/6
   ]).
 
 %% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
