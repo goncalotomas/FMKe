@@ -12,7 +12,9 @@
   prescriptions/1,
   treatments/1,
   add_prescription/1,
-  add_event/1
+  add_event/1,
+  add_treatment/4,
+  add_treatment/5
   ]).
 
 new(Id,Name,Address,Type) ->
@@ -83,3 +85,24 @@ add_event(Event) ->
   DescriptionOp = antidote_lib:build_map_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Description))),
   TimestampOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Timestamp))),
   [IdOp,DescriptionOp,TimestampOp].
+
+add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted) ->
+  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
+  PatientIdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PrescriberIdOp = antidote_lib:build_map_op(?STAFF_ID,?STAFF_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
+  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
+  ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp],
+  FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  FacilityTreatmentsOp = antidote_lib:build_nested_map_op(?FACILITY_TREATMENTS,?NESTED_MAP,FacilityTreatmentKey,ListOps),
+  [FacilityTreatmentsOp]. 
+
+add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
+  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
+  PatientIdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PrescriberIdOp = antidote_lib:build_map_op(?STAFF_ID,?STAFF_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
+  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
+  DateEndedOp = antidote_lib:build_map_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateEnded))),
+  ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp,DateEndedOp],
+  FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  FacilityTreatmentsOp = antidote_lib:build_nested_map_op(?FACILITY_TREATMENTS,?NESTED_MAP,FacilityTreatmentKey,ListOps),
+  [FacilityTreatmentsOp]. 
