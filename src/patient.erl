@@ -11,7 +11,9 @@
   address/1,
   treatments/1,
   prescriptions/1,
-  events/1
+  events/1,
+  add_treatment/4,
+  add_treatment/5
   ]).
 
 %% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
@@ -73,3 +75,24 @@ events(Patient) ->
     not_found -> [];
     Events -> Events
   end.
+
+add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted) ->
+  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
+  PrescriberIdOp = antidote_lib:build_map_op(?STAFF_ID,?STAFF_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
+  FacilityIdOp = antidote_lib:build_map_op(?FACILITY_ID,?FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
+  ListOps = [TreatmentIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp],
+  PatientTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  PatientTreatmentsOp = antidote_lib:build_nested_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,PatientTreatmentKey,ListOps),
+  [PatientTreatmentsOp].
+
+add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted, DateEnded) ->
+  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
+  PrescriberIdOp = antidote_lib:build_map_op(?STAFF_ID,?STAFF_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
+  FacilityIdOp = antidote_lib:build_map_op(?FACILITY_ID,?FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
+  DateEndedOp = antidote_lib:build_map_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateEnded))),
+  ListOps = [TreatmentIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,DateEndedOp],
+  PatientTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  PatientTreatmentsOp = antidote_lib:build_nested_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,PatientTreatmentKey,ListOps),
+  [PatientTreatmentsOp].
