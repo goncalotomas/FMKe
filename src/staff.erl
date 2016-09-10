@@ -10,7 +10,8 @@
   address/1,
   speciality/1,
   treatments/1,
-  prescriptions/1
+  prescriptions/1,
+  add_prescription/6
   ]).
 
 %% Creates a new staff member object from an ID, Name, Address and Speciality. Returns an update operation ready to insert into Antidote
