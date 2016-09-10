@@ -5,6 +5,7 @@
 -export ([
     id/1,
     new/7,
+    new/8,
     facility_id/1,
     patient_id/1,
     pharmacy_id/1,
@@ -40,14 +41,14 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed
   DateProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateProcessed))),
   IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
   [DrugsOp] = add_drugs(Drugs),
-  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
+  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
 
 facility_id(Prescription) ->
   case antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT) of
     not_found -> 0;
     PharmacyId -> PharmacyId
   end.
-  
+
 pharmacy_id(Prescription) ->
   case antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT) of
     not_found -> 0;
