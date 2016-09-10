@@ -105,7 +105,6 @@ add_prescription(Prescription) ->
   [DrugsOp] = prescription:add_drugs(Drugs),
   [IdOp,DrugsOp].
 
-
 add_event(Event) ->
   Id = event:id(Event),
   Description = event:description(Event),
