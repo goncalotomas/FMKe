@@ -111,8 +111,8 @@
 -define (EVENT_DESCRIPTION_CRDT, riak_dt_lwwreg).
 -define (EVENT_TIMESTAMP, <<"event_timestamp">>).
 -define (EVENT_TIMESTAMP_CRDT, riak_dt_lwwreg).
--define (EVENT_STAFF_MEMBER_ID, <<"event_staff_member_id">>).
--define (EVENT_STAFF_MEMBER_ID_CRDT, riak_dt_gcounter).
+-define (EVENT_STAFF_ID, <<"event_staff_id">>).
+-define (EVENT_STAFF_ID_CRDT, riak_dt_gcounter).
 
 %% FMK Index macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
