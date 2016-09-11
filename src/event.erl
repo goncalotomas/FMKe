@@ -4,7 +4,6 @@
 -module(event).
 -include("fmk.hrl").
 
-%% Functions to handle single Pharmacy objects
 -export ([
   new/5,
   patient_id/1,
@@ -20,18 +19,11 @@
 %% All Ids must be of type pos_integer() and the Timestamp and Description should
 %% be supplied in binary
 new(Id,PatientId,StaffMemberId,Timestamp,Description) ->
-  %% field updates
-  IdUpdate = antidote_lib:counter_increment(Id),
-  PatientIdUpdate = antidote_lib:counter_increment(PatientId),
-  StaffMemberIdUpdate = antidote_lib:counter_increment(StaffMemberId),
-  TimestampUpdate = antidote_lib:lwwreg_assign(Timestamp),
-  DescriptionUpdate = antidote_lib:lwwreg_assign(Description),
-  %% map operations
-  IdOp = antidote_lib:build_map_op(?EVENT_ID,?EVENT_ID_CRDT,IdUpdate),
-  PatientNameOp = antidote_lib:build_map_op(?EVENT_PATIENT_ID,?EVENT_PATIENT_ID_CRDT,PatientIdUpdate),
-  StaffMemberNameOp = antidote_lib:build_map_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberIdUpdate),
-  TimestampOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,TimestampUpdate),
-  DescriptionOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,DescriptionUpdate),
+  IdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,Id),
+  PatientNameOp = build_id_op(?EVENT_PATIENT_ID,?EVENT_PATIENT_ID_CRDT,PatientId),
+  StaffMemberNameOp = build_id_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberId),
+  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Timestamp),
+  DescriptionOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Description),
   [IdOp,PatientNameOp,StaffMemberNameOp,TimestampOp,DescriptionOp].
 
 %% Returns the patient ID from an already existant event object.
@@ -53,3 +45,14 @@ staff_id(Event) ->
 %% Returns the description from an already existant event object.
 description(Event) ->
   antidote_lib:find_key(Event,?EVENT_ID,?EVENT_ID_CRDT).
+
+
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - just here to make your head stop hurting
+%%-----------------------------------------------------------------------------
+build_id_op(Key,KeyType,Id) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
+
+build_lwwreg_op(Key,KeyType,Value) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)),
+  
