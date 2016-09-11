@@ -334,7 +334,7 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-  TreatmentUpdate = treatment:add_prescription(),
+  TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
   antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
   %% add to patient prescriptions
