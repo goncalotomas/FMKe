@@ -31,7 +31,7 @@
 -define (PHARMACY_NAME_CRDT, riak_dt_lwwreg).
 -define (PHARMACY_ADDRESS, <<"patient_address">>).
 -define (PHARMACY_ADDRESS_CRDT, riak_dt_lwwreg).
--define (PHARMACY_PRESCRIPTIONS, <<"patient_prescriptions">>).
+-define (PHARMACY_PRESCRIPTIONS, <<"pharmacy_prescriptions">>).
 -define (PHARMACY_PRESCRIPTIONS_CRDT, riak_dt_map).
 
 %% Prescription macros
