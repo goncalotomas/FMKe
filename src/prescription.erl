@@ -5,8 +5,11 @@
 -export ([
     id/1,
     new/7,
-    prescriber/1,
-    patient/1,
+    new/8,
+    facility_id/1,
+    patient_id/1,
+    pharmacy_id/1,
+    prescriber_id/1,
     drugs/1,
     process/1,
     is_processed/1,
@@ -17,21 +20,45 @@
   ]).
 
 
-new(Id,PatientName,PrescriberName,PharmacyName,FacilityName,DatePrescribed,Drugs) ->
+new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   IdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(Id)),
-  PatientOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_NAME,?PRESCRIPTION_PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(PatientName))),
-  PharmacyNameOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_NAME,?PRESCRIPTION_PHARMACY_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(PharmacyName))),
-  FacilityNameOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_NAME,?PRESCRIPTION_FACILITY_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(FacilityName))),
-  PrescriberOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_NAME,?PRESCRIPTION_PRESCRIBER_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(PrescriberName))),
+  PatientOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PharmacyOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
+  FacilityOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  PrescriberOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
   DatePrescribedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
   IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"0">>)),
   [DrugsOp] = add_drugs(Drugs),
-  [IdOp,PatientOp,PharmacyNameOp,FacilityNameOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
+  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
 
-prescriber(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_NAME,?PRESCRIPTION_PRESCRIBER_NAME_CRDT) of
-    not_found -> "";
-    Prescriber -> binary_to_list(Prescriber)
+new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
+  IdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(Id)),
+  PatientOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PharmacyOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
+  FacilityOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  PrescriberOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
+  DatePrescribedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  DateProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateProcessed))),
+  IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
+  [DrugsOp] = add_drugs(Drugs),
+  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
+
+facility_id(Prescription) ->
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT) of
+    not_found -> 0;
+    PharmacyId -> PharmacyId
+  end.
+
+pharmacy_id(Prescription) ->
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT) of
+    not_found -> 0;
+    PharmacyId -> PharmacyId
+  end.
+
+prescriber_id(Prescription) ->
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT) of
+    not_found -> 0;
+    PrescriberId -> PrescriberId
   end.
 
 id(Prescription) ->
@@ -40,8 +67,8 @@ id(Prescription) ->
     Id -> Id
   end.
 
-patient(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_NAME,?PRESCRIPTION_PATIENT_NAME_CRDT) of
+patient_id(Prescription) ->
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT) of
     not_found -> "";
     Patient -> binary_to_list(Patient)
   end.

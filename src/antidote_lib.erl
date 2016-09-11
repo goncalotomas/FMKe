@@ -1,4 +1,4 @@
-%% A module to interact with the Antidote platform
+%% An erlang module to interact with the Antidote key value store
 %% https://github.com/SyncFree/antidote/
 %% This module should be easily integrated in your OTP application.
 %% If you want to use this module in your application, you need an Erlang Header file (.hrl)
@@ -35,6 +35,7 @@
 -export ([
   build_map_update/1,
   build_map_op/3,
+  build_nested_map_op/4,
   find_key/3,
   counter_increment/1,
   counter_decrement/1,
@@ -83,6 +84,12 @@ txn_commit(TxnDetails) ->
 %% ------------------------------------------------------------------------------------------------
 build_map_update(OpList) ->
   {update, OpList}.
+
+build_nested_map_op(TopLevelMapKey,TopLevelMapType,NestedMapKey,ListOps) ->
+  NestedMapUpdate = build_map_update(ListOps),
+  NestedMapOp = build_map_op(NestedMapKey,?NESTED_MAP,NestedMapUpdate),
+  TopLevelMapUpdate = build_map_update([NestedMapOp]),
+  build_map_op(TopLevelMapKey,TopLevelMapType,TopLevelMapUpdate).
 
 build_map_op(Key,Type,Op) ->
   {update, {Key,Type}, Op}.

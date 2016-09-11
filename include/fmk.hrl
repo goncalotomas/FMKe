@@ -31,20 +31,20 @@
 -define (PHARMACY_NAME_CRDT, riak_dt_lwwreg).
 -define (PHARMACY_ADDRESS, <<"patient_address">>).
 -define (PHARMACY_ADDRESS_CRDT, riak_dt_lwwreg).
--define (PHARMACY_PRESCRIPTIONS, <<"patient_prescriptions">>).
+-define (PHARMACY_PRESCRIPTIONS, <<"pharmacy_prescriptions">>).
 -define (PHARMACY_PRESCRIPTIONS_CRDT, riak_dt_map).
 
 %% Prescription macros
 -define (PRESCRIPTION_ID, <<"prescription_id">>).
 -define (PRESCRIPTION_ID_CRDT, riak_dt_gcounter).
--define (PRESCRIPTION_PATIENT_NAME, <<"prescription_patient_name">>).
--define (PRESCRIPTION_PATIENT_NAME_CRDT, riak_dt_lwwreg).
--define (PRESCRIPTION_PRESCRIBER_NAME, <<"prescription_prescriber_name">>).
--define (PRESCRIPTION_PRESCRIBER_NAME_CRDT, riak_dt_lwwreg).
--define (PRESCRIPTION_PHARMACY_NAME, <<"prescription_pharmacy_name">>).
--define (PRESCRIPTION_PHARMACY_NAME_CRDT, riak_dt_lwwreg).
--define (PRESCRIPTION_FACILITY_NAME, <<"prescription_facility_name">>).
--define (PRESCRIPTION_FACILITY_NAME_CRDT, riak_dt_lwwreg).
+-define (PRESCRIPTION_PATIENT_ID, <<"prescription_patient_id">>).
+-define (PRESCRIPTION_PATIENT_ID_CRDT, riak_dt_gcounter).
+-define (PRESCRIPTION_PRESCRIBER_ID, <<"prescription_prescriber_id">>).
+-define (PRESCRIPTION_PRESCRIBER_ID_CRDT, riak_dt_gcounter).
+-define (PRESCRIPTION_PHARMACY_ID, <<"prescription_pharmacy_id">>).
+-define (PRESCRIPTION_PHARMACY_ID_CRDT, riak_dt_gcounter).
+-define (PRESCRIPTION_FACILITY_ID, <<"prescription_facility_id">>).
+-define (PRESCRIPTION_FACILITY_ID_CRDT, riak_dt_gcounter).
 -define (PRESCRIPTION_DATE_PRESCRIBED, <<"prescription_date_prescribed">>).
 -define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_IS_PROCESSED, <<"prescription_is_processed">>).
@@ -57,12 +57,12 @@
 %% Treatment macros
 -define (TREATMENT_ID, <<"treatment_id">>).
 -define (TREATMENT_ID_CRDT, riak_dt_gcounter).
--define (TREATMENT_PATIENT_NAME, <<"treatment_patient_name">>).
--define (TREATMENT_PATIENT_NAME_CRDT, riak_dt_lwwreg).
--define (TREATMENT_PRESCRIBER_NAME, <<"treatment_prescriber_name">>).
--define (TREATMENT_PRESCRIBER_NAME_CRDT, riak_dt_lwwreg).
--define (TREATMENT_FACILITY_NAME, <<"treatment_facility_name">>).
--define (TREATMENT_FACILITY_NAME_CRDT, riak_dt_lwwreg).
+-define (TREATMENT_PATIENT_ID, <<"treatment_patient_id">>).
+-define (TREATMENT_PATIENT_ID_CRDT, riak_dt_gcounter).
+-define (TREATMENT_PRESCRIBER_ID, <<"treatment_prescriber_id">>).
+-define (TREATMENT_PRESCRIBER_ID_CRDT, riak_dt_gcounter).
+-define (TREATMENT_FACILITY_ID, <<"treatment_facility_id">>).
+-define (TREATMENT_FACILITY_ID_CRDT, riak_dt_gcounter).
 -define (TREATMENT_DATE_PRESCRIBED, <<"treatment_date_prescribed">>).
 -define (TREATMENT_DATE_PRESCRIBED_CRDT, riak_dt_lwwreg).
 -define (TREATMENT_HAS_ENDED, <<"treatment_has_ended">>).
@@ -105,14 +105,14 @@
 %% Event macros
 -define (EVENT_ID, <<"event_id">>).
 -define (EVENT_ID_CRDT, riak_dt_gcounter).
--define (EVENT_PATIENT_NAME, <<"event_patient_name">>).
--define (EVENT_PATIENT_NAME_CRDT, riak_dt_lwwreg).
+-define (EVENT_PATIENT_ID, <<"event_patient_id">>).
+-define (EVENT_PATIENT_ID_CRDT, riak_dt_gcounter).
 -define (EVENT_DESCRIPTION, <<"event_description">>).
 -define (EVENT_DESCRIPTION_CRDT, riak_dt_lwwreg).
 -define (EVENT_TIMESTAMP, <<"event_timestamp">>).
 -define (EVENT_TIMESTAMP_CRDT, riak_dt_lwwreg).
--define (EVENT_STAFF_MEMBER_NAME, <<"event_staff_member_name">>).
--define (EVENT_STAFF_MEMBER_NAME_CRDT, riak_dt_lwwreg).
+-define (EVENT_STAFF_MEMBER_ID, <<"event_staff_member_id">>).
+-define (EVENT_STAFF_MEMBER_ID_CRDT, riak_dt_gcounter).
 
 %% FMK Index macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).

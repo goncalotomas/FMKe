@@ -43,7 +43,10 @@ is_indexed(Key,Index) ->
   end.
 
 search_index(Key,Index) ->
-  proplists:get_value(Key,Index,not_found).
+  case proplists:get_all_values(Key,Index) of
+    [] -> not_found;
+    Results -> Results
+  end.
 
 index_patient(Id,Name) ->
   AddOperation = build_binary_tuple(Name,concatenate_patient_id(Id)),
@@ -93,13 +96,13 @@ build_binary_tuple(List1,List2) ->
   {list_to_binary(List1),list_to_binary(List2)}.
 
 concatenate_patient_id(Id) ->
-  fmk_core:concatenate_patient_id(Id).
+  fmk_core:concatenate_id(patient,Id).
 
 concatenate_pharmacy_id(Id) ->
-  fmk_core:concatenate_pharmacy_id(Id).
+  fmk_core:concatenate_id(pharmacy,Id).
 
 concatenate_facility_id(Id) ->
-  fmk_core:concatenate_facility_id(Id).
+  fmk_core:concatenate_id(facility,Id).
 
 concatenate_staff_id(Id) ->
-  fmk_core:concatenate_staff_id(Id).
+  fmk_core:concatenate_id(staff,Id).

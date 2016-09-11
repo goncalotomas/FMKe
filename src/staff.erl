@@ -10,7 +10,8 @@
   address/1,
   speciality/1,
   treatments/1,
-  prescriptions/1
+  prescriptions/1,
+  add_prescription/6
   ]).
 
 %% Creates a new staff member object from an ID, Name, Address and Speciality. Returns an update operation ready to insert into Antidote
@@ -84,3 +85,15 @@ prescriptions(Staff) ->
     not_found -> [];
     Prescriptions -> Prescriptions
   end.
+
+add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
+  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
+  PatientIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
+  PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
+  FacilityIdOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  DateStartedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  [DrugsOp] = prescription:add_drugs(Drugs),
+  ListOps = [PrescriptionIdOp,PatientIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
+  StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,ListOps),
+  [StaffPrescriptionsOp].
