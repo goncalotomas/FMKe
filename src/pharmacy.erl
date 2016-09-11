@@ -56,13 +56,13 @@ prescriptions(Pharmacy) ->
   end.
 
 add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs) ->
-  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
+  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
   PatientIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
   PrescriberIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  FacilityIdOp = antidote_lib:build_map_op(?FACILITY_ID,?FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  FacilityIdOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
+  DateStartedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
   [DrugsOp] = prescription:add_drugs(Drugs),
   ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
-  PatientPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
-  [PatientPrescriptionsOp].
+  PharmacyPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,PharmacyPrescriptionsKey,ListOps),
+  [PharmacyPrescriptionsOp].
