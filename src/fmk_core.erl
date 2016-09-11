@@ -33,17 +33,15 @@
   update_patient_details/3,
   update_pharmacy_details/3,
   update_facility_details/4,
-  update_staff_details/4,
-  update_prescription_details/5,
-  update_treatment_details/5,
-  update_event_details/5
+  update_staff_details/4
   ]).
 
 %% Exports needed for other modules
 -export ([
     concatenate_id/2,
     binary_patient_key/1,
-    binary_treatment_key/1
+    binary_treatment_key/1,
+    binary_prescription_key/1
   ]).
 
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
@@ -281,53 +279,74 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
-% add_prescription(_PrescriptionId, PatientName, PrescriberName, _DatePrescribed, _Drugs) ->
-%   PatientNameIndex = fmk_index:get_patient_name_index(),
-%   case fmk_index:is_indexed(PatientName,PatientNameIndex) of
-%     false -> {error, no_such_patient};
-%     true ->
-%       %% Patient is indexed, still need to check the prescriber
-%       StaffNameIndex = fmk_index:get_staff_name_index(),
-%       PatientNameIndex = fmk_index:get_patient_name_index(),
-%       case fmk_index:is_indexed(PrescriberName,StaffNameIndex) of
-%         false -> {error, no_such_staff_member};
-%         true ->
-%           %% Both the patient and the prescriber are indexed, the transaction can take place
-%           %% create prescription object (may be different for different purposes)
-%           %% It makes sense to perform all operations in a single transaction
-%           Txn = antidote_lib:start_txn(),
-
-%           %% update patient's prescriptions
-%           %% update prescriber's prescriptions
-%           %% update facility's prescriptions
-%           %% update pharmacy's prescriptions
-%           %% Update treatment's prescriptions
-%           %% update everything in a single transaction and commit
-          
-%           ok = antidote_lib:txn_commit(Txn)
-%       end      
-%   end.
-
-create_prescription(_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  free = check_prescription_id(_PrescriptionId),
-  taken = check_patient_id(_PatientId),
-  taken = check_staff_id(_PrescriberId),
-  taken = check_pharmacy_id(_PharmacyId),
-  taken = check_facility_id(_FacilityId),
-  _Txn = antidote_lib:start_txn(),
-
+  %% TODO I'm performing a get for each operation below, how could it be improved?
+  free = check_prescription_id(PrescriptionId),
+  taken = check_patient_id(PatientId),
+  taken = check_staff_id(PrescriberId),
+  taken = check_pharmacy_id(PharmacyId),
+  taken = check_facility_id(FacilityId),
+  %% gather required antidote keys
+  PrescriptionKey = binary_prescription_key(PrescriptionId),
+  PatientKey = binary_patient_key(PatientId),
+  PharmacyKey = binary_pharmacy_key(PharmacyId),
+  FacilityKey = binary_facility_key(FacilityId),
+  PrescriberKey = binary_staff_key(PrescriberId),
+  %% build top level update for the prescription
+  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  %% build nested updates for patients, pharmacies, facilities and the prescriber
+  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
+  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  %% add top level prescription
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  %% add to pharmaciy prescriptions
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  %% add to the prescriber's prescriptions
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  %% add to patient prescriptions
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  %% add to hospital prescriptions
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
-create_prescription(_PrescriptionId,_PatientId,_TreatmentId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs) ->
+create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  free = check_prescription_id(_PrescriptionId),
-  taken = check_patient_id(_PatientId),
-  taken = check_treatment_id(_TreatmentId),
-  taken = check_staff_id(_PrescriberId),
-  taken = check_pharmacy_id(_PharmacyId),
-  taken = check_facility_id(_FacilityId),
-  _Txn = antidote_lib:start_txn(),
+  %% TODO I'm performing a get for each operation below, how could it be improved?
+  free = check_prescription_id(PrescriptionId),
+  taken = check_patient_id(PatientId),
+  taken = check_staff_id(PrescriberId),
+  taken = check_pharmacy_id(PharmacyId),
+  taken = check_facility_id(FacilityId),
+  %% gather required antidote keys
+  PrescriptionKey = binary_prescription_key(PrescriptionId),
+  PatientKey = binary_patient_key(PatientId),
+  PharmacyKey = binary_pharmacy_key(PharmacyId),
+  FacilityKey = binary_facility_key(FacilityId),
+  PrescriberKey = binary_staff_key(PrescriberId),
+  TreatmentKey = binary_treatment_key(TreatmentId),
+  %% build top level update for the prescription
+  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  %% build nested updates for patients, pharmacies, facilities and the prescriber
+  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
+  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  TreatmentUpdate = treatment:add_prescription(),
+  %% add top level prescription
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  %% add to patient prescriptions
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  %% add to hospital prescriptions
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  %% add to pharmaciy prescriptions
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  %% add to the prescriber's prescriptions
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  %% add to the treatment's prescriptions
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
 create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_Description) ->
@@ -342,7 +361,7 @@ create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_D
 
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, can it be improved?
+  %% TODO I'm performing a get for each operation below, how could it be improved?
   free = check_treatment_id(TreatmentId),
   taken = check_patient_id(PatientId),
   taken = check_staff_id(StaffId),
@@ -357,7 +376,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
   %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
-  %% add top level domain
+  %% add top level treatment
   antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
   %% add to patient treatments
   antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
@@ -367,7 +386,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
 
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, can it be improved?
+  %% TODO I'm performing a get for each operation below, how could it be improved?
   free = check_treatment_id(TreatmentId),
   taken = check_patient_id(PatientId),
   taken = check_staff_id(StaffId),
@@ -382,7 +401,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
   %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
-  %% add top level domain
+  %% add top level treatment
   antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
   %% add to patient treatments
   antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
@@ -391,7 +410,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   ok.
 
 check_prescription_id(Id) ->
-  case antidote_lib:get_prescription_by_id(Id) of
+  case get_prescription_by_id(Id) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
@@ -431,18 +450,6 @@ check_event_id(Id) ->
     {error,not_found} -> free;
     _Map  -> taken
   end.
-
-  update_prescription_details(_1,_2,_3,_4,_5) ->
-    %% TODO!
-    ok.
-
-  update_treatment_details(_1,_2,_3,_4,_5) ->
-    %% TODO!
-    ok.
-    
-  update_event_details(_1,_2,_3,_4,_5) ->
-    %% TODO!
-    ok.
 
 binary_patient_key(Id) ->
   list_to_binary(concatenate_id(patient,Id)).
