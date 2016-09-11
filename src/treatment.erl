@@ -15,7 +15,7 @@
     events/1,
     prescriptions/1,
     add_prescription/7,
-    add_event/1
+    add_event/4
 	]).
 
 new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed) ->
@@ -110,12 +110,16 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,Dat
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?TREATMENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
 
-add_event(Event) ->
-  Id = event:id(Event),
-  Description = event:description(Event),
-  Timestamp = event:timestamp(Event),
-  %% Make operations to insert a new nested map
-  IdOp = antidote_lib:build_map_op(?EVENT_ID,?EVENT_ID_CRDT,antidote_lib:counter_increment(Id)),
-  DescriptionOp = antidote_lib:build_map_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Description))),
+add_event(EventId,StaffMemberId,Timestamp,Description) ->
+  %% nested operations
+  EventIdOp = antidote_lib:build_map_op(?EVENT_ID,?EVENT_ID_CRDT,antidote_lib:counter_increment(EventId)),
+  PrescriberIdOp = antidote_lib:build_map_op(?EVENT_STAFF_MEMBER_ID,?EVENT_STAFF_MEMBER_ID_CRDT,antidote_lib:counter_increment(StaffMemberId)),
   TimestampOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Timestamp))),
-  [IdOp,DescriptionOp,TimestampOp].
+  DescriptionOp = antidote_lib:build_map_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Description))),
+
+  ListOps = [EventIdOp,PrescriberIdOp,TimestampOp,DescriptionOp],
+
+  PatientEventKey = fmk_core:binary_event_key(EventId),
+
+  TreatmentEventOp = antidote_lib:build_nested_map_op(?TREATMENT_EVENTS,?NESTED_MAP,PatientEventKey,ListOps),
+  [TreatmentEventOp].

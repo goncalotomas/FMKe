@@ -11,7 +11,7 @@
   create_staff/4,  
   create_prescription/7,
   create_prescription/8,
-  create_event/7,
+  create_event/5,
   create_treatment/5,
   create_treatment/6,
   get_event_by_id/1,
@@ -41,7 +41,8 @@
     concatenate_id/2,
     binary_patient_key/1,
     binary_treatment_key/1,
-    binary_prescription_key/1
+    binary_prescription_key/1,
+    binary_event_key/1
   ]).
 
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
@@ -349,14 +350,32 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
-create_event(_EventId,_PatientId,_TreatmentId,_StaffId,_FacilityId,_TimeStamp,_Description) ->
+create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
-  free = check_event_id(_EventId),
-  taken = check_patient_id(_PatientId),
-  taken = check_treatment_id(_TreatmentId),
-  taken = check_staff_id(_StaffId),
-  taken = check_facility_id(_FacilityId),
-  _Txn = antidote_lib:start_txn(),
+  free = check_event_id(EventId),
+  taken = check_treatment_id(TreatmentId),
+  taken = check_staff_id(StaffMemberId),
+  TreatmentObject = get_treatment_by_id(TreatmentId),
+  PatientId = treatment:patient_id(TreatmentObject),
+  FacilityId = treatment:facility_id(TreatmentObject),
+
+
+   %% gather required antidote keys
+  PatientKey = binary_patient_key(PatientId),
+  FacilityKey = binary_facility_key(FacilityId),
+  TreatmentKey = binary_treatment_key(TreatmentId),
+  EventKey = binary_event_key(EventId),
+  %% build top level update for the event
+  TopLevelEvent = event:new(EventId,PatientId,StaffMemberId,Timestamp,Description),
+  %% build nested updates for treatments, patients and facilities
+  PatientUpdate = patient:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
+  FacilityUpdate = facility:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
+  TreatmentUpdate = treatment:add_event(EventId,StaffMemberId,Timestamp,Description),
+  %% add top level event
+  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
