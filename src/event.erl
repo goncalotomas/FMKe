@@ -48,11 +48,10 @@ description(Event) ->
 
 
 %%-----------------------------------------------------------------------------
-%% Internal auxiliary functions - just here to make your head stop hurting
+%% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
 build_id_op(Key,KeyType,Id) ->
   antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
 
 build_lwwreg_op(Key,KeyType,Value) ->
-  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)),
-  
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)).
