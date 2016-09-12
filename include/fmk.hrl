@@ -73,6 +73,8 @@
 -define (TREATMENT_PRESCRIPTIONS_CRDT, riak_dt_map).
 -define (TREATMENT_EVENTS, <<"treatment_events">>).
 -define (TREATMENT_EVENTS_CRDT, riak_dt_map).
+-define (TREATMENT_ONGOING, <<"ongoing_treatment">>).
+-define (TREATMENT_ENDED, <<"finished_treatment">>).
 
 %% Medical Staff macros
 -define (STAFF_ID, <<"staff_id">>).
