@@ -1,7 +1,9 @@
+%% This module represents the prescription entity in the FMK system.
+%% Prescriptions are associated with patients, treatment facilities, medicall staff
+%% and pharmacies.
 -module (prescription).
 -include("fmk.hrl").
 
-%% Functions to handle single Facility objects
 -export ([
     id/1,
     new/7,
@@ -19,92 +21,88 @@
     remove_drugs/1
   ]).
 
-
+%% This function returns a list of operations ready to be inserted into antidote.
+%% In order to create an prescription, multiple ids must be supplied (self-explanatory),
+%% as well as a date when the treatment was prescribed.
+%% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
+%% be supplied in binary
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
-  IdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(Id)),
-  PatientOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PharmacyOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
-  FacilityOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  PrescriberOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  DatePrescribedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
-  IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"0">>)),
+  IdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,Id),
+  PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
+  PharmacyOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
+  FacilityOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
+  PrescriberOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
+  DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
+  IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_NOT_PROCESSED),
   [DrugsOp] = add_drugs(Drugs),
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
 
+%% Same as new/7, but includes a date that symbolizes when the prescription was processed.
+%% Indentically to new/5, DateEnded should be binary
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
-  IdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(Id)),
-  PatientOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PharmacyOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
-  FacilityOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  PrescriberOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  DatePrescribedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
-  DateProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateProcessed))),
-  IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
-  [DrugsOp] = add_drugs(Drugs),
+  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
+    new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  %% trying to keep DRY code by calling new/7 and discarding unnecessary ops
+  DateProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DateProcessed),
+  IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
 
+%% Returns the facility ID from an already existant prescription object.
 facility_id(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT) of
-    not_found -> 0;
-    PharmacyId -> PharmacyId
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT).
 
+%% Returns the pharmacy ID from an already existant prescription object.
 pharmacy_id(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT) of
-    not_found -> 0;
-    PharmacyId -> PharmacyId
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT).
 
+%% Returns the prescriber ID from an already existant prescription object.
 prescriber_id(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT) of
-    not_found -> 0;
-    PrescriberId -> PrescriberId
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT).
 
+%% Returns the prescription ID from an already existant prescription object.
 id(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT) of
-    not_found -> 0;
-    Id -> Id
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT).
 
+%% Returns the patient ID from an already existant prescription object.
 patient_id(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT) of
-    not_found -> "";
-    Patient -> binary_to_list(Patient)
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT).
 
+%% Returns the prescription date from an already existant prescription object.
 date_prescribed(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT) of
-    not_found -> "";
-    Date -> binary_to_list(Date)
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT).
 
+%% Returns the processing date from an already existant prescription object.
 date_processed(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT) of
-    not_found -> not_processed;
-    Date -> binary_to_list(Date)
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT).
 
+%% Returns the prescription drugs from an already existant prescription object.
 drugs(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT) of
-    not_found -> [];
-    Drugs -> Drugs
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT).
 
+%% Returns the prescription state (if it is processed) from an already existant prescription object.
 is_processed(Prescription) ->
-  case antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT) of
-    not_found -> unknown;
-    <<"0">> -> no;
-    <<"1">> -> yes
-  end.
+  antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT).
 
+%% Returns a list of antidote operations to modify a prescription in order to fill in the processing
+%% date and update the prescription date.
 process(CurrentDate) ->
-  IsProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
-  ProcessedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(CurrentDate))),
+  IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
+  ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT,CurrentDate),
   [IsProcessedOp,ProcessedOp].
 
+%% Returns a list of antidote operations to modify a prescription in order to add drugs to a prescription.
 add_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_add_elements(Drugs))].
 
+%% Returns a list of antidote operations to modify a prescription in order to remove drugs from a prescription.
 remove_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_remove_elements(Drugs))].
+
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+build_id_op(Key,KeyType,Id) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
+
+build_lwwreg_op(Key,KeyType,Value) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)).

@@ -53,6 +53,8 @@
 -define (PRESCRIPTION_DATE_PROCESSED_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, riak_dt_orset).
+-define (PRESCRIPTION_NOT_PROCESSED, <<"prescription_not_processed">>).
+-define (PRESCRIPTION_PROCESSED, <<"prescription_processed">>).
 
 %% Treatment macros
 -define (TREATMENT_ID, <<"treatment_id">>).
