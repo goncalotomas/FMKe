@@ -1,3 +1,5 @@
+%% This module represents the staff member entity in the FMK system.
+%% Staff members are associated with prescriptions.
 -module (staff).
 -include("fmk.hrl").
 
@@ -14,86 +16,69 @@
   add_prescription/6
   ]).
 
-%% Creates a new staff member object from an ID, Name, Address and Speciality. Returns an update operation ready to insert into Antidote
--spec new(Id::pos_integer(), Name::nonempty_string(), Address::nonempty_string(), Speciality::nonempty_string()) -> riak_dt_map:map_op().
+%% Creates a new staff member object from an ID, Name, Address and Speciality.
+%% Returns an update operation ready to insert into Antidote
 new(Id,Name,Address,Speciality) ->
-  IdOp = antidote_lib:build_map_op(?STAFF_ID,?STAFF_ID_CRDT,antidote_lib:counter_increment(Id)),
-  NameOp = antidote_lib:build_map_op(?STAFF_NAME,?STAFF_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
-  AddressOp = antidote_lib:build_map_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
-  SpecialityOp = antidote_lib:build_map_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Speciality))),
-  %% build nested map operations
-  PrescriptionsMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_prescriptions,riak_dt_pncounter,{increment,0})]),
-  TreatmentsMapOp = antidote_lib:build_map_update([antidote_lib:build_map_op(num_treatments,riak_dt_pncounter,{increment,0})]),
-  %% build top level map operations
-  PrescriptionsOp = antidote_lib:build_map_op(prescriptions,riak_dt_map,PrescriptionsMapOp),
-  TreatmentsOp = antidote_lib:build_map_op(treatments,riak_dt_map,TreatmentsMapOp),
-  %% put everything in a big bulky map update and return it
-  [IdOp,NameOp,AddressOp,SpecialityOp,TreatmentsOp,PrescriptionsOp].
+  IdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,Id),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
+  %% initially a staff member does not have any treatments or prescriptions
+  [IdOp,NameOp,AddressOp,SpecialityOp].
 
 
-%% Update operation: updates only the staff member's personal details, including prescriptions and treatments
+%% Update operation: updates only the staff member's personal details
 update_personal_details(Name,Address,Speciality) ->
-  NameOp = antidote_lib:build_map_op(?STAFF_NAME,?STAFF_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
-  AddressOp = antidote_lib:build_map_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
-  SpecialityOp = antidote_lib:build_map_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Speciality))),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
   [NameOp,AddressOp,SpecialityOp].
 
 %% Returns the name in the form of a list from a staff member object.
--spec name(Staff::riak_dt_map:map()) -> string().
 name(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_NAME,?STAFF_NAME_CRDT) of
-    not_found -> "";
-    Name -> binary_to_list(Name)
-  end.
+  antidote_lib:find_key(Staff,?STAFF_NAME,?STAFF_NAME_CRDT).
 
 %% Returns the id in the form of an integer from a staff member object.
--spec id(Staff::riak_dt_map:map()) -> pos_integer().
 id(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_ID,?STAFF_ID_CRDT) of
-    not_found -> 0;
-    Id -> Id
-  end.
+  antidote_lib:find_key(Staff,?STAFF_ID,?STAFF_ID_CRDT).
 
 %% Returns the address in the form of a list from a staff member object.
--spec address(Staff::riak_dt_map:map()) -> string().
 address(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT) of
-    not_found -> "";
-    Address -> binary_to_list(Address)
-  end.
+  antidote_lib:find_key(Staff,?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT).
 
 %% Returns the members' speciality as a Riak map from a staff member object
--spec speciality(Staff::riak_dt_map:map()) -> string().
 speciality(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT) of
-    not_found -> "";
-    Speciality -> binary_to_list(Speciality)
-  end.
+  antidote_lib:find_key(Staff,?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT).
 
 %% Returns the treatments as a Riak map from a staff member object
--spec treatments(Staff::riak_dt_map:map()) -> riak_dt_map:map().
 treatments(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_TREATMENTS,?NESTED_MAP) of
-    not_found -> [];
-    Treatments -> Treatments
-  end.
+  antidote_lib:find_key(Staff,?STAFF_TREATMENTS,?STAFF_TREATMENTS_CRDT).
 
 %% Returns the prescriptions as a Riak map from a staff member object
--spec prescriptions(Staff::riak_dt_map:map()) -> riak_dt_map:map().
 prescriptions(Staff) ->
-  case antidote_lib:find_key(Staff,?STAFF_PRESCRIPTIONS,?NESTED_MAP) of
-    not_found -> [];
-    Prescriptions -> Prescriptions
-  end.
+  antidote_lib:find_key(Treatment,?STAFF_PRESCRIPTIONS,?STAFF_PRESCRIPTIONS_CRDT).
 
+%% Returns an update operation for adding a prescription to a specific staff member.
 add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
-  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
-  PatientIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
-  FacilityIdOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  %% nested prescription operations
+  PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
+  PatientIdOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
+  PharmacyIdOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
+  FacilityIdOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
+  DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   [DrugsOp] = prescription:add_drugs(Drugs),
   ListOps = [PrescriptionIdOp,PatientIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
+  %% now to insert the nested operations inside the prescriptions map
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  %% return a top level staff member update that contains the prescriptions map update
   StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,ListOps),
   [StaffPrescriptionsOp].
+
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+build_id_op(Key,KeyType,Id) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
+
+build_lwwreg_op(Key,KeyType,Value) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)).
