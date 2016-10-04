@@ -1,3 +1,5 @@
+%% This module represents the patient entity in the FMK system.
+%% Patients are associated with prescriptions, treatments and events.
 -module(patient).
 -include("fmk.hrl").
 
@@ -18,111 +20,109 @@
   add_event/5
   ]).
 
-%% Creates a new patient object from an ID, Name and Address. Returns an update operation ready to insert into Antidote
+%% Returns a list of operations ready to be inserted into antidote.
+%% All Ids must be of type pos_integer() and name and address should be binary()
 new(Id,Name,Address) ->
-  IdOp = antidote_lib:build_map_op(?PATIENT_ID,?PATIENT_ID_CRDT,antidote_lib:counter_increment(Id)),
-  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
-  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+  IdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,Id),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
   [IdOp,NameOp,AddressOp].
 
-update_personal_details(Name,Address) ->
-  NameOp = antidote_lib:build_map_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Name))),
-  AddressOp = antidote_lib:build_map_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Address))),
+%% Returns a list of operations ready to be inserted into antidote, with the purpose
+%% of updating a specific pharmacy's details.
+update_details(Name,Address) ->
+  NameOp = build_id_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
 %% Returns the patient name as a list from a patient object
--spec name(Patient::?NESTED_MAP:map()) -> string().
 name(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT) of
-    not_found -> {error,not_found};
-    Name -> binary_to_list(Name)
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT).
 
 %% Returns the patient id as an integer from a patient object
--spec id(Patient::?NESTED_MAP:map()) -> pos_integer().
 id(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT) of
-    not_found -> {error,not_found};
-    Id -> Id
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT).
 
 %% Returns the patient address as a list from a patient object
--spec address(Patient::?NESTED_MAP:map()) -> string().
 address(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT) of
-    not_found -> "";
-    Address -> binary_to_list(Address)
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT).
 
 %% Returns the patient treatments as a Riak map from a patient object
--spec treatments(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 treatments(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_TREATMENTS,?NESTED_MAP) of
-    not_found -> [];
-    Treatments -> Treatments
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_TREATMENTS,?PATIENT_TREATMENTS_CRDT).
 
 %% Returns the patient prescriptions as a Riak map from a patient object
--spec prescriptions(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 prescriptions(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_PRESCRIPTIONS,?NESTED_MAP) of
-    not_found -> [];
-    Prescriptions -> Prescriptions
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_PRESCRIPTIONS,?PATIENT_PRESCRIPTIONS_CRDT).
 
 %% Returns the patient events as a Riak map from a patient object
--spec events(Patient::?NESTED_MAP:map()) -> ?NESTED_MAP:map().
 events(Patient) ->
-  case antidote_lib:find_key(Patient,?PATIENT_EVENTS,?NESTED_MAP) of
-    not_found -> [];
-    Events -> Events
-  end.
+  antidote_lib:find_key(Patient,?PATIENT_EVENTS,?PATIENT_EVENTS_CRDT).
 
+%% Returns an update operation for adding a treatment to a specific patient.
 add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted) ->
-  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  FacilityIdOp = antidote_lib:build_map_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
+  %% nested treatment operations
+  TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
+  PrescriberIdOp = build_id_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,PrescriberId),
+  FacilityIdOp = build_id_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,FacilityId),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
   ListOps = [TreatmentIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp],
+  %% now to insert the nested operations inside the treatments map
   PatientTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  %% return a top level patient update that contains the treatment map update
   PatientTreatmentsOp = antidote_lib:build_nested_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,PatientTreatmentKey,ListOps),
   [PatientTreatmentsOp].
 
+%% Same as add_treatment/4, but includes an ending date for the treatment.
 add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted, DateEnded) ->
-  TreatmentIdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(TreatmentId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  FacilityIdOp = antidote_lib:build_map_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateStarted))),
-  DateEndedOp = antidote_lib:build_map_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateEnded))),
+  %% nested treatment operations
+  TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
+  PrescriberIdOp = build_id_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,PrescriberId),
+  FacilityIdOp = build_id_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,FacilityId),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
+  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,DateEnded),
   ListOps = [TreatmentIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,DateEndedOp],
+  %% now to insert the nested operations inside the treatments map
   PatientTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
+  %% return a top level patient update that contains the treatment map update
   PatientTreatmentsOp = antidote_lib:build_nested_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,PatientTreatmentKey,ListOps),
   [PatientTreatmentsOp].
 
+%% Returns an update operation for adding a prescription to a specific patient.
 add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
-  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
-  FacilityIdOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  %% nested prescription operations
+  PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
+  PrescriberIdOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
+  PharmacyIdOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
+  FacilityIdOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
+  DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   [DrugsOp] = prescription:add_drugs(Drugs),
   ListOps = [PrescriptionIdOp,PrescriberIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
+  %% now to insert the nested operations inside the prescriptions map
   PatientPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  %% return a top level patient update that contains the prescriptions map update
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
 
+% Returns an update operation for adding an event to a specific patient.
 add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description) ->
-  %% nested operations
-  EventIdOp = antidote_lib:build_map_op(?EVENT_ID,?EVENT_ID_CRDT,antidote_lib:counter_increment(EventId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,antidote_lib:counter_increment(StaffMemberId)),
-  TimestampOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Timestamp))),
-  DescriptionOp = antidote_lib:build_map_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Description))),
-
+  %% nested event operations
+  EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
+  PrescriberIdOp = build_id_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberId),
+  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Timestamp),
+  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,Description),
   ListOps = [EventIdOp,PrescriberIdOp,TimestampOp,DescriptionOp],
+  %% now to insert the nested operations inside the events map
+  PatientTreatmentsKey = fmk_core:binary_treatment_key(TreatmentId),
+  %% return a top level patient update that contains the events map update
+  PatientEventsOp = antidote_lib:build_nested_map_op(?TREATMENT_EVENTS,?NESTED_MAP,PatientTreatmentsKey,ListOps),
+  [PatientEventsOp].
 
-  TreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
-  TreatmentEventKey = fmk_core:binary_event_key(EventId),
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+build_id_op(Key,KeyType,Id) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
 
-  TreatmentUpdate = antidote_lib:build_nested_map_op(?TREATMENT_EVENTS,?NESTED_MAP,TreatmentEventKey,ListOps),
-  PatientTreatmentsOp = antidote_lib:build_nested_map_op(?PATIENT_TREATMENTS,?NESTED_MAP,TreatmentKey,[TreatmentUpdate]),
-  [PatientTreatmentsOp].
+build_lwwreg_op(Key,KeyType,Value) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)).
