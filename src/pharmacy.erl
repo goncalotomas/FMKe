@@ -57,7 +57,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed
   ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
   %% now to insert the nested operations inside the prescriptions map
   PharmacyPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  %% return a top level patient update that contains the prescriptions map update
+  %% return a top level pharmacy update that contains the prescriptions map update
   PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,PharmacyPrescriptionsKey,ListOps),
   [PharmacyPrescriptionsOp].
 
