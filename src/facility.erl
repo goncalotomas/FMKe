@@ -21,6 +21,7 @@
 
 %% Returns a list of operations ready to be inserted into antidote.
 %% All Ids must be of type pos_integer() and name, address and type should be binary()
+-spec new(id(),binary(),binary(),binary()) -> [map_field_update()].
 new(Id,Name,Address,Type) ->
   IdOp = build_id_op(?FACILITY_ID,?FACILITY_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
@@ -30,6 +31,7 @@ new(Id,Name,Address,Type) ->
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific facility's details.
+-spec update_details(binary(),binary(),binary()) -> [map_field_update()].
 update_details(Name,Address,Type) ->
   NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
@@ -37,30 +39,37 @@ update_details(Name,Address,Type) ->
   [NameOp,AddressOp,TypeOp].
 
 %% Returns the facility name as from a facility object
+-spec name(crdt()) -> binary().
 name(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_NAME,?FACILITY_NAME_CRDT).
 
 %% Returns the facility type from a facility object
+-spec type(crdt()) -> binary().
 type(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_TYPE,?FACILITY_TYPE_CRDT).
 
 %% Returns the facility id from a facility object
+-spec id(crdt()) -> id().
 id(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_ID,?FACILITY_ID).
 
 %% Returns the facility address from a facility object
+-spec address(crdt()) -> binary().
 address(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT).
 
 %% Returns the facility prescriptions from a facility object
+-spec prescriptions(crdt()) -> term().
 prescriptions(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_PRESCRIPTIONS,?FACILITY_PRESCRIPTIONS_CRDT).
 
 %% Returns the facility treatments from a facility object
+-spec treatments(crdt()) -> term().
 treatments(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_TREATMENTS,?FACILITY_TREATMENTS_CRDT).
 
 %% Returns an update operation for adding a treatment to a specific facility.
+-spec add_treatment(id(), id(), id(), binary()) -> [map_field_update()].
 add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted) ->
   %% nested treatment operations
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
@@ -75,6 +84,7 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted) ->
   [FacilityTreatmentsOp].
 
 %% Same as add_treatment/4, but includes an ending date for the treatment.
+-spec add_treatment(id(), id(), id(), binary(), binary()) -> [map_field_update()].
 add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
   %% nested treatment operations
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
@@ -90,6 +100,7 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
   [FacilityTreatmentsOp].
 
 %% Returns an update operation for adding a prescription to a specific patient.
+-spec add_prescription(id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
 add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
   %% nested prescription operations
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
@@ -106,6 +117,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed
   [PatientPrescriptionsOp].
 
 %% Returns an update operation for adding an event to a specific facility treatment.
+-spec add_event(id(), id(), id(), binary(), binary()) -> [map_field_update()].
 add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description) ->
   %% nested event operations
   EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
