@@ -7,7 +7,7 @@
 %% Functions to handle single patient objects
 -export ([
   new/3,
-  update_personal_details/2,
+  update_details/2,
   name/1,
   id/1,
   address/1,
@@ -25,7 +25,7 @@
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
   [IdOp,NameOp,AddressOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose

@@ -56,7 +56,7 @@ treatments(Staff) ->
 
 %% Returns the prescriptions as a Riak map from a staff member object
 prescriptions(Staff) ->
-  antidote_lib:find_key(Treatment,?STAFF_PRESCRIPTIONS,?STAFF_PRESCRIPTIONS_CRDT).
+  antidote_lib:find_key(Staff,?STAFF_PRESCRIPTIONS,?STAFF_PRESCRIPTIONS_CRDT).
 
 %% Returns an update operation for adding a prescription to a specific staff member.
 add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->

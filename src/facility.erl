@@ -23,7 +23,7 @@
 %% All Ids must be of type pos_integer() and name, address and type should be binary()
 new(Id,Name,Address,Type) ->
   IdOp = build_id_op(?FACILITY_ID,?FACILITY_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name))),
+  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
   TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,Type),
   [IdOp,NameOp,AddressOp,TypeOp].
