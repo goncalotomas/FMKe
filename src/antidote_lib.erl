@@ -87,7 +87,7 @@ txn_update_object(ObjectUpdate,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[[ObjectUpdate],TxnDetails]).
 
 %% A wrapper for Antidote's update_objects function
--spec txn_update_object([]{bound_object(), op_name(), op_param()}], txid())
+-spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid())
                                           -> ok | {error, reason()}.
 txn_update_objects(ObjectUpdates,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[ObjectUpdates,TxnDetails]).
@@ -214,6 +214,6 @@ set_add_elements(List) ->
   {add, List}.
 
 %% Returns an Antidote-compliant operation for removing a list of items from a CRDT set.
--spec set_add_elements([term()]) -> crdt_op().
+-spec set_remove_elements([term()]) -> crdt_op().
 set_remove_elements(List) ->
   {remove, List}.
