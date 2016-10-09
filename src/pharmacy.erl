@@ -16,6 +16,7 @@
 
 %% Returns a list of operations ready to be inserted into antidote.
 %% All Ids must be of type pos_integer() and name and address should be binary()
+-spec new(id(),binary(),binary()) -> [map_field_update()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PHARMACY_ID,?PHARMACY_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
@@ -24,28 +25,34 @@ new(Id,Name,Address) ->
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
+-spec update_details(binary(),binary()) -> [map_field_update()].
 update_details(Name,Address) ->
   NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
 %% Returns the name of the pharmacy in the form of a list.
+-spec name(crdt()) -> binary().
 name(Pharmacy) ->
   antidote_lib:find_key(Pharmacy,?PHARMACY_NAME,?PHARMACY_NAME_CRDT).
 
 %% Returns the ID of the pharmacy in the form of an integer.
+-spec id(crdt()) -> id().
 id(Pharmacy) ->
   antidote_lib:find_key(Pharmacy,?PHARMACY_ID,?PHARMACY_ID_CRDT).
 
 %% Returns the address of the pharmacy in the form of a list.
+-spec address(crdt()) -> binary().
 address(Pharmacy) ->
   antidote_lib:find_key(Pharmacy,?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT).
 
 %% Returns a orset of prescriptions keys (index) associated with this pharmacy object.
+-spec prescriptions(crdt()) -> term().
 prescriptions(Pharmacy) ->
   antidote_lib:find_key(Pharmacy,?PHARMACY_PRESCRIPTIONS,?PHARMACY_PRESCRIPTIONS_CRDT).
 
 %% Returns an update operation for adding a prescription to a specific pharmacy.
+-spec add_prescription(id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
 add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs) ->
   %% nested prescription operations
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
