@@ -26,6 +26,7 @@
 %% as well as a date when the treatment was prescribed.
 %% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
 %% be supplied in binary
+-spec new(id(),id(),id(),id(),id(),binary(),[crdt()]) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   IdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,Id),
   PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
@@ -39,6 +40,7 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
 
 %% Same as new/7, but includes a date that symbolizes when the prescription was processed.
 %% Indentically to new/5, DateEnded should be binary
+-spec new(id(),id(),id(),id(),id(),binary(),binary(),[crdt()]) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
     new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
@@ -48,53 +50,65 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
 
 %% Returns the facility ID from an already existant prescription object.
+-spec facility_id(crdt()) -> id().
 facility_id(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT).
 
 %% Returns the pharmacy ID from an already existant prescription object.
+-spec pharmacy_id(crdt()) -> id().
 pharmacy_id(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT).
 
 %% Returns the prescriber ID from an already existant prescription object.
+-spec prescriber_id(crdt()) -> id().
 prescriber_id(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT).
 
 %% Returns the prescription ID from an already existant prescription object.
+-spec id(crdt()) -> id().
 id(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT).
 
 %% Returns the patient ID from an already existant prescription object.
+-spec patient_id(crdt()) -> id().
 patient_id(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT).
 
 %% Returns the prescription date from an already existant prescription object.
+-spec date_prescribed(crdt()) -> binary().
 date_prescribed(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT).
 
 %% Returns the processing date from an already existant prescription object.
+-spec date_processed(crdt()) -> binary().
 date_processed(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT).
 
 %% Returns the prescription drugs from an already existant prescription object.
+-spec drugs(crdt()) -> [term()].
 drugs(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT).
 
 %% Returns the prescription state (if it is processed) from an already existant prescription object.
+-spec is_processed(crdt()) -> binary().
 is_processed(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT).
 
 %% Returns a list of antidote operations to modify a prescription in order to fill in the processing
 %% date and update the prescription date.
+-spec process(binary()) -> [map_field_update()].
 process(CurrentDate) ->
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
   ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT,CurrentDate),
   [IsProcessedOp,ProcessedOp].
 
 %% Returns a list of antidote operations to modify a prescription in order to add drugs to a prescription.
+-spec add_drugs([term()]) -> [map_field_update()].
 add_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_add_elements(Drugs))].
 
 %% Returns a list of antidote operations to modify a prescription in order to remove drugs from a prescription.
+-spec remove_drugs([term()]) -> [map_field_update()].
 remove_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_remove_elements(Drugs))].
 
