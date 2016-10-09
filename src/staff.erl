@@ -6,7 +6,7 @@
 %% Functions to handle single Staff objects
 -export ([
   new/4,
-  update_personal_details/3,
+  update_details/3,
   name/1,
   id/1,
   address/1,
@@ -18,6 +18,7 @@
 
 %% Creates a new staff member object from an ID, Name, Address and Speciality.
 %% Returns an update operation ready to insert into Antidote
+-spec new(id(),binary(),binary(),binary()) -> [map_field_update()].
 new(Id,Name,Address,Speciality) ->
   IdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
@@ -28,37 +29,45 @@ new(Id,Name,Address,Speciality) ->
 
 
 %% Update operation: updates only the staff member's personal details
-update_personal_details(Name,Address,Speciality) ->
+-spec update_details(binary(),binary(),binary()) -> [map_field_update()].
+update_details(Name,Address,Speciality) ->
   NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
   SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
   [NameOp,AddressOp,SpecialityOp].
 
 %% Returns the name in the form of a list from a staff member object.
+-spec name(crdt()) -> binary().
 name(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_NAME,?STAFF_NAME_CRDT).
 
 %% Returns the id in the form of an integer from a staff member object.
+-spec id(crdt()) -> id().
 id(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_ID,?STAFF_ID_CRDT).
 
 %% Returns the address in the form of a list from a staff member object.
+-spec address(crdt()) -> binary().
 address(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT).
 
 %% Returns the members' speciality as a Riak map from a staff member object
+-spec speciality(crdt()) -> binary().
 speciality(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT).
 
 %% Returns the treatments as a Riak map from a staff member object
+-spec treatments(crdt()) -> term().
 treatments(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_TREATMENTS,?STAFF_TREATMENTS_CRDT).
 
 %% Returns the prescriptions as a Riak map from a staff member object
+-spec prescriptions(crdt()) -> term().
 prescriptions(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_PRESCRIPTIONS,?STAFF_PRESCRIPTIONS_CRDT).
 
 %% Returns an update operation for adding a prescription to a specific staff member.
+-spec add_prescription(id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
 add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% nested prescription operations
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
