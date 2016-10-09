@@ -26,6 +26,7 @@
 %% as well as a date when the treatment was prescribed.
 %% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
 %% be supplied in binary
+-spec new(id(),id(),id(),id(),binary()) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed) ->
   IdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,Id),
   PatientIdOp = build_id_op(?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT,PatientId),
@@ -37,6 +38,7 @@ new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed) ->
 
 %% Same as new/5, but includes a date that symbolizes when the treatment was finished.
 %% Indentically to new/5, DateEnded should be binary
+-spec new(id(),id(),id(),id(),binary(), binary()) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed,DateEnded) ->
   %% trying to keep DRY code by calling new/5 and discarding unnecessary ops
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,_IncorrectHasEndedOp] =
@@ -47,43 +49,53 @@ new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed,DateEnded) ->
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,DateEndedOp,HasEndedOp].
 
 %% Returns the prescriber's medical staff ID from an already existant treatment object.
+-spec prescriber_id(crdt()) -> id().
 prescriber_id(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT).
 
 %% Returns the treatment's ID from an already existant treatment object.
+-spec id(crdt()) -> id().
 id(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_ID,?TREATMENT_ID_CRDT).
 
 %% Returns the patient's ID from an already existant treatment object.
+-spec patient_id(crdt()) -> id().
 patient_id(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT).
 
+%% Returns the facility ID from an already existant treatment object.
+-spec facility_id(crdt()) -> id().
+facility_id(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT).
+
 %% Returns the date of prescription from an already existant treatment object.
+-spec date_prescribed(crdt()) -> binary().
 date_prescribed(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT).
 
 %% Returns the finishing date of an already existant treatment object.
+-spec date_ended(crdt()) -> binary().
 date_ended(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT).
 
 %% Returns the prescriptions associated with an already existant treatment object.
+-spec prescriptions(crdt()) -> term().
 prescriptions(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIPTIONS,?TREATMENT_PRESCRIPTIONS_CRDT).
 
 %% Returns the events associated with an already existant treatment object.
+-spec events(crdt()) -> term().
 events(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_EVENTS,?TREATMENT_EVENTS_CRDT).
 
 %% Checks if a treatment has ended.
+-spec has_ended(crdt()) -> binary().
 has_ended(Treatment) ->
   antidote_lib:find_key(Treatment,?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT).
 
-%% Returns the facility ID from an already existant treatment object.
-facility_id(Treatment) ->
-  antidote_lib:find_key(Treatment,?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT).
-
 %% Returns a list of antidote operations to update a treatment with an ending date,
 %% also updating the HAS_ENDED field.
+-spec finish(binary()) -> [map_field_update()].
 finish(CurrentDate) ->
   IsProcessedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ENDED),
   ProcessedOp = build_lwwreg_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,CurrentDate),
@@ -93,6 +105,7 @@ finish(CurrentDate) ->
 %% Some IDs are necessary in order to create a prescription which should be self-explanatory.
 %% Drugs is supposed to be passed as a simple erlang list containing binary elements, that will in
 %% turn be converted into a riak_dt_orset.
+-spec add_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
 add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
   PatientIdOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
@@ -111,6 +124,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,Dat
 %% Returns a list of antidote operation to add a nested event to a treatment.
 %% Some IDs are necessary in order to create a prescription which should be self-explanatory.
 %% Timestamp and Description are supposed to be binaries.
+-spec add_event(id(), id(), binary(), binary()) -> [map_field_update()].
 add_event(EventId,StaffMemberId,Timestamp,Description) ->
   %% nested operations
   EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
