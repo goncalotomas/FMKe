@@ -304,6 +304,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
+-spec create_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   %% TODO I'm performing a get for each operation below, how could it be improved?
@@ -337,6 +338,7 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
+-spec create_prescription(id(), id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   %% TODO I'm performing a get for each operation below, how could it be improved?
@@ -374,6 +376,7 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
+-spec create_event(id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
   free = check_event_id(EventId),
@@ -382,7 +385,6 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   TreatmentObject = get_treatment_by_id(TreatmentId),
   PatientId = treatment:patient_id(TreatmentObject),
   FacilityId = treatment:facility_id(TreatmentObject),
-
 
    %% gather required antidote keys
   PatientKey = binary_patient_key(PatientId),
@@ -402,6 +404,7 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
+-spec create_treatment(id(), id(), id(), id(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
   %% TODO I'm performing a get for each operation below, how could it be improved?
@@ -427,6 +430,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
+-spec create_treatment(id(), id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
   %% TODO I'm performing a get for each operation below, how could it be improved?
