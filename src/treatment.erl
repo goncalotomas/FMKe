@@ -1,3 +1,6 @@
+%% This module represents the treatment entity in the FMK system.
+%% Treatments are associated with patients, treatment facilities, and they can
+%% have nested prescriptions and events.
 -module (treatment).
 -include("fmk.hrl").
 
@@ -18,108 +21,128 @@
     add_event/4
 	]).
 
+%% This function returns a list of operations ready to be inserted into antidote.
+%% In order to create an event, multiple ids must be supplied (self-explanatory),
+%% as well as a date when the treatment was prescribed.
+%% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
+%% be supplied in binary
+-spec new(id(),id(),id(),id(),binary()) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed) ->
-  IdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(Id)),
-  PatientIdOp = antidote_lib:build_map_op(?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  FacilityIdOp = antidote_lib:build_map_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DatePrescribedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
-  HasEndedOp = antidote_lib:build_map_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,antidote_lib:lwwreg_assign(<<"0">>)),
+  IdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,Id),
+  PatientIdOp = build_id_op(?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT,PatientId),
+  PrescriberIdOp = build_id_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,PrescriberId),
+  FacilityIdOp = build_id_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,FacilityId),
+  DatePrescribedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DatePrescribed),
+  HasEndedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ONGOING),
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,HasEndedOp].
 
+%% Same as new/5, but includes a date that symbolizes when the treatment was finished.
+%% Indentically to new/5, DateEnded should be binary
+-spec new(id(),id(),id(),id(),binary(), binary()) -> [map_field_update()].
 new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed,DateEnded) ->
-  IdOp = antidote_lib:build_map_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,antidote_lib:counter_increment(Id)),
-  PatientIdOp = antidote_lib:build_map_op(?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  FacilityIdOp = antidote_lib:build_map_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DatePrescribedOp = antidote_lib:build_map_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
-  DateEndedOp = antidote_lib:build_map_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DateEnded))),
-  HasEndedOp = antidote_lib:build_map_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
+  %% trying to keep DRY code by calling new/5 and discarding unnecessary ops
+  [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,_IncorrectHasEndedOp] =
+    new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed),
+  %% build missing ops
+  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateEnded),
+  HasEndedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ENDED),
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,DateEndedOp,HasEndedOp].
 
+%% Returns the prescriber's medical staff ID from an already existant treatment object.
+-spec prescriber_id(crdt()) -> id().
 prescriber_id(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT) of
-    not_found -> 0;
-    PrescriberId -> PrescriberId
-  end.
+  antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT).
 
+%% Returns the treatment's ID from an already existant treatment object.
+-spec id(crdt()) -> id().
 id(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_ID,?TREATMENT_ID_CRDT) of
-    not_found -> 0;
-    Id -> Id
-  end.
+  antidote_lib:find_key(Treatment,?TREATMENT_ID,?TREATMENT_ID_CRDT).
 
+%% Returns the patient's ID from an already existant treatment object.
+-spec patient_id(crdt()) -> id().
 patient_id(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT) of
-    not_found -> 0;
-    PatientId -> PatientId
-  end.
+  antidote_lib:find_key(Treatment,?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT).
 
-date_prescribed(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT) of
-    not_found -> "";
-    Date -> binary_to_list(Date)
-  end.
-
-date_ended(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT) of
-    not_found -> ongoing_treatment;
-    Date -> binary_to_list(Date)
-  end.
-
-prescriptions(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIPTIONS,?TREATMENT_PRESCRIPTIONS_CRDT) of
-    not_found -> [];
-    Prescriptions -> Prescriptions
-  end.
-
-events(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_EVENTS,?TREATMENT_EVENTS_CRDT) of
-    not_found -> [];
-    Events -> Events
-  end.
-
-has_ended(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT) of
-    not_found -> unknown;
-    <<"0">> -> no;
-    <<"1">> -> yes
-  end.
-
+%% Returns the facility ID from an already existant treatment object.
+-spec facility_id(crdt()) -> id().
 facility_id(Treatment) ->
-  case antidote_lib:find_key(Treatment,?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT) of
-    not_found -> 0;
-    FacilityId -> FacilityId
-  end.
+  antidote_lib:find_key(Treatment,?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT).
 
+%% Returns the date of prescription from an already existant treatment object.
+-spec date_prescribed(crdt()) -> binary().
+date_prescribed(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT).
+
+%% Returns the finishing date of an already existant treatment object.
+-spec date_ended(crdt()) -> binary().
+date_ended(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT).
+
+%% Returns the prescriptions associated with an already existant treatment object.
+-spec prescriptions(crdt()) -> term().
+prescriptions(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_PRESCRIPTIONS,?TREATMENT_PRESCRIPTIONS_CRDT).
+
+%% Returns the events associated with an already existant treatment object.
+-spec events(crdt()) -> term().
+events(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_EVENTS,?TREATMENT_EVENTS_CRDT).
+
+%% Checks if a treatment has ended.
+-spec has_ended(crdt()) -> binary().
+has_ended(Treatment) ->
+  antidote_lib:find_key(Treatment,?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT).
+
+%% Returns a list of antidote operations to update a treatment with an ending date,
+%% also updating the HAS_ENDED field.
+-spec finish(binary()) -> [map_field_update()].
 finish(CurrentDate) ->
-  IsProcessedOp = antidote_lib:build_map_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,antidote_lib:lwwreg_assign(<<"1">>)),
-  ProcessedOp = antidote_lib:build_map_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(CurrentDate))),
+  IsProcessedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ENDED),
+  ProcessedOp = build_lwwreg_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,CurrentDate),
   [IsProcessedOp,ProcessedOp].
 
+%% Returns a list of antidote operation to add a nested prescription to a treatment.
+%% Some IDs are necessary in order to create a prescription which should be self-explanatory.
+%% Drugs is supposed to be passed as a simple erlang list containing binary elements, that will in
+%% turn be converted into a riak_dt_orset.
+-spec add_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
 add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
-  PrescriptionIdOp = antidote_lib:build_map_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,antidote_lib:counter_increment(PrescriptionId)),
-  PatientIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,antidote_lib:counter_increment(PatientId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,antidote_lib:counter_increment(PrescriberId)),
-  PharmacyIdOp = antidote_lib:build_map_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,antidote_lib:counter_increment(PharmacyId)),
-  FacilityIdOp = antidote_lib:build_map_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,antidote_lib:counter_increment(FacilityId)),
-  DateStartedOp = antidote_lib:build_map_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,antidote_lib:lwwreg_assign(list_to_binary(DatePrescribed))),
+  PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
+  PatientIdOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
+  PrescriberIdOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
+  PharmacyIdOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
+  FacilityIdOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
+  DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   [DrugsOp] = prescription:add_drugs(Drugs),
   ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
+  %% the nested prescription will be indexed by its key.
   PatientPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?TREATMENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
-  [PatientPrescriptionsOp].
+  %% return a list of operations for the top level treatment map that includes all
+  %% of the nested operations for the prescription fields.
+  [antidote_lib:build_nested_map_op(?TREATMENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps)].
 
+%% Returns a list of antidote operation to add a nested event to a treatment.
+%% Some IDs are necessary in order to create a prescription which should be self-explanatory.
+%% Timestamp and Description are supposed to be binaries.
+-spec add_event(id(), id(), binary(), binary()) -> [map_field_update()].
 add_event(EventId,StaffMemberId,Timestamp,Description) ->
   %% nested operations
-  EventIdOp = antidote_lib:build_map_op(?EVENT_ID,?EVENT_ID_CRDT,antidote_lib:counter_increment(EventId)),
-  PrescriberIdOp = antidote_lib:build_map_op(?EVENT_STAFF_MEMBER_ID,?EVENT_STAFF_MEMBER_ID_CRDT,antidote_lib:counter_increment(StaffMemberId)),
-  TimestampOp = antidote_lib:build_map_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Timestamp))),
-  DescriptionOp = antidote_lib:build_map_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,antidote_lib:lwwreg_assign(list_to_binary(Description))),
-
+  EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
+  PrescriberIdOp = build_id_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberId),
+  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Timestamp),
+  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,Description),
   ListOps = [EventIdOp,PrescriberIdOp,TimestampOp,DescriptionOp],
-
+  %% the nested event will be indexed by its key.
   PatientEventKey = fmk_core:binary_event_key(EventId),
+  %% return a list of operations for the top level treatment map that includes all
+  %% of the nested operations for the event fields.
+  [antidote_lib:build_nested_map_op(?TREATMENT_EVENTS,?NESTED_MAP,PatientEventKey,ListOps)].
 
-  TreatmentEventOp = antidote_lib:build_nested_map_op(?TREATMENT_EVENTS,?NESTED_MAP,PatientEventKey,ListOps),
-  [TreatmentEventOp].
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+build_id_op(Key,KeyType,Id) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:counter_increment(Id)).
+
+build_lwwreg_op(Key,KeyType,Value) ->
+  antidote_lib:build_map_op(Key,KeyType,antidote_lib:lwwreg_assign(Value)).

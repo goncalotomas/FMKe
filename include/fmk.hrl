@@ -53,6 +53,8 @@
 -define (PRESCRIPTION_DATE_PROCESSED_CRDT, riak_dt_lwwreg).
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, riak_dt_orset).
+-define (PRESCRIPTION_NOT_PROCESSED, <<"prescription_not_processed">>).
+-define (PRESCRIPTION_PROCESSED, <<"prescription_processed">>).
 
 %% Treatment macros
 -define (TREATMENT_ID, <<"treatment_id">>).
@@ -73,6 +75,8 @@
 -define (TREATMENT_PRESCRIPTIONS_CRDT, riak_dt_map).
 -define (TREATMENT_EVENTS, <<"treatment_events">>).
 -define (TREATMENT_EVENTS_CRDT, riak_dt_map).
+-define (TREATMENT_ONGOING, <<"ongoing_treatment">>).
+-define (TREATMENT_ENDED, <<"finished_treatment">>).
 
 %% Medical Staff macros
 -define (STAFF_ID, <<"staff_id">>).
@@ -111,14 +115,32 @@
 -define (EVENT_DESCRIPTION_CRDT, riak_dt_lwwreg).
 -define (EVENT_TIMESTAMP, <<"event_timestamp">>).
 -define (EVENT_TIMESTAMP_CRDT, riak_dt_lwwreg).
--define (EVENT_STAFF_MEMBER_ID, <<"event_staff_member_id">>).
--define (EVENT_STAFF_MEMBER_ID_CRDT, riak_dt_gcounter).
+-define (EVENT_STAFF_ID, <<"event_staff_id">>).
+-define (EVENT_STAFF_ID_CRDT, riak_dt_gcounter).
 
 %% FMK Index macros
 -define (FMK_FACILITY_NAME_INDEX, <<"facility_name_index">>).
 -define (FMK_PHARMACY_NAME_INDEX, <<"pharmacy_name_index">>).
 -define (FMK_PATIENT_NAME_INDEX, <<"patient_name_index">>).
 -define (FMK_STAFF_NAME_INDEX, <<"staff_name_index">>).
+
+%% Type specification borrowed from antidote
+-type txid() :: antidote:txid().
+-type reason() :: antidote:reason().
+-type snapshot_time() :: antidote:snapshot_time().
+-type bound_object() :: antidote:bound_object().
+-type op_name() :: antidote:op_name().
+-type op_param() :: antidote:op_param().
+-type crdt() :: term().
+-type crdt_op() :: term().
+-type field() :: term().
+-type map_field_op() ::  {remove, field()}.
+-type map_field_update() :: {update, field(), crdt_op()}.
+-type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
+-type actorordot() :: riak_dt:actor() | riak_dt:dot().
+-type object_bucket() :: {field(), crdt(), term()}.
+-type id() :: non_neg_integer().
+-define (MAP_UPDATE_OP,update).
 
 %% Test macros
 -define(TEST_COUNTER_TYPE, riak_dt_pncounter).

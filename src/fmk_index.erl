@@ -48,44 +48,40 @@ search_index(Key,Index) ->
     Results -> Results
   end.
 
-index_patient(Id,Name) ->
-  AddOperation = build_binary_tuple(Name,concatenate_patient_id(Id)),
+index_patient(Key,Name) ->
+  AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_PATIENT_NAME_INDEX,?ORSET,add,AddOperation).
 
-index_facility(Id,Name) ->
-  AddOperation = build_binary_tuple(Name,concatenate_facility_id(Id)),
+index_facility(Key,Name) ->
+  AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_FACILITY_NAME_INDEX,?ORSET,add,AddOperation).
 
-index_pharmacy(Id,Name) ->
-  AddOperation = build_binary_tuple(Name,concatenate_pharmacy_id(Id)),
+index_pharmacy(Key,Name) ->
+  AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_PHARMACY_NAME_INDEX,?ORSET,add,AddOperation).
 
-index_staff(Id,Name) ->
-  AddOperation = build_binary_tuple(Name,concatenate_staff_id(Id)),
+index_staff(Key,Name) ->
+  AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_STAFF_NAME_INDEX,?ORSET,add,AddOperation).
 
-reindex_patient(Id,OldName,NewName) ->
-  PatientKey = concatenate_patient_id(Id),
-  RemoveOperation = build_binary_tuple(OldName,PatientKey),
-  AddOperation = build_binary_tuple(NewName,PatientKey),
+reindex_patient(Key,OldName,NewName) ->
+  RemoveOperation = build_binary_tuple(OldName,Key),
+  AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_PATIENT_NAME_INDEX,RemoveOperation,AddOperation).
 
-reindex_pharmacy(Id,OldName,NewName) ->
-  PharmacyKey = concatenate_pharmacy_id(Id),
-  RemoveOperation = build_binary_tuple(OldName,PharmacyKey),
-  AddOperation = build_binary_tuple(NewName,PharmacyKey),
+reindex_pharmacy(Key,OldName,NewName) ->
+  RemoveOperation = build_binary_tuple(OldName,Key),
+  AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_PHARMACY_NAME_INDEX,RemoveOperation,AddOperation).
 
-reindex_facility(Id,OldName,NewName) ->
-  FacilityKey = concatenate_facility_id(Id),
-  RemoveOperation = build_binary_tuple(OldName,FacilityKey),
-  AddOperation = build_binary_tuple(NewName,FacilityKey),
+reindex_facility(Key,OldName,NewName) ->
+  RemoveOperation = build_binary_tuple(OldName,Key),
+  AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_FACILITY_NAME_INDEX,RemoveOperation,AddOperation).
 
-reindex_staff(Id,OldName,NewName) ->
-  StaffKey = concatenate_staff_id(Id),
-  RemoveOperation = build_binary_tuple(OldName,StaffKey),
-  AddOperation = build_binary_tuple(NewName,StaffKey),
+reindex_staff(Key,OldName,NewName) ->
+  RemoveOperation = build_binary_tuple(OldName,Key),
+  AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_STAFF_NAME_INDEX,RemoveOperation,AddOperation).
 
 reindex_orset(Key,RemoveOperation,AddOperation) ->
@@ -94,15 +90,3 @@ reindex_orset(Key,RemoveOperation,AddOperation) ->
 
 build_binary_tuple(List1,List2) ->
   {list_to_binary(List1),list_to_binary(List2)}.
-
-concatenate_patient_id(Id) ->
-  fmk_core:concatenate_id(patient,Id).
-
-concatenate_pharmacy_id(Id) ->
-  fmk_core:concatenate_id(pharmacy,Id).
-
-concatenate_facility_id(Id) ->
-  fmk_core:concatenate_id(facility,Id).
-
-concatenate_staff_id(Id) ->
-  fmk_core:concatenate_id(staff,Id).
