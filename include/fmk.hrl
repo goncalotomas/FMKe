@@ -124,6 +124,24 @@
 -define (FMK_PATIENT_NAME_INDEX, <<"patient_name_index">>).
 -define (FMK_STAFF_NAME_INDEX, <<"staff_name_index">>).
 
+%% Type specification borrowed from antidote
+-type txid() :: antidote:txid().
+-type reason() :: antidote:reason().
+-type snapshot_time() :: antidote:snapshot_time().
+-type bound_object() :: antidote:bound_object().
+-type op_name() :: antidote:op_name().
+-type op_param() :: antidote:op_param().
+-type crdt() :: term().
+-type crdt_op() :: term().
+-type field() :: term().
+-type map_field_op() ::  {remove, field()}.
+-type map_field_update() :: {update, field(), crdt_op()}.
+-type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
+-type actorordot() :: riak_dt:actor() | riak_dt:dot().
+-type object_bucket() :: {field(), crdt(), term()}.
+-type id() :: non_neg_integer().
+-define (MAP_UPDATE_OP,update).
+
 %% Test macros
 -define(TEST_COUNTER_TYPE, riak_dt_pncounter).
 -define(TEST_COUNTER_KEY, fmk_counter_test).
