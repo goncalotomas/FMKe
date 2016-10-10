@@ -38,7 +38,6 @@
 
 %% Exports needed for other modules
 -export ([
-    concatenate_id/2,
     binary_patient_key/1,
     binary_treatment_key/1,
     binary_prescription_key/1,
@@ -76,6 +75,9 @@ create_pharmacy(Id,Name,Address) ->
       {error, pharmacy_id_taken}
   end.
 
+%% Adds a facility to the FMK-- system if the ID for the facility has not yet
+%% been seen. If the operation succeeds, the facility will be indexed by both
+%% Name and ID.
 -spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
   case get_facility_by_id(Id) of
@@ -88,6 +90,9 @@ create_facility(Id,Name,Address,Type) ->
       {error, facility_id_taken}
   end.
 
+%% Adds a staff member to the FMK-- system if the ID for the member has not yet
+%% been seen. If the operation succeeds, the staff member will be indexed by both
+%% Name and ID.
 -spec create_staff(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_staff(Id,Name,Address,Speciality) ->
   case get_staff_by_id(Id) of
@@ -100,6 +105,7 @@ create_staff(Id,Name,Address,Speciality) ->
       {error, staff_id_taken}
   end.
 
+%% Fetches a treatment event by id.
 -spec get_event_by_id(id()) -> [crdt()] | {error, reason()}.
 get_event_by_id(Id) ->
   Event = antidote_lib:get(binary_event_key(Id),?MAP),
@@ -108,6 +114,7 @@ get_event_by_id(Id) ->
     EventMap -> EventMap
   end.
 
+%% Fetches a facility by id.
 -spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id) ->
   Facility = antidote_lib:get(binary_facility_key(Id),?MAP),
@@ -116,6 +123,7 @@ get_facility_by_id(Id) ->
     FacilityMap -> FacilityMap
   end.
 
+%% Fetches a facility by name.
 -spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_facility_by_name(Name) ->
   case search_facility_index(list_to_binary(Name)) of
@@ -124,6 +132,7 @@ get_facility_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
+%% Fetches the list of facility prescriptions given a certain facility ID.
 -spec get_facility_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_facility_prescriptions(FacilityId) ->
   case get_facility_by_id(FacilityId) of
@@ -131,6 +140,7 @@ get_facility_prescriptions(FacilityId) ->
     Facility -> facility:prescriptions(Facility)
   end.
 
+%% Fetches the list of facility treatments given a certain facility ID.
 -spec get_facility_treatments(id()) -> [crdt()] | {error, reason()}.
 get_facility_treatments(FacilityId) ->
   case get_facility_by_id(FacilityId) of
@@ -138,6 +148,7 @@ get_facility_treatments(FacilityId) ->
     Facility -> facility:treatments(Facility)
   end.
 
+%% Fetches a pharmacy by ID.
 -spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_id(Id) ->
   Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
@@ -146,7 +157,7 @@ get_pharmacy_by_id(Id) ->
     PharmacyMap -> PharmacyMap
   end.
 
-%% Finds a patient in the Antidote Key-Value store by Patient ID.
+%% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
   Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
@@ -155,6 +166,7 @@ get_patient_by_id(Id) ->
     PatientMap -> PatientMap
   end.
 
+%% Fetches a patient by name.
 -spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_patient_by_name(Name) ->
   case search_patient_index(list_to_binary(Name)) of
@@ -163,6 +175,7 @@ get_patient_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
+%% Fetches a pharmacy by name.
 -spec get_pharmacy_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_name(Name) ->
   case search_pharmacy_index(list_to_binary(Name)) of
@@ -171,6 +184,7 @@ get_pharmacy_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
+%% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_prescriptions(PharmacyId) ->
   case get_pharmacy_by_id(PharmacyId) of
@@ -178,6 +192,7 @@ get_pharmacy_prescriptions(PharmacyId) ->
     Pharmacy -> pharmacy:prescriptions(Pharmacy)
   end.
 
+%% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id) ->
   Prescription = antidote_lib:get(binary_prescription_key(Id),?MAP),
@@ -186,6 +201,7 @@ get_prescription_by_id(Id) ->
     PrescriptionMap -> PrescriptionMap
   end.
 
+%% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id) ->
   Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
@@ -194,6 +210,7 @@ get_staff_by_id(Id) ->
     StaffMap -> StaffMap
   end.
 
+%% Fetches a staff member by name.
 -spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_staff_by_name(Name) ->
   case search_staff_index(list_to_binary(Name)) of
@@ -202,6 +219,7 @@ get_staff_by_name(Name) ->
     List -> [antidote_lib:get(Result,?MAP) || Result <- List]
   end.
 
+%% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_staff_prescriptions(StaffId) ->
   case get_staff_by_id(StaffId) of
@@ -209,6 +227,7 @@ get_staff_prescriptions(StaffId) ->
     Staff -> staff:prescriptions(Staff)
   end.
 
+%% Fetches a list of treatments given a certain staff member ID.
 -spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
 get_staff_treatments(StaffId) ->
   case get_staff_by_id(StaffId) of
@@ -216,6 +235,7 @@ get_staff_treatments(StaffId) ->
     Staff -> staff:treatments(Staff)
   end.
 
+%% Fetches a treatment by ID.
 -spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
 get_treatment_by_id(Id) ->
   Treatment = antidote_lib:get(binary_treatment_key(Id),?MAP),
@@ -224,6 +244,7 @@ get_treatment_by_id(Id) ->
     TreatmentMap -> TreatmentMap
   end.
 
+%% Updates the personal details of a patient with a certain ID.
 -spec update_patient_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_patient_details(Id,Name,Address) ->
   case get_patient_by_id(Id) of
@@ -244,6 +265,7 @@ update_patient_details(Id,Name,Address) ->
       end
   end.
 
+%% Updates the details of a pharmacy with a certain ID.
 -spec update_pharmacy_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_pharmacy_details(Id,Name,Address) ->
   case get_pharmacy_by_id(Id) of
@@ -264,6 +286,7 @@ update_pharmacy_details(Id,Name,Address) ->
       end
   end.
 
+%% Updates the details of a facility with a certain ID.
 -spec update_facility_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_facility_details(Id,Name,Address,Type) ->
   case get_facility_by_id(Id) of
@@ -284,6 +307,7 @@ update_facility_details(Id,Name,Address,Type) ->
       end
   end.
 
+%% Updates the details of a staff member with a certain ID.
 -spec update_staff_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_staff_details(Id,Name,Address,Speciality) ->
   case get_staff_by_id(Id) of
@@ -304,6 +328,9 @@ update_staff_details(Id,Name,Address,Speciality) ->
       end
   end.
 
+%% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
+%% pharmacy and treatment facility (hospital). The prescription also includes the prescription date
+%% and the list of drugs that should be administered.
 -spec create_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
@@ -338,6 +365,8 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
+%% Same as create_prescription/7, but includes a reference to the treatment to which the
+%% prescription is associated with.
 -spec create_prescription(id(), id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
@@ -376,6 +405,8 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
+%% Creates a treatment event, with information about the staff member that registered it,
+%% along with a timestamp and description.
 -spec create_event(id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
@@ -404,6 +435,8 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
   ok.
 
+%% Creates a treatment with information about the patient, the staff member that iniciated it,
+%% and also the facility ID and date when the treatment started.
 -spec create_treatment(id(), id(), id(), id(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
@@ -430,6 +463,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
+%% Same as create_treatment/5, but includes an ending date for the treatment.
 -spec create_treatment(id(), id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
@@ -456,35 +490,45 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
   ok.
 
+%% Builds the patient key inside Antidote given the patient ID.
 -spec binary_patient_key(id()) -> binary().
 binary_patient_key(Id) ->
   list_to_binary(concatenate_id(patient,Id)).
 
+%% Builds the pharmacy key inside Antidote given the pharmacy ID.
 -spec binary_pharmacy_key(id()) -> binary().
 binary_pharmacy_key(Id) ->
   list_to_binary(concatenate_id(pharmacy,Id)).
 
+%% Builds the facility key inside Antidote given the facility ID.
 -spec binary_facility_key(id()) -> binary().
 binary_facility_key(Id) ->
   list_to_binary(concatenate_id(facility,Id)).
 
+%% Builds the staff member key inside Antidote given the staff member ID.
 -spec binary_staff_key(id()) -> binary().
 binary_staff_key(Id) ->
   list_to_binary(concatenate_id(staff,Id)).
 
+%% Builds the prescription key inside Antidote given the prescription ID.
 -spec binary_prescription_key(id()) -> binary().
 binary_prescription_key(Id) ->
   list_to_binary(concatenate_id(prescription,Id)).
 
+%% Builds the treatment key inside Antidote given the treatment ID.
 -spec binary_treatment_key(id()) -> binary().
 binary_treatment_key(Id) ->
   list_to_binary(concatenate_id(treatment,Id)).
 
+%% Builds the event key inside Antidote given the event ID.
 -spec binary_event_key(id()) -> binary().
 binary_event_key(Id) ->
   list_to_binary(concatenate_id(event,Id)).
 
--spec concatenate_id(atom(),id()) -> nonempty_string().
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+
 concatenate_id(patient,Id) ->
   concatenate_list_with_id("patient_~p",Id);
 concatenate_id(pharmacy,Id) ->
@@ -501,10 +545,6 @@ concatenate_id(event,Id) ->
   concatenate_list_with_id("event_~p",Id);
 concatenate_id(_,_) ->
   undefined.
-
-%%-----------------------------------------------------------------------------
-%% Internal auxiliary functions - simplifying calls to external modules
-%%-----------------------------------------------------------------------------
 
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
