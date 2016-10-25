@@ -13,6 +13,7 @@
 -export ([
   create_bucket/2,
   get/2,
+  get/3,
   put/4,
   put/5
   ]).
