@@ -56,12 +56,14 @@
 %% will be added to the system and indexed by both Name and ID.
 -spec create_patient(id(),binary(),binary()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
-  case get_patient_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
       ok = fmk_index:index_patient(concatenate_id(patient,Id),Name),
-      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,node());
+      ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn),
+      ok = antidote_lib:txn_commit(Txn);
     _Patient ->
       {error, patient_id_taken}
   end.
