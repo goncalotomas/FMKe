@@ -15,7 +15,9 @@
   get/2,
   get/3,
   put/4,
-  put/5
+  put/5,
+  put_map/5,
+  put_map/6
   ]).
 
 %% This export is internally used by the put and get functions. These functions are exported in order
@@ -174,13 +176,25 @@ put(Key,Type,Op,Param) ->
   ok = txn_update_object({Bucket,Op,Param},TxnDetails),
   ok = txn_commit(TxnDetails).
 
+%% Similar to put/4, but with transactional context.
+-spec put(field(), crdt(), crdt_op(), op_param(), txid()) -> ok | {error, reason()}.
+put(Key,Type,Op,Param,Txn) ->
+  Bucket = create_bucket(Key,Type),
+  ok = txn_update_object({Bucket,Op,Param},Txn).
+
 %% Same as put/4, but appropriate for maps since they require information about the Actor.
--spec put(field(), crdt(), crdt_op(), op_param(), actorordot()) -> ok | {error, reason()}.
-put(Key,Type,Op,Param,Actor) ->
+-spec put_map(field(), crdt(), crdt_op(), op_param(), actorordot()) -> ok | {error, reason()}.
+put_map(Key,Type,Op,Param,Actor) ->
   TxnDetails = txn_start(),
   Bucket = create_bucket(Key,Type),
   ok = txn_update_map(Bucket,Op,Param,TxnDetails,Actor),
   ok = txn_commit(TxnDetails).
+
+%% Similar to put/5, but appropriate for maps since they require information about the Actor.
+-spec put_map(field(), crdt(), crdt_op(), op_param(), actorordot(), txid()) -> ok | {error, reason()}.
+put_map(Key,Type,Op,Param,Actor,Txn) ->
+  Bucket = create_bucket(Key,Type),
+  ok = txn_update_map(Bucket,Op,Param,Txn,Actor).
 
 %% ------------------------------------------------------------------------------------------------
 %% ANTIDOTE'S OLD API - Should only be used for benchmarking
