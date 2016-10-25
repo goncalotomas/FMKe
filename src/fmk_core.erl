@@ -73,12 +73,14 @@ create_patient(Id,Name,Address) ->
 %% Name and ID.
 -spec create_pharmacy(id(),binary(),binary()) -> ok | {error, reason()}.
 create_pharmacy(Id,Name,Address) ->
-  case get_pharmacy_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
       ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name),
-      ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,node());
+      ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn),
+      ok = antidote_lib:txn_commit(Txn);
     _Pharmacy ->
       {error, pharmacy_id_taken}
   end.
