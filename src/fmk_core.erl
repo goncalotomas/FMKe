@@ -613,3 +613,10 @@ check_event_id(Id) ->
     {error,not_found} -> free;
     _Map  -> taken
   end.
+
+process_get_request(Key,Type,Txn) ->
+  ReadResult = antidote_lib:get(Key,Type,Txn),
+  case ReadResult of
+    [] -> {error,not_found};
+    Object -> Object
+  end.
