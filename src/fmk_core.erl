@@ -50,87 +50,105 @@
 %% will be added to the system and indexed by both Name and ID.
 -spec create_patient(id(),binary(),binary()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
-  case get_patient_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  Result = case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
-      ok = fmk_index:index_patient(concatenate_id(patient,Id),Name),
-      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,fmk);
+      ok = fmk_index:index_patient(concatenate_id(patient,Id),Name,Txn),
+      ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn);
     _Patient ->
       {error, patient_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
 %% been seen. If the operation succeeds, the pharmacy will be indexed by both
 %% Name and ID.
 -spec create_pharmacy(id(),binary(),binary()) -> ok | {error, reason()}.
 create_pharmacy(Id,Name,Address) ->
-  case get_pharmacy_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  Result = case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
-      ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name),
-      ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,fmk);
+      ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name,Txn),
+      ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn);
     _Pharmacy ->
       {error, pharmacy_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet
 %% been seen. If the operation succeeds, the facility will be indexed by both
 %% Name and ID.
 -spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
-  case get_facility_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  Result = case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
-      ok = fmk_index:index_facility(concatenate_id(facility,Id),Name),
-      ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,fmk);
+      ok = fmk_index:index_facility(concatenate_id(facility,Id),Name,Txn),
+      ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn);
     _Facility ->
       {error, facility_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet
 %% been seen. If the operation succeeds, the staff member will be indexed by both
 %% Name and ID.
 -spec create_staff(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_staff(Id,Name,Address,Speciality) ->
-  case get_staff_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  Result = case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
-      ok = fmk_index:index_staff(concatenate_id(staff,Id),Name),
-      ok = antidote_lib:put(StaffKey,?MAP,update,Staff,fmk);
+      ok = fmk_index:index_staff(concatenate_id(staff,Id),Name,Txn),
+      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node(),Txn);
     _Facility ->
       {error, staff_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a treatment event by id.
 -spec get_event_by_id(id()) -> [crdt()] | {error, reason()}.
 get_event_by_id(Id) ->
-  Event = antidote_lib:get(binary_event_key(Id),?MAP),
-  case Event of
-    [] -> {error,not_found};
-    EventMap -> EventMap
-  end.
+  process_get_request(binary_event_key(Id),?MAP).
+
+%% Alternative to get_event_by_id/1, which includes a transactional context.
+-spec get_event_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_event_by_id(Id,Txn) ->
+  process_get_request(binary_event_key(Id),?MAP,Txn).
+
 
 %% Fetches a facility by id.
 -spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id) ->
-  Facility = antidote_lib:get(binary_facility_key(Id),?MAP),
-  case Facility of
-    [] -> {error,not_found};
-    FacilityMap -> FacilityMap
-  end.
+  process_get_request(binary_facility_key(Id),?MAP).
+
+%% Alternative to get_facility_by_id/1, which includes a transactional context.
+-spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_facility_by_id(Id,Txn) ->
+  process_get_request(binary_facility_key(Id),?MAP,Txn).
 
 %% Fetches a facility by name.
 -spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_facility_by_name(Name) ->
-  case search_facility_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_facility_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:commit_transaction(Txn),
+  Result.
 
 %% Fetches the list of facility prescriptions given a certain facility ID.
 -spec get_facility_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -151,38 +169,46 @@ get_facility_treatments(FacilityId) ->
 %% Fetches a pharmacy by ID.
 -spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_id(Id) ->
-  Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
-  case Pharmacy of
-    [] -> {error,not_found};
-    PharmacyMap -> PharmacyMap
-  end.
+  process_get_request(binary_pharmacy_key(Id),?MAP).
+
+%% Alternative to get_pharmacy_by_id/1, which includes a transactional context.
+-spec get_pharmacy_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_by_id(Id,Txn) ->
+  process_get_request(binary_pharmacy_key(Id),?MAP,Txn).
 
 %% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
-  Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
-  case Patient of
-    [] -> {error,not_found};
-    PatientMap -> PatientMap
-  end.
+  process_get_request(binary_patient_key(Id),?MAP).
+
+%% Alternative to get_patient_by_id/1, which includes a transactional context.
+-spec get_patient_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_patient_by_id(Id,Txn) ->
+  process_get_request(binary_patient_key(Id),?MAP,Txn).
 
 %% Fetches a patient by name.
 -spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_patient_by_name(Name) ->
-  case search_patient_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_patient_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a pharmacy by name.
 -spec get_pharmacy_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_name(Name) ->
-  case search_pharmacy_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_pharmacy_index(list_to_binary(Name), Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -195,29 +221,34 @@ get_pharmacy_prescriptions(PharmacyId) ->
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id) ->
-  Prescription = antidote_lib:get(binary_prescription_key(Id),?MAP),
-  case Prescription of
-    [] -> {error,not_found};
-    PrescriptionMap -> PrescriptionMap
-  end.
+  process_get_request(binary_prescription_key(Id),?MAP).
+
+%% Alternative to get_prescription_by_id/1, which includes a transactional context.
+-spec get_prescription_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_prescription_by_id(Id,Txn) ->
+  process_get_request(binary_prescription_key(Id),?MAP,Txn).
 
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id) ->
-  Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
-  case Staff of
-    [] -> {error,not_found};
-    StaffMap -> StaffMap
-  end.
+  process_get_request(binary_staff_key(Id),?MAP).
+
+%% Alternative to get_staff_by_id/1, which includes a transactional context.
+-spec get_staff_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_staff_by_id(Id,Txn) ->
+  process_get_request(binary_staff_key(Id),?MAP,Txn).
 
 %% Fetches a staff member by name.
 -spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_staff_by_name(Name) ->
-  case search_staff_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_staff_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -238,16 +269,18 @@ get_staff_treatments(StaffId) ->
 %% Fetches a treatment by ID.
 -spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
 get_treatment_by_id(Id) ->
-  Treatment = antidote_lib:get(binary_treatment_key(Id),?MAP),
-  case Treatment of
-    [] -> {error,not_found};
-    TreatmentMap -> TreatmentMap
-  end.
+  process_get_request(binary_treatment_key(Id),?MAP).
+
+%% Fetches a treatment by ID.
+-spec get_treatment_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
+get_treatment_by_id(Id,Txn) ->
+  process_get_request(binary_treatment_key(Id),?MAP,Txn).
 
 %% Updates the personal details of a patient with a certain ID.
 -spec update_patient_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_patient_details(Id,Name,Address) ->
-  case get_patient_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_patient};
     Patient ->
@@ -256,19 +289,21 @@ update_patient_details(Id,Name,Address) ->
       PatientKey = binary_patient_key(Id),
       PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
-      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+      antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
       case string:equal(PatientName,Name) of
         true ->
           ok;
         false ->
-          ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name)
-      end
+          ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name,Txn)
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a pharmacy with a certain ID.
 -spec update_pharmacy_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_pharmacy_details(Id,Name,Address) ->
-  case get_pharmacy_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_pharmacy};
     Pharmacy ->
@@ -277,19 +312,21 @@ update_pharmacy_details(Id,Name,Address) ->
       PharmacyKey = binary_pharmacy_key(Id),
       PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
-      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+      antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
       case string:equal(PharmacyName,Name) of
         true ->
           ok;
         false ->
-          ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name)
-      end
+          ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name,Txn)
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a facility with a certain ID.
 -spec update_facility_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_facility_details(Id,Name,Address,Type) ->
-  case get_facility_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_facility};
     Facility ->
@@ -298,19 +335,21 @@ update_facility_details(Id,Name,Address,Type) ->
       FacilityKey = binary_pharmacy_key(Id),
       FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
-      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+      antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
       case string:equal(FacilityName,Name) of
         true ->
           ok;
         false ->
-          ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name)
-      end
+          ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name,Txn)
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a staff member with a certain ID.
 -spec update_staff_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_staff_details(Id,Name,Address,Speciality) ->
-  case get_staff_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_staff_member};
     Staff ->
@@ -319,13 +358,14 @@ update_staff_details(Id,Name,Address,Speciality) ->
       StaffKey = binary_pharmacy_key(Id),
       StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
-      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,fmk),
+      antidote_lib:put_map(StaffKey,?MAP,update,StaffUpdate,node(),Txn),
       case string:equal(StaffName,Name) of
         true ->
           ok;
         false ->
-          ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name)
-      end
+          ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name,Txn)
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
@@ -334,12 +374,12 @@ update_staff_details(Id,Name,Address,Speciality) ->
 -spec create_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_prescription_id(PrescriptionId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(PrescriberId),
-  taken = check_pharmacy_id(PharmacyId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_prescription_id(PrescriptionId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(PrescriberId,Txn),
+  taken = check_pharmacy_id(PharmacyId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   PrescriptionKey = binary_prescription_key(PrescriptionId),
   PatientKey = binary_patient_key(PatientId),
@@ -354,15 +394,16 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Same as create_prescription/7, but includes a reference to the treatment to which the
@@ -370,12 +411,12 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
 -spec create_prescription(id(), id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_prescription_id(PrescriptionId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(PrescriberId),
-  taken = check_pharmacy_id(PharmacyId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_prescription_id(PrescriptionId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(PrescriberId,Txn),
+  taken = check_pharmacy_id(PharmacyId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   PrescriptionKey = binary_prescription_key(PrescriptionId),
   PatientKey = binary_patient_key(PatientId),
@@ -392,17 +433,18 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
   %% add to the treatment's prescriptions
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Creates a treatment event, with information about the staff member that registered it,
@@ -410,10 +452,11 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
 -spec create_event(id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
-  free = check_event_id(EventId),
-  taken = check_treatment_id(TreatmentId),
-  taken = check_staff_id(StaffMemberId),
-  TreatmentObject = get_treatment_by_id(TreatmentId),
+  Txn = antidote_lib:txn_start(),
+  free = check_event_id(EventId,Txn),
+  taken = check_treatment_id(TreatmentId,Txn),
+  taken = check_staff_id(StaffMemberId,Txn),
+  TreatmentObject = get_treatment_by_id(TreatmentId,Txn),
   PatientId = treatment:patient_id(TreatmentObject),
   FacilityId = treatment:facility_id(TreatmentObject),
 
@@ -429,10 +472,11 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   FacilityUpdate = facility:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
   TreatmentUpdate = treatment:add_event(EventId,StaffMemberId,Timestamp,Description),
   %% add top level event
-  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,fmk),
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
+  antidote_lib:put_map(EventKey,?MAP,update,TopLevelEvent,node(),Txn),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Creates a treatment with information about the patient, the staff member that iniciated it,
@@ -440,11 +484,11 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
 -spec create_treatment(id(), id(), id(), id(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_treatment_id(TreatmentId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(StaffId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_treatment_id(TreatmentId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(StaffId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   TreatmentKey = binary_treatment_key(TreatmentId),
   PatientKey = binary_patient_key(PatientId),
@@ -454,24 +498,24 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% build nested updates for facilities and patients
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
-  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Same as create_treatment/5, but includes an ending date for the treatment.
 -spec create_treatment(id(), id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_treatment_id(TreatmentId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(StaffId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_treatment_id(TreatmentId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(StaffId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   TreatmentKey = binary_treatment_key(TreatmentId),
   PatientKey = binary_patient_key(PatientId),
@@ -481,13 +525,13 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   %% build nested updates for facilities and patients
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
-  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Builds the patient key inside Antidote given the patient ID.
@@ -549,67 +593,81 @@ concatenate_id(_,_) ->
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
 
-search_patient_index(Name) ->
-  search_fmk_index(patient,Name).
+search_patient_index(Name,Txn) ->
+  search_fmk_index(patient,Name,Txn).
 
-search_pharmacy_index(Name) ->
-  search_fmk_index(pharmacy,Name).
+search_pharmacy_index(Name,Txn) ->
+  search_fmk_index(pharmacy,Name,Txn).
 
-search_facility_index(Name) ->
-  search_fmk_index(facility,Name).
+search_facility_index(Name,Txn) ->
+  search_fmk_index(facility,Name,Txn).
 
-search_staff_index(Name) ->
-  search_fmk_index(staff,Name).
+search_staff_index(Name,Txn) ->
+  search_fmk_index(staff,Name,Txn).
 
-search_fmk_index(staff,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_staff_name_index());
-search_fmk_index(facility,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_facility_name_index());
-search_fmk_index(patient,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_patient_name_index());
-search_fmk_index(pharmacy, Name) ->
-  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index());
-search_fmk_index(_,_) ->
+search_fmk_index(staff,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_staff_name_index(),Txn);
+search_fmk_index(facility,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_facility_name_index(),Txn);
+search_fmk_index(patient,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_patient_name_index(),Txn);
+search_fmk_index(pharmacy,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index(),Txn);
+search_fmk_index(_,_,_) ->
   undefined.
 
-check_prescription_id(Id) ->
-  case get_prescription_by_id(Id) of
+check_prescription_id(Id,Txn) ->
+  case get_prescription_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_staff_id(Id) ->
-  case get_staff_by_id(Id) of
+check_staff_id(Id,Txn) ->
+  case get_staff_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_patient_id(Id) ->
-  case get_patient_by_id(Id) of
+check_patient_id(Id,Txn) ->
+  case get_patient_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_pharmacy_id(Id) ->
-  case get_pharmacy_by_id(Id) of
+check_pharmacy_id(Id,Txn) ->
+  case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_facility_id(Id) ->
-  case get_facility_by_id(Id) of
+check_facility_id(Id,Txn) ->
+  case get_facility_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_treatment_id(Id) ->
-  case get_treatment_by_id(Id) of
+check_treatment_id(Id,Txn) ->
+  case get_treatment_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_event_id(Id) ->
-  case get_event_by_id(Id) of
+check_event_id(Id,Txn) ->
+  case get_event_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
+  end.
+
+process_get_request(Key,Type) ->
+  ReadResult = antidote_lib:get(Key,Type),
+  case ReadResult of
+    [] -> {error,not_found};
+    Object -> Object
+  end.
+
+process_get_request(Key,Type,Txn) ->
+  ReadResult = antidote_lib:get(Key,Type,Txn),
+  case ReadResult of
+    [] -> {error,not_found};
+    Object -> Object
   end.

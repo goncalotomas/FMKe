@@ -51,7 +51,7 @@ type(Facility) ->
 %% Returns the facility id from a facility object
 -spec id(crdt()) -> id().
 id(Facility) ->
-  antidote_lib:find_key(Facility,?FACILITY_ID,?FACILITY_ID).
+  antidote_lib:find_key(Facility,?FACILITY_ID,?FACILITY_ID_CRDT).
 
 %% Returns the facility address from a facility object
 -spec address(crdt()) -> binary().
