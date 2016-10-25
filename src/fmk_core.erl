@@ -90,12 +90,14 @@ create_pharmacy(Id,Name,Address) ->
 %% Name and ID.
 -spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
+  Txn = antidote_lib:txn_start(),
   case get_facility_by_id(Id) of
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
       ok = fmk_index:index_facility(concatenate_id(facility,Id),Name),
-      ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,node());
+      ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn),
+      ok = antidote_lib:txn_commit(Txn);
     _Facility ->
       {error, facility_id_taken}
   end.
