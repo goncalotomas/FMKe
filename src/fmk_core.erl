@@ -114,6 +114,12 @@ get_event_by_id(Id) ->
     EventMap -> EventMap
   end.
 
+%% Alternative to get_event_by_id/1, which includes a transactional context.
+-spec get_event_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_event_by_id(Id,Txn) ->
+  process_get_request(binary_event_key(Id),?MAP,Txn).
+
+
 %% Fetches a facility by id.
 -spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id) ->
@@ -122,6 +128,11 @@ get_facility_by_id(Id) ->
     [] -> {error,not_found};
     FacilityMap -> FacilityMap
   end.
+
+%% Alternative to get_facility_by_id/1, which includes a transactional context.
+-spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_facility_by_id(Id,Txn) ->
+  process_get_request(binary_facility_key(Id),?MAP,Txn).
 
 %% Fetches a facility by name.
 -spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
@@ -157,6 +168,11 @@ get_pharmacy_by_id(Id) ->
     PharmacyMap -> PharmacyMap
   end.
 
+%% Alternative to get_pharmacy_by_id/1, which includes a transactional context.
+-spec get_pharmacy_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_by_id(Id,Txn) ->
+  process_get_request(binary_pharmacy_key(Id),?MAP,Txn).
+
 %% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
@@ -165,6 +181,11 @@ get_patient_by_id(Id) ->
     [] -> {error,not_found};
     PatientMap -> PatientMap
   end.
+
+%% Alternative to get_patient_by_id/1, which includes a transactional context.
+-spec get_patient_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_patient_by_id(Id,Txn) ->
+  process_get_request(binary_patient_key(Id),?MAP,Txn).
 
 %% Fetches a patient by name.
 -spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
@@ -201,6 +222,11 @@ get_prescription_by_id(Id) ->
     PrescriptionMap -> PrescriptionMap
   end.
 
+%% Alternative to get_prescription_by_id/1, which includes a transactional context.
+-spec get_prescription_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_prescription_by_id(Id,Txn) ->
+  process_get_request(binary_prescription_key(Id),?MAP,Txn).
+
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id) ->
@@ -209,6 +235,11 @@ get_staff_by_id(Id) ->
     [] -> {error,not_found};
     StaffMap -> StaffMap
   end.
+
+%% Alternative to get_staff_by_id/1, which includes a transactional context.
+-spec get_staff_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+get_staff_by_id(Id,Txn) ->
+  process_get_request(binary_staff_key(Id),?MAP,Txn).
 
 %% Fetches a staff member by name.
 -spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
