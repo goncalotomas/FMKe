@@ -375,12 +375,12 @@ update_staff_details(Id,Name,Address,Speciality) ->
 -spec create_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_prescription_id(PrescriptionId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(PrescriberId),
-  taken = check_pharmacy_id(PharmacyId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_prescription_id(PrescriptionId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(PrescriberId,Txn),
+  taken = check_pharmacy_id(PharmacyId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   PrescriptionKey = binary_prescription_key(PrescriptionId),
   PatientKey = binary_patient_key(PatientId),
@@ -395,15 +395,16 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,node()),
+  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
+  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,node()),
+  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Same as create_prescription/7, but includes a reference to the treatment to which the
@@ -411,12 +412,12 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
 -spec create_prescription(id(), id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_prescription_id(PrescriptionId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(PrescriberId),
-  taken = check_pharmacy_id(PharmacyId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_prescription_id(PrescriptionId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(PrescriberId,Txn),
+  taken = check_pharmacy_id(PharmacyId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   PrescriptionKey = binary_prescription_key(PrescriptionId),
   PatientKey = binary_patient_key(PatientId),
@@ -433,17 +434,18 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,node()),
+  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
+  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,node()),
+  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
   %% add to the treatment's prescriptions
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,node()),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Creates a treatment event, with information about the staff member that registered it,
@@ -451,10 +453,11 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
 -spec create_event(id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
-  free = check_event_id(EventId),
-  taken = check_treatment_id(TreatmentId),
-  taken = check_staff_id(StaffMemberId),
-  TreatmentObject = get_treatment_by_id(TreatmentId),
+  Txn = antidote_lib:txn_start(),
+  free = check_event_id(EventId,Txn),
+  taken = check_treatment_id(TreatmentId,Txn),
+  taken = check_staff_id(StaffMemberId,Txn),
+  TreatmentObject = get_treatment_by_id(TreatmentId,Txn),
   PatientId = treatment:patient_id(TreatmentObject),
   FacilityId = treatment:facility_id(TreatmentObject),
 
@@ -470,10 +473,11 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   FacilityUpdate = facility:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
   TreatmentUpdate = treatment:add_event(EventId,StaffMemberId,Timestamp,Description),
   %% add top level event
-  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,node()),
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,node()),
+  antidote_lib:put_map(EventKey,?MAP,update,TopLevelEvent,node(),Txn),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Creates a treatment with information about the patient, the staff member that iniciated it,
@@ -481,11 +485,11 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
 -spec create_treatment(id(), id(), id(), id(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_treatment_id(TreatmentId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(StaffId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_treatment_id(TreatmentId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(StaffId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   TreatmentKey = binary_treatment_key(TreatmentId),
   PatientKey = binary_patient_key(PatientId),
@@ -495,24 +499,24 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% build nested updates for facilities and patients
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
-  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node()),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Same as create_treatment/5, but includes an ending date for the treatment.
 -spec create_treatment(id(), id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
-  %% TODO I'm performing a get for each operation below, how could it be improved?
-  free = check_treatment_id(TreatmentId),
-  taken = check_patient_id(PatientId),
-  taken = check_staff_id(StaffId),
-  taken = check_facility_id(FacilityId),
+  Txn = antidote_lib:txn_start(),
+  free = check_treatment_id(TreatmentId,Txn),
+  taken = check_patient_id(PatientId,Txn),
+  taken = check_staff_id(StaffId,Txn),
+  taken = check_facility_id(FacilityId,Txn),
   %% gather required antidote keys
   TreatmentKey = binary_treatment_key(TreatmentId),
   PatientKey = binary_patient_key(PatientId),
@@ -522,13 +526,13 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   %% build nested updates for facilities and patients
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
-  %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node()),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  ok = antidote_lib:txn_commit(Txn),
   ok.
 
 %% Builds the patient key inside Antidote given the patient ID.
@@ -613,44 +617,44 @@ search_fmk_index(pharmacy,Name,Txn) ->
 search_fmk_index(_,_,_) ->
   undefined.
 
-check_prescription_id(Id) ->
-  case get_prescription_by_id(Id) of
+check_prescription_id(Id,Txn) ->
+  case get_prescription_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_staff_id(Id) ->
-  case get_staff_by_id(Id) of
+check_staff_id(Id,Txn) ->
+  case get_staff_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_patient_id(Id) ->
-  case get_patient_by_id(Id) of
+check_patient_id(Id,Txn) ->
+  case get_patient_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_pharmacy_id(Id) ->
-  case get_pharmacy_by_id(Id) of
+check_pharmacy_id(Id,Txn) ->
+  case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_facility_id(Id) ->
-  case get_facility_by_id(Id) of
+check_facility_id(Id,Txn) ->
+  case get_facility_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_treatment_id(Id) ->
-  case get_treatment_by_id(Id) of
+check_treatment_id(Id,Txn) ->
+  case get_treatment_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
 
-check_event_id(Id) ->
-  case get_event_by_id(Id) of
+check_event_id(Id,Txn) ->
+  case get_event_by_id(Id,Txn) of
     {error,not_found} -> free;
     _Map  -> taken
   end.
