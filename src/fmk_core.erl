@@ -51,16 +51,17 @@
 -spec create_patient(id(),binary(),binary()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
-  case get_patient_by_id(Id,Txn) of
+  Result = case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
       ok = fmk_index:index_patient(concatenate_id(patient,Id),Name,Txn),
-      ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn),
-      ok = antidote_lib:txn_commit(Txn);
+      ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn);
     _Patient ->
       {error, patient_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
 %% been seen. If the operation succeeds, the pharmacy will be indexed by both
@@ -68,16 +69,17 @@ create_patient(Id,Name,Address) ->
 -spec create_pharmacy(id(),binary(),binary()) -> ok | {error, reason()}.
 create_pharmacy(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
-  case get_pharmacy_by_id(Id,Txn) of
+  Result = case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
       ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name,Txn),
-      ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn),
-      ok = antidote_lib:txn_commit(Txn);
+      ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn);
     _Pharmacy ->
       {error, pharmacy_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet
 %% been seen. If the operation succeeds, the facility will be indexed by both
@@ -85,16 +87,17 @@ create_pharmacy(Id,Name,Address) ->
 -spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
   Txn = antidote_lib:txn_start(),
-  case get_facility_by_id(Id,Txn) of
+  Result = case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
       ok = fmk_index:index_facility(concatenate_id(facility,Id),Name,Txn),
-      ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn),
-      ok = antidote_lib:txn_commit(Txn);
+      ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn);
     _Facility ->
       {error, facility_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet
 %% been seen. If the operation succeeds, the staff member will be indexed by both
@@ -102,16 +105,17 @@ create_facility(Id,Name,Address,Type) ->
 -spec create_staff(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_staff(Id,Name,Address,Speciality) ->
   Txn = antidote_lib:txn_start(),
-  case get_staff_by_id(Id,Txn) of
+  Result = case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
       ok = fmk_index:index_staff(concatenate_id(staff,Id),Name,Txn),
-      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node(),Txn),
-      ok = antidote_lib:txn_commit(Txn);
+      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node(),Txn);
     _Facility ->
       {error, staff_id_taken}
-  end.
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a treatment event by id.
 -spec get_event_by_id(id()) -> [crdt()] | {error, reason()}.
