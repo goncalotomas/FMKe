@@ -165,7 +165,7 @@ get(Key,Type) ->
 -spec get(field(), crdt(), txid()) -> term().
 get(Key,Type,Txn) ->
   Bucket = create_bucket(Key,Type),
-  txn_read_object(Bucket,TxnDetails).
+  txn_read_object(Bucket,Txn).
 
 %% A simple way of adding information onto Antidote, by specifying a key, key-type, operation
 %% and passing in the operation parameters separately.
