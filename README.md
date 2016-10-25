@@ -1,41 +1,22 @@
 # FMK Application
 
-This is the repository for the FMK-- Application Prototype from the [SyncFree Consortium][2].  
-To adhere to modern standarts of Erlang build tools, I have decided to use rebar3 and will provide small support in using rebar3 in this file.
+FMK-- is a prototype application that serves as a use case for the [Antidote key-value store][3], which was built for the [SyncFree project][2].
 
-## Build Tool
+## Dependencies
 
-The FMK-- prototype application uses rebar3 as its official build tool. For anything other than the instructions listed below, I will refer you to the [rebar3 official documentation][1] for installation support.
+FMK-- uses rebar3 to build releases and tests, and a local installation is provided in order to make the application start straight away. It also assumes that there is available access to a local Antidote node.
 
-### Quick instalation guide
+## Building FMK
 
-If you are on MacOS, you can use brew to quickly install rebar3:
-```
-	brew install rebar3
-```
+The rebar3 script included in the root directory of the project contains all required information to build FMK. To build a release, run the following command:
 
-### Building the project
+```$ rebar3 release```
 
-Building a project using rebar3 is as easy as changing directory to the project root and executing the following command:
-```
-	rebar3 compile
-```
+If the build is successful, you will be able to run FMK by running:
 
-### Running unit tests
+```_build/default/rel/fmk/bin/fmk console```
 
-Rebar3 uses EUnit to perform unit testing. There are multiple tests already on the repository. To check that everything is ok, run the following command:
-```
-	rebar3 eunit
-```
-
-**Important note:** FMK needs a running Antidote instance on localhost for the unit tests to succeed. You can start an Antidote instance by cloning the [Antidote repository][3] and executing the following command in the repository root:
-
-```
-  rel/antidote/bin/antidote start
-  rel/antidote/bin/antidote attach
-```
-
-Once you see a large amount of log messages, it means Antidote has finished its setup and is ready to take requests.
+This will open an erlang VM and from this point on you can use any function in the FMK API.
 
 [1]: https://www.rebar3.org/docs/getting-started
 [2]: https://syncfree.lip6.fr/
