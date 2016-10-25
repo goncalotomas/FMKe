@@ -160,6 +160,13 @@ get(Key,Type) ->
     Value -> Value
   end.
 
+%% Alternative to get/2, using an already existing transaction ID.
+%% NOTE: This does not commit the ongoing transaction!
+-spec get(field(), crdt(), txid()) -> term().
+get(Key,Type,Txn) ->
+  Bucket = create_bucket(Key,Type),
+  txn_read_object(Bucket,TxnDetails).
+
 %% A simple way of adding information onto Antidote, by specifying a key, key-type, operation
 %% and passing in the operation parameters separately.
 -spec put(field(), crdt(), crdt_op(), op_param()) -> ok | {error, reason()}.
