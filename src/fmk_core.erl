@@ -147,12 +147,14 @@ get_facility_by_id(Id,Txn) ->
 %% Fetches a facility by name.
 -spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_facility_by_name(Name) ->
-  %% TODO uses more than one transaction
-  case search_facility_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_facility_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:commit_transaction(Txn),
+  Result.
 
 %% Fetches the list of facility prescriptions given a certain facility ID.
 -spec get_facility_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -193,22 +195,26 @@ get_patient_by_id(Id,Txn) ->
 %% Fetches a patient by name.
 -spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_patient_by_name(Name) ->
-  %% TODO uses more than one transaction
-  case search_patient_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_patient_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a pharmacy by name.
 -spec get_pharmacy_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_name(Name) ->
-  %% TODO uses more than one transaction
-  case search_pharmacy_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_pharmacy_index(list_to_binary(Name), Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -241,12 +247,14 @@ get_staff_by_id(Id,Txn) ->
 %% Fetches a staff member by name.
 -spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_staff_by_name(Name) ->
-  %% TODO uses more than one transaction
-  case search_staff_index(list_to_binary(Name)) of
+  Txn = antidote_lib:txn_start(),
+  Result = case search_staff_index(list_to_binary(Name),Txn) of
     not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP);
-    List -> [antidote_lib:get(Result,?MAP) || Result <- List]
-  end.
+    [H] -> antidote_lib:get(H,?MAP,Txn);
+    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
 
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -586,27 +594,27 @@ concatenate_id(_,_) ->
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
 
-search_patient_index(Name) ->
-  search_fmk_index(patient,Name).
+search_patient_index(Name,Txn) ->
+  search_fmk_index(patient,Name,Txn).
 
-search_pharmacy_index(Name) ->
-  search_fmk_index(pharmacy,Name).
+search_pharmacy_index(Name,Txn) ->
+  search_fmk_index(pharmacy,Name,Txn).
 
-search_facility_index(Name) ->
-  search_fmk_index(facility,Name).
+search_facility_index(Name,Txn) ->
+  search_fmk_index(facility,Name,Txn).
 
-search_staff_index(Name) ->
-  search_fmk_index(staff,Name).
+search_staff_index(Name,Txn) ->
+  search_fmk_index(staff,Name,Txn).
 
-search_fmk_index(staff,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_staff_name_index());
-search_fmk_index(facility,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_facility_name_index());
-search_fmk_index(patient,Name) ->
-  fmk_index:search_index(Name,fmk_index:get_patient_name_index());
-search_fmk_index(pharmacy, Name) ->
-  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index());
-search_fmk_index(_,_) ->
+search_fmk_index(staff,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_staff_name_index(),Txn);
+search_fmk_index(facility,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_facility_name_index(),Txn);
+search_fmk_index(patient,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_patient_name_index(),Txn);
+search_fmk_index(pharmacy,Name,Txn) ->
+  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index(),Txn);
+search_fmk_index(_,_,_) ->
   undefined.
 
 check_prescription_id(Id) ->
