@@ -55,7 +55,7 @@ create_patient(Id,Name,Address) ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
       ok = fmk_index:index_patient(concatenate_id(patient,Id),Name),
-      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,fmk);
+      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,node());
     _Patient ->
       {error, patient_id_taken}
   end.
@@ -70,7 +70,7 @@ create_pharmacy(Id,Name,Address) ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
       ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name),
-      ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,fmk);
+      ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,node());
     _Pharmacy ->
       {error, pharmacy_id_taken}
   end.
@@ -85,7 +85,7 @@ create_facility(Id,Name,Address,Type) ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
       ok = fmk_index:index_facility(concatenate_id(facility,Id),Name),
-      ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,fmk);
+      ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,node());
     _Facility ->
       {error, facility_id_taken}
   end.
@@ -100,7 +100,7 @@ create_staff(Id,Name,Address,Speciality) ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
       ok = fmk_index:index_staff(concatenate_id(staff,Id),Name),
-      ok = antidote_lib:put(StaffKey,?MAP,update,Staff,fmk);
+      ok = antidote_lib:put(StaffKey,?MAP,update,Staff,node());
     _Facility ->
       {error, staff_id_taken}
   end.
@@ -256,7 +256,7 @@ update_patient_details(Id,Name,Address) ->
       PatientKey = binary_patient_key(Id),
       PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
-      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
       case string:equal(PatientName,Name) of
         true ->
           ok;
@@ -277,7 +277,7 @@ update_pharmacy_details(Id,Name,Address) ->
       PharmacyKey = binary_pharmacy_key(Id),
       PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
-      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
       case string:equal(PharmacyName,Name) of
         true ->
           ok;
@@ -298,7 +298,7 @@ update_facility_details(Id,Name,Address,Type) ->
       FacilityKey = binary_pharmacy_key(Id),
       FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
-      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
       case string:equal(FacilityName,Name) of
         true ->
           ok;
@@ -319,7 +319,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
       StaffKey = binary_pharmacy_key(Id),
       StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
-      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,fmk),
+      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,node()),
       case string:equal(StaffName,Name) of
         true ->
           ok;
@@ -354,15 +354,15 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,node()),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,node()),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
   ok.
 
 %% Same as create_prescription/7, but includes a reference to the treatment to which the
@@ -392,17 +392,17 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,fmk),
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,node()),
   %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
   %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
   %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,fmk),
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
   %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,fmk),
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,node()),
   %% add to the treatment's prescriptions
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,node()),
   ok.
 
 %% Creates a treatment event, with information about the staff member that registered it,
@@ -429,10 +429,10 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   FacilityUpdate = facility:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
   TreatmentUpdate = treatment:add_event(EventId,StaffMemberId,Timestamp,Description),
   %% add top level event
-  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,fmk),
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
-  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,fmk),
+  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,node()),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,node()),
   ok.
 
 %% Creates a treatment with information about the patient, the staff member that iniciated it,
@@ -456,11 +456,11 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
   %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node()),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
   ok.
 
 %% Same as create_treatment/5, but includes an ending date for the treatment.
@@ -483,11 +483,11 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
   %% TODO should everything happen in a single transaction? Discuss with Nuno and Joao
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,fmk),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node()),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,fmk),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,fmk),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
   ok.
 
 %% Builds the patient key inside Antidote given the patient ID.
