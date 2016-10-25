@@ -156,10 +156,7 @@ get(Key,Type) ->
   TxnDetails = txn_start(),
   ReadResult = txn_read_object(Bucket,TxnDetails),
   ok = txn_commit(TxnDetails),
-  case ReadResult of
-    [] -> [];
-    Value -> Value
-  end.
+  ReadResult.
 
 %% Alternative to get/2, using an already existing transaction ID.
 %% NOTE: This does not commit the ongoing transaction!
