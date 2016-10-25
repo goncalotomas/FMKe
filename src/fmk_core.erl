@@ -295,8 +295,7 @@ update_patient_details(Id,Name,Address) ->
         true ->
           ok;
         false ->
-          %% TODO This open and closes a transaction
-          ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name)
+          ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name,Txn)
       end,
       ok = antidote_lib:txn_commit(Txn)
   end.
@@ -319,8 +318,7 @@ update_pharmacy_details(Id,Name,Address) ->
         true ->
           ok;
         false ->
-          %% TODO This open and closes a transaction
-          ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name)
+          ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name,Txn)
       end,
       ok = antidote_lib:txn_commit(Txn)
   end.
@@ -343,8 +341,7 @@ update_facility_details(Id,Name,Address,Type) ->
         true ->
           ok;
         false ->
-          %% TODO This open and closes a transaction
-          ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name)
+          ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name,Txn)
       end,
       ok = antidote_lib:txn_commit(Txn)
   end.
@@ -367,8 +364,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
         true ->
           ok;
         false ->
-          %% TODO This open and closes a transaction
-          ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name)
+          ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name,Txn)
       end,
       ok = antidote_lib:txn_commit(Txn)
   end.
