@@ -15,23 +15,17 @@
   create_treatment/5,
   create_treatment/6,
   get_event_by_id/1,
-  get_event_by_id/2,
   get_facility_by_id/1,
-  get_facility_by_id/2,
   get_facility_by_name/1,
   get_facility_prescriptions/1,
   get_facility_treatments/1,
   get_patient_by_id/1,
-  get_patient_by_id/2,
   get_patient_by_name/1,
   get_pharmacy_by_id/1,
-  get_pharmacy_by_id/2,
   get_pharmacy_by_name/1,
   get_pharmacy_prescriptions/1,
   get_prescription_by_id/1,
-  get_prescription_by_id/2,
   get_staff_by_id/1,
-  get_staff_by_id/2,
   get_staff_by_name/1,
   get_staff_prescriptions/1,
   get_staff_treatments/1,
@@ -276,6 +270,11 @@ get_staff_treatments(StaffId) ->
 -spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
 get_treatment_by_id(Id) ->
   process_get_request(binary_treatment_key(Id),?MAP).
+
+%% Fetches a treatment by ID.
+-spec get_treatment_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
+get_treatment_by_id(Id,Txn) ->
+  process_get_request(binary_treatment_key(Id),?MAP,Txn).
 
 %% Updates the personal details of a patient with a certain ID.
 -spec update_patient_details(id(),binary(),binary()) -> ok | {error, reason()}.
