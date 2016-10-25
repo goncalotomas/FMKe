@@ -33,7 +33,7 @@ new(Id,Name,Address) ->
 %% of updating a specific pharmacy's details.
 -spec update_details(binary(),binary()) -> [map_field_update()].
 update_details(Name,Address) ->
-  NameOp = build_id_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
