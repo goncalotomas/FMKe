@@ -55,8 +55,7 @@ create_patient(Id,Name,Address) ->
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
-      %% TODO This open and closes a transaction
-      ok = fmk_index:index_patient(concatenate_id(patient,Id),Name),
+      ok = fmk_index:index_patient(concatenate_id(patient,Id),Name,Txn),
       ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
     _Patient ->
@@ -73,8 +72,7 @@ create_pharmacy(Id,Name,Address) ->
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
-      %% TODO This open and closes a transaction
-      ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name),
+      ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name,Txn),
       ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
     _Pharmacy ->
@@ -91,8 +89,7 @@ create_facility(Id,Name,Address,Type) ->
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
-      %% TODO This open and closes a transaction
-      ok = fmk_index:index_facility(concatenate_id(facility,Id),Name),
+      ok = fmk_index:index_facility(concatenate_id(facility,Id),Name,Txn),
       ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
     _Facility ->
@@ -109,9 +106,8 @@ create_staff(Id,Name,Address,Speciality) ->
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
-      %% TODO This open and closes a transaction
-      ok = fmk_index:index_staff(concatenate_id(staff,Id),Name),
-      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node()),
+      ok = fmk_index:index_staff(concatenate_id(staff,Id),Name,Txn),
+      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
     _Facility ->
       {error, staff_id_taken}
