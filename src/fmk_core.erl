@@ -61,6 +61,7 @@ create_patient(Id,Name,Address) ->
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
+      %% TODO This open and closes a transaction
       ok = fmk_index:index_patient(concatenate_id(patient,Id),Name),
       ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
@@ -78,6 +79,7 @@ create_pharmacy(Id,Name,Address) ->
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
+      %% TODO This open and closes a transaction
       ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name),
       ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
@@ -95,6 +97,7 @@ create_facility(Id,Name,Address,Type) ->
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
+      %% TODO This open and closes a transaction
       ok = fmk_index:index_facility(concatenate_id(facility,Id),Name),
       ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn),
       ok = antidote_lib:txn_commit(Txn);
@@ -112,6 +115,7 @@ create_staff(Id,Name,Address,Speciality) ->
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
+      %% TODO This open and closes a transaction
       ok = fmk_index:index_staff(concatenate_id(staff,Id),Name),
       ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node()),
       ok = antidote_lib:txn_commit(Txn);
@@ -122,11 +126,7 @@ create_staff(Id,Name,Address,Speciality) ->
 %% Fetches a treatment event by id.
 -spec get_event_by_id(id()) -> [crdt()] | {error, reason()}.
 get_event_by_id(Id) ->
-  Event = antidote_lib:get(binary_event_key(Id),?MAP),
-  case Event of
-    [] -> {error,not_found};
-    EventMap -> EventMap
-  end.
+  process_get_request(binary_event_key(Id),?MAP).
 
 %% Alternative to get_event_by_id/1, which includes a transactional context.
 -spec get_event_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -137,11 +137,7 @@ get_event_by_id(Id,Txn) ->
 %% Fetches a facility by id.
 -spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id) ->
-  Facility = antidote_lib:get(binary_facility_key(Id),?MAP),
-  case Facility of
-    [] -> {error,not_found};
-    FacilityMap -> FacilityMap
-  end.
+  process_get_request(binary_facility_key(Id),?MAP).
 
 %% Alternative to get_facility_by_id/1, which includes a transactional context.
 -spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -151,6 +147,7 @@ get_facility_by_id(Id,Txn) ->
 %% Fetches a facility by name.
 -spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_facility_by_name(Name) ->
+  %% TODO uses more than one transaction
   case search_facility_index(list_to_binary(Name)) of
     not_found -> not_found;
     [H] -> antidote_lib:get(H,?MAP);
@@ -176,11 +173,7 @@ get_facility_treatments(FacilityId) ->
 %% Fetches a pharmacy by ID.
 -spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_id(Id) ->
-  Pharmacy = antidote_lib:get(binary_pharmacy_key(Id),?MAP),
-  case Pharmacy of
-    [] -> {error,not_found};
-    PharmacyMap -> PharmacyMap
-  end.
+  process_get_request(binary_pharmacy_key(Id),?MAP).
 
 %% Alternative to get_pharmacy_by_id/1, which includes a transactional context.
 -spec get_pharmacy_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -190,11 +183,7 @@ get_pharmacy_by_id(Id,Txn) ->
 %% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
-  Patient = antidote_lib:get(binary_patient_key(Id),?MAP),
-  case Patient of
-    [] -> {error,not_found};
-    PatientMap -> PatientMap
-  end.
+  process_get_request(binary_patient_key(Id),?MAP).
 
 %% Alternative to get_patient_by_id/1, which includes a transactional context.
 -spec get_patient_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -204,6 +193,7 @@ get_patient_by_id(Id,Txn) ->
 %% Fetches a patient by name.
 -spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_patient_by_name(Name) ->
+  %% TODO uses more than one transaction
   case search_patient_index(list_to_binary(Name)) of
     not_found -> not_found;
     [H] -> antidote_lib:get(H,?MAP);
@@ -213,6 +203,7 @@ get_patient_by_name(Name) ->
 %% Fetches a pharmacy by name.
 -spec get_pharmacy_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_name(Name) ->
+  %% TODO uses more than one transaction
   case search_pharmacy_index(list_to_binary(Name)) of
     not_found -> not_found;
     [H] -> antidote_lib:get(H,?MAP);
@@ -230,11 +221,7 @@ get_pharmacy_prescriptions(PharmacyId) ->
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id) ->
-  Prescription = antidote_lib:get(binary_prescription_key(Id),?MAP),
-  case Prescription of
-    [] -> {error,not_found};
-    PrescriptionMap -> PrescriptionMap
-  end.
+  process_get_request(binary_prescription_key(Id),?MAP).
 
 %% Alternative to get_prescription_by_id/1, which includes a transactional context.
 -spec get_prescription_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -244,11 +231,7 @@ get_prescription_by_id(Id,Txn) ->
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id) ->
-  Staff = antidote_lib:get(binary_staff_key(Id),?MAP),
-  case Staff of
-    [] -> {error,not_found};
-    StaffMap -> StaffMap
-  end.
+  process_get_request(binary_staff_key(Id),?MAP).
 
 %% Alternative to get_staff_by_id/1, which includes a transactional context.
 -spec get_staff_by_id(id(),id()) -> [crdt()] | {error, reason()}.
@@ -258,6 +241,7 @@ get_staff_by_id(Id,Txn) ->
 %% Fetches a staff member by name.
 -spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
 get_staff_by_name(Name) ->
+  %% TODO uses more than one transaction
   case search_staff_index(list_to_binary(Name)) of
     not_found -> not_found;
     [H] -> antidote_lib:get(H,?MAP);
@@ -283,16 +267,13 @@ get_staff_treatments(StaffId) ->
 %% Fetches a treatment by ID.
 -spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
 get_treatment_by_id(Id) ->
-  Treatment = antidote_lib:get(binary_treatment_key(Id),?MAP),
-  case Treatment of
-    [] -> {error,not_found};
-    TreatmentMap -> TreatmentMap
-  end.
+  process_get_request(binary_treatment_key(Id),?MAP).
 
 %% Updates the personal details of a patient with a certain ID.
 -spec update_patient_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_patient_details(Id,Name,Address) ->
-  case get_patient_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_patient};
     Patient ->
@@ -301,19 +282,22 @@ update_patient_details(Id,Name,Address) ->
       PatientKey = binary_patient_key(Id),
       PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
-      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node()),
+      antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
       case string:equal(PatientName,Name) of
         true ->
           ok;
         false ->
+          %% TODO This open and closes a transaction
           ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name)
-      end
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a pharmacy with a certain ID.
 -spec update_pharmacy_details(id(),binary(),binary()) -> ok | {error, reason()}.
 update_pharmacy_details(Id,Name,Address) ->
-  case get_pharmacy_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_pharmacy};
     Pharmacy ->
@@ -322,19 +306,22 @@ update_pharmacy_details(Id,Name,Address) ->
       PharmacyKey = binary_pharmacy_key(Id),
       PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
-      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,node()),
+      antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
       case string:equal(PharmacyName,Name) of
         true ->
           ok;
         false ->
+          %% TODO This open and closes a transaction
           ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name)
-      end
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a facility with a certain ID.
 -spec update_facility_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_facility_details(Id,Name,Address,Type) ->
-  case get_facility_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_facility};
     Facility ->
@@ -343,19 +330,22 @@ update_facility_details(Id,Name,Address,Type) ->
       FacilityKey = binary_pharmacy_key(Id),
       FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
-      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node()),
+      antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
       case string:equal(FacilityName,Name) of
         true ->
           ok;
         false ->
+          %% TODO This open and closes a transaction
           ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name)
-      end
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Updates the details of a staff member with a certain ID.
 -spec update_staff_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 update_staff_details(Id,Name,Address,Speciality) ->
-  case get_staff_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_staff_member};
     Staff ->
@@ -364,13 +354,15 @@ update_staff_details(Id,Name,Address,Speciality) ->
       StaffKey = binary_pharmacy_key(Id),
       StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
-      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,node()),
+      antidote_lib:put_map(StaffKey,?MAP,update,StaffUpdate,node(),Txn),
       case string:equal(StaffName,Name) of
         true ->
           ok;
         false ->
+          %% TODO This open and closes a transaction
           ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name)
-      end
+      end,
+      ok = antidote_lib:txn_commit(Txn)
   end.
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
@@ -657,6 +649,13 @@ check_event_id(Id) ->
   case get_event_by_id(Id) of
     {error,not_found} -> free;
     _Map  -> taken
+  end.
+
+process_get_request(Key,Type) ->
+  ReadResult = antidote_lib:get(Key,Type),
+  case ReadResult of
+    [] -> {error,not_found};
+    Object -> Object
   end.
 
 process_get_request(Key,Type,Txn) ->
