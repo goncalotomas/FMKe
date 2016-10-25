@@ -91,7 +91,7 @@ create_pharmacy(Id,Name,Address) ->
 -spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
   Txn = antidote_lib:txn_start(),
-  case get_facility_by_id(Id) of
+  case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
@@ -107,12 +107,14 @@ create_facility(Id,Name,Address,Type) ->
 %% Name and ID.
 -spec create_staff(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
 create_staff(Id,Name,Address,Speciality) ->
-  case get_staff_by_id(Id) of
+  Txn = antidote_lib:txn_start(),
+  case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
       ok = fmk_index:index_staff(concatenate_id(staff,Id),Name),
-      ok = antidote_lib:put(StaffKey,?MAP,update,Staff,node());
+      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node()),
+      ok = antidote_lib:txn_commit(Txn);
     _Facility ->
       {error, staff_id_taken}
   end.
