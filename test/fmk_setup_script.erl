@@ -22,6 +22,7 @@ main([String]) ->
       add_patients(5000),
       add_pharmacies(300),
       add_facilities(50),
+      add_staff(250),
       io:format("finished populating database.\n", []);
 main(_) ->
     usage().
@@ -61,6 +62,11 @@ add_patients(Amount) ->
   run_op(create_patient,[Amount, "Goncalo Tomas","Caparica, Portugal"]),
   add_patients(Amount-1).
 
+add_staff(1) -> run_op(create_staff,[1, "Alexander Fleming","London, UK","Pharmacologist"]);
+add_staff(Amount) ->
+  run_op(create_staff,[Amount, "Alexander Fleming","London, UK","Pharmacologist"]),
+  add_staff(Amount-1).
+
 run_op(create_pharmacy,Params) ->
   [_Id,_Name,_Address] = Params,
   run_rpc_op(create_pharmacy,Params);
@@ -69,6 +75,15 @@ run_op(create_facility,Params) ->
   run_rpc_op(create_facility,Params);
 run_op(create_patient,Params) ->
   [_Id,_Name,_Address] = Params,
-  run_rpc_op(create_patient,Params).
+  run_rpc_op(create_patient,Params);
+run_op(create_staff,Params) ->
+  [_Id,_Name,_Address,_Speciality] = Params,
+  run_rpc_op(create_staff,Params).
 
-run_rpc_op(Op,Params) -> ok = rpc:call('fmk@127.0.0.1',fmk_core,Op,Params).
+run_rpc_op(Op,Params) ->
+  ok = case rpc:call('fmk@127.0.0.1',fmk_core,Op,Params) of
+    {error, _} ->
+      io:format("Error in ~p with params ~p\n",[Op,Params]),
+      error;
+    ok -> ok
+  end.
