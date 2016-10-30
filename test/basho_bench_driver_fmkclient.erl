@@ -3,11 +3,22 @@
 -export([new/1,
          run/4]).
 
--include("basho_bench.hrl").
+-include("../include/basho_bench.hrl").
 
--record(state, {
-  %% TODO
-}).
+-define (TIMEOUT, 5000).
+
+-record(state,
+  {
+    pid,
+    nodename,
+    numpatients,
+    numpharmacies,
+    numfacilities,
+    fmknode,
+    zipf_size,
+    zipf_skew,
+    zipf_bottom
+ }).
 
 %-define(TOURNAMENT_APP, tournament_si_app). Is this needed???
 
@@ -16,7 +27,6 @@
 %% ====================================================================
 
 new(Id) ->
-    ?INFO("Starting FMK Client ~p...", [Id]),
     %% Make sure the path is setup such that we can get at riak_client
     case code:which(fmk_core) of
         non_existing ->
@@ -26,73 +36,96 @@ new(Id) ->
     end,
 
     FmkNode = basho_bench_config:get(fmk_node, 'fmk@127.0.0.1'),
+    NumPatients = basho_bench_config:get(numpatients, 5000),
+    NumPharmacies = basho_bench_config:get(numpharmacies, 300),
+    NumFacilities = basho_bench_config:get(numfacilities, 50),
     %% prepare node for testing
-    MyNodeName = lists:flatten(io_lib:format('client~p@127.0.0.1',[Id])),
-    net_kernel:start([MyNodeName,longnames]),
+    MyNodeName = lists:flatten(io_lib:format("client~p@127.0.0.1",[Id])),
+    net_kernel:start([list_to_atom(MyNodeName),longnames]),
     erlang:set_cookie(node(),antidote),
 
-    %% check if antidote is running
-    case net_adm:ping('antidote@127.0.0.1') of
-      pang ->
-          ?FAIL_MSG("There is no Antidote node online!",[]),
-      pong ->
-          ok
-    end,
-    %% check if fmk is running
+    %% check if we can connect to the FMK system using distributed erlang.
     case net_adm:ping('fmk@127.0.0.1') of
       pang ->
-          ?FAIL_MSG("There is no FMK node online!",[]),
+          ?FAIL_MSG("There is no FMK node online!",[]);
       pong ->
           ok
     end,
 
-    ?INFO("Using FMK node ~p...",[FmkNode]),
 
-    GetPharmacyPrescriptionsPercent = basho_bench_config:get(op_percentage_get_pharmacy_prescriptions, 27),
-    GetPrescriptionMedsPercent = basho_bench_config:get(op_percentage_get_prescription_medication, 27),
-    GetStaffPrescriptionsPercent = basho_bench_config:get(op_percentage_get_staff_prescriptions, 14),
-    CreatePrescriptionPercent = basho_bench_config:get(op_percentage_create_prescription, 8),
-    GetProcessedPrescriptionsPercent = basho_bench_config:get(op_percentage_get_processed_prescriptions, 7),
-    GetPatientPercent = basho_bench_config:get(op_percentage_get_patient, 5),
-    UpdatePrescriptionPercent = basho_bench_config:get(op_percentage_update_prescription, 4),
-    UpdatePrescriptionMedicationPercent = basho_bench_config:get(op_percentage_update_prescription_medication, 4),
-    GetPrescriptionPercent = basho_bench_config:get(op_percentage_get_prescription, 4),
 
 
     %% O problema aqui e que ha uma percentagem de operacoes de create prescription mas tambem se
     %% deve seguir uma distribuicao Zipf de receitas (poucos pacientes com muitas receitas, e vice versa)
     %% nao estou a conseguir chegar a uma solucao.
-    {ok, ok}.
+    ZipfSize = basho_bench_config:get(zipf_size, 5000),
+    ZipfSkew = basho_bench_config:get(zipf_skew, 10),
+    {ok,
+      #state {
+        pid = Id,
+        nodename = MyNodeName,
+        numpatients = NumPatients,
+        numpharmacies = NumPharmacies,
+        numfacilities = NumFacilities,
+        fmknode = FmkNode,
+        zipf_size = ZipfSize,
+        zipf_skew = ZipfSkew,
+        zipf_bottom = 1/(lists:foldl(fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,0,lists:seq(1,ZipfSize)))
+      }
+    }.
 
+run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
 
-run(Operation, _KeyGen, _ValueGen, State) ->
-  run_op(Operation, []).
+  {ok,State};
 
-run(create_prescription, _1, _2, State) ->
-  ok.
+run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
+  NumPharmacies = State#state.numpharmacies,
+  PharmacyId = rand:uniform(NumPharmacies),
+  FmkNode = State#state.fmknode,
 
-run(get_pharmacy_prescriptions, _1, _2, State) ->
-  ok.
+  Pharmacy = run_op(FmkNode,get_pharmacy_by_id,[PharmacyId]), %% TODO change
+  case Pharmacy of
+    {error, _} -> {error, State};
+    _ -> {ok,State}
+  end;
 
-run(get_prescriptionMeds, _1, _2, State) ->
-  ok.
+run(get_prescriptionMeds, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
 
-run(get_staff_prescriptions, _1, _2, State) ->
-  ok.
+run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
 
-run(get_processed_prescriptions, _1, _2, State) ->
-  ok.
+run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
 
-run(get_patient, _1, _2, State) ->
-  ok.
+run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
+  NumPatients = State#state.numpatients,
+  PatientId = rand:uniform(NumPatients),
+  FmkNode = State#state.fmknode,
 
-run(update_prescription, _1, _2, State) ->
-  ok.
+  Patient = run_op(FmkNode,get_patient_by_id,[PatientId]),
+  case Patient of
+    {error, _} -> {error, State};
+    _ -> {ok,State}
+  end;
 
-run(update_prescription_medication, _1, _2, State) ->
-  ok.
+run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
 
-run(get_prescription, _1, _2, State) ->
-  ok.
+run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
 
-run_op(Op,Params) -> rpc:call('fmk@127.0.0.1',fmk,Op,Params) end.
+run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
+  pong = net_adm:ping(State#state.fmknode),
+  {ok,State};
+
+run(_, _GeneratedKey, _GeneratedValue, State) ->
+  {error, undefined_op}.
+
+run_op(FmkNode,Op,Params) ->
+  rpc:call(FmkNode,fmk,Op,Params).

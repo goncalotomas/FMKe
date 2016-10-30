@@ -1,6 +1,15 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
 %%! -smp enable -name setup@127.0.0.1 -cookie antidote -mnesia debug verbose
+-mode(compile).
+-define (NUM_PATIENTS, 5000).
+-define (NUM_PHARMACIES, 300).
+-define (NUM_FACILITIES, 50).
+-define (NUM_STAFF, 250).
+-define (NUM_PRESCRIPTIONS, 1000).
+-define (ZIPF_SKEW, 1).
+
+
 main([String]) ->
       MyNodeName = lists:flatten(io_lib:format('client~p@127.0.0.1',[String])),
       net_kernel:start([MyNodeName,longnames]),
@@ -19,10 +28,11 @@ main([String]) ->
         pong ->
             ok
       end,
-      add_patients(5000),
-      add_pharmacies(300),
-      add_facilities(50),
-      add_staff(250),
+      %add_patients(?NUM_PATIENTS),
+      %add_pharmacies(?NUM_PHARMACIES),
+      %add_facilities(?NUM_FACILITIES),
+      %add_staff(?NUM_STAFF),
+      add_prescription(?NUM_PRESCRIPTIONS),
       io:format("finished populating database.\n", []);
 main(_) ->
     usage().
@@ -67,6 +77,25 @@ add_staff(Amount) ->
   run_op(create_staff,[Amount, "Alexander Fleming","London, UK","Pharmacologist"]),
   add_staff(Amount-1).
 
+add_prescription(Amount) ->
+  ListPatientIds = gen_sequence(?NUM_PATIENTS,?ZIPF_SKEW,?NUM_PRESCRIPTIONS),
+  ?NUM_PRESCRIPTIONS = length(ListPatientIds),
+  add_prescription_rec(Amount,ListPatientIds).
+
+add_prescription_rec(1,ListPatientIds) ->
+  [LastId] = ListPatientIds,
+  PharmacyId = rand:uniform(?NUM_PHARMACIES),
+  PrescriberId = rand:uniform(?NUM_STAFF),
+  FacilityId = rand:uniform(?NUM_FACILITIES),
+  run_op(create_prescription,[1, LastId, PrescriberId, PharmacyId, FacilityId, "1/1/2017", ["Acetaminophen"]]);
+add_prescription_rec(PrescriptionId,ListPatientIds) ->
+  [CurrentId | Tail] = ListPatientIds,
+  PharmacyId = rand:uniform(?NUM_PHARMACIES),
+  PrescriberId = rand:uniform(?NUM_STAFF),
+  FacilityId = rand:uniform(?NUM_FACILITIES),
+  run_op(create_prescription,[PrescriptionId, CurrentId, PrescriberId, PharmacyId, FacilityId, "1/1/2017", ["Acetaminophen"]]),
+  add_prescription_rec(PrescriptionId-1, Tail).
+
 run_op(create_pharmacy,Params) ->
   [_Id,_Name,_Address] = Params,
   run_rpc_op(create_pharmacy,Params);
@@ -78,7 +107,10 @@ run_op(create_patient,Params) ->
   run_rpc_op(create_patient,Params);
 run_op(create_staff,Params) ->
   [_Id,_Name,_Address,_Speciality] = Params,
-  run_rpc_op(create_staff,Params).
+  run_rpc_op(create_staff,Params);
+run_op(create_prescription,Params) ->
+  [_PrescriptionId,_PatientId,_PrescriberId,_PharmacyId,_FacilityId,_DatePrescribed,_Drugs] = Params,
+  run_rpc_op(create_prescription,Params).
 
 run_rpc_op(Op,Params) ->
   ok = case rpc:call('fmk@127.0.0.1',fmk_core,Op,Params) of
@@ -87,3 +119,20 @@ run_rpc_op(Op,Params) ->
       error;
     ok -> ok
   end.
+
+gen_sequence(Size,Skew,SequenceSize) ->
+  Bottom = 1/(lists:foldl(fun(X,Sum) -> Sum+(1/math:pow(X,Skew)) end,0,lists:seq(1,Size))),
+  random:seed(now()),
+  lists:map(fun(_X)->
+    zipf_next(Size,Skew,Bottom)
+  end,lists:seq(1,SequenceSize)).
+
+zipf_next(Size,Skew,Bottom) ->
+  Dice = random:uniform(),
+  next(Dice,Size,Skew,Bottom,0,1).
+
+next(Dice,_Size,_Skew,_Bottom,Sum,CurrRank) when Sum >= Dice -> CurrRank-1;
+next(Dice,Size,Skew,Bottom,Sum,CurrRank) ->
+  NextRank = CurrRank +1,
+  Sumi = Sum + (Bottom/math:pow(CurrRank,Skew)),
+  next(Dice,Size,Skew,Bottom,Sumi,NextRank).
