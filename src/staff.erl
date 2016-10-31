@@ -13,7 +13,9 @@
   speciality/1,
   treatments/1,
   prescriptions/1,
-  add_prescription/6
+  add_prescription/6,
+  process_prescription/2,
+  add_prescription_drugs/2
   ]).
 
 %% Creates a new staff member object from an ID, Name, Address and Speciality.
@@ -81,6 +83,24 @@ add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,D
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level staff member update that contains the prescriptions map update
   StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,ListOps),
+  [StaffPrescriptionsOp].
+
+-spec process_prescription(id(), binary()) -> [map_field_update()].
+process_prescription(PrescriptionId, CurrentDate) ->
+  PrescriptionUpdate = prescription:process(CurrentDate),
+  %% now to insert the nested operations inside the prescriptions map
+  StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  %% return a top level patient update that contains the prescriptions map update
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,PrescriptionUpdate),
+  [StaffPrescriptionsOp].
+
+-spec add_prescription_drugs(id(), [binary()]) -> [map_field_update()].
+add_prescription_drugs(PrescriptionId, Drugs) ->
+  PrescriptionUpdate = prescription:add_drugs(Drugs),
+  %% now to insert the nested operations inside the prescriptions map
+  StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  %% return a top level patient update that contains the prescriptions map update
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,PrescriptionUpdate),
   [StaffPrescriptionsOp].
 
 %%-----------------------------------------------------------------------------
