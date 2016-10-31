@@ -23,6 +23,7 @@
   get_patient_by_name/1,
   get_pharmacy_by_id/1,
   get_pharmacy_by_name/1,
+  get_processed_pharmacy_prescriptions/1,
   get_pharmacy_prescriptions/1,
   get_prescription_by_id/1,
   get_staff_by_id/1,
@@ -30,6 +31,7 @@
   get_staff_prescriptions/1,
   get_staff_treatments/1,
   get_treatment_by_id/1,
+  process_prescription/1,
   update_patient_details/3,
   update_pharmacy_details/3,
   update_facility_details/4,
@@ -217,6 +219,15 @@ get_pharmacy_prescriptions(PharmacyId) ->
     {error,not_found} -> {error,no_such_pharmacy};
     Pharmacy -> pharmacy:prescriptions(Pharmacy)
   end.
+
+  -spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+  get_processed_pharmacy_prescriptions(PharmacyId) ->
+    case get_pharmacy_by_id(PharmacyId) of
+      {error,not_found} -> {error,no_such_pharmacy};
+      Pharmacy ->
+        PharmacyPrescriptions = pharmacy:prescriptions(Pharmacy),
+        filter_processed_prescriptions(PharmacyPrescriptions)
+    end.
 
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
@@ -569,6 +580,27 @@ binary_treatment_key(Id) ->
 binary_event_key(Id) ->
   list_to_binary(concatenate_id(event,Id)).
 
+process_prescription(Id) ->
+  Txn = antidote_lib:txn_start(),
+  Result = case get_prescription_by_id(Id,Txn) of
+    {error,not_found} ->
+      {error,no_such_prescription};
+    Prescrition ->
+      case prescription:is_processed(Prescrition) of
+        ?PRESCRIPTION_PROCESSED ->
+          {error,prescription_already_processed};
+        ?PRESCRIPTION_NOT_PROCESSED ->
+          UpdateOperation = prescription:process("31/12/2016"),
+          PrescriptionKey = binary_prescription_key(Id),
+          antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,node(),Txn),
+          ok
+      end
+  end,
+  ok = antidote_lib:txn_commit(Txn),
+  Result.
+
+
+
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
@@ -671,3 +703,6 @@ process_get_request(Key,Type,Txn) ->
     [] -> {error,not_found};
     Object -> Object
   end.
+
+filter_processed_prescriptions(PharmacyPrescriptions) ->
+  [Prescription || Prescription <- PharmacyPrescriptions, prescription:is_processed([Prescription])=/=no].

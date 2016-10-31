@@ -92,7 +92,12 @@ drugs(Prescription) ->
 %% Returns the prescription state (if it is processed) from an already existant prescription object.
 -spec is_processed(crdt()) -> binary().
 is_processed(Prescription) ->
-  antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT).
+  Result = antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT),
+  case Result of
+    not_found ->
+      ?PRESCRIPTION_NOT_PROCESSED;
+    _State -> _State
+  end.
 
 %% Returns a list of antidote operations to modify a prescription in order to fill in the processing
 %% date and update the prescription date.
