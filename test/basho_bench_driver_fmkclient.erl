@@ -52,12 +52,6 @@ new(Id) ->
           ok
     end,
 
-
-
-
-    %% O problema aqui e que ha uma percentagem de operacoes de create prescription mas tambem se
-    %% deve seguir uma distribuicao Zipf de receitas (poucos pacientes com muitas receitas, e vice versa)
-    %% nao estou a conseguir chegar a uma solucao.
     ZipfSize = basho_bench_config:get(zipf_size, 5000),
     ZipfSkew = basho_bench_config:get(zipf_skew, 10),
     {ok,
