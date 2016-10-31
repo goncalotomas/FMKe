@@ -123,7 +123,7 @@ process_prescription(PrescriptionId, CurrentDate) ->
   %% now to insert the nested operations inside the prescriptions map
   FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,FacilityPrescriptionsKey,[PrescriptionUpdate]),
+  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,FacilityPrescriptionsKey,PrescriptionUpdate),
   [FacilityPrescriptionsOp].
 
 %% Returns an update operation for adding an event to a specific facility treatment.

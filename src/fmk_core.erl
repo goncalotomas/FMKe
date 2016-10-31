@@ -729,4 +729,4 @@ process_get_request(Key,Type,Txn) ->
   end.
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->
-  [Prescription || Prescription <- PharmacyPrescriptions, prescription:is_processed([Prescription])==?PRESCRIPTION_PROCESSED].
+  [Prescription || {_PrescriptionHeader,Prescription} <- PharmacyPrescriptions, prescription:is_processed(Prescription)==?PRESCRIPTION_PROCESSED].

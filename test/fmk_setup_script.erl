@@ -28,10 +28,10 @@ main([String]) ->
         pong ->
             ok
       end,
-      %add_patients(?NUM_PATIENTS),
-      %add_pharmacies(?NUM_PHARMACIES),
-      %add_facilities(?NUM_FACILITIES),
-      %add_staff(?NUM_STAFF),
+      add_patients(?NUM_PATIENTS),
+      add_pharmacies(?NUM_PHARMACIES),
+      add_facilities(?NUM_FACILITIES),
+      add_staff(?NUM_STAFF),
       add_prescription(?NUM_PRESCRIPTIONS),
       io:format("finished populating database.\n", []);
 main(_) ->
