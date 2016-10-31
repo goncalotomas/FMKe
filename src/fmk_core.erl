@@ -537,11 +537,11 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
   %% add top level treatment
-  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
+  antidote_lib:put_map(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
   %% add to patient treatments
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
   %% add to facility treatments
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -585,14 +585,38 @@ process_prescription(Id) ->
   Result = case get_prescription_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_prescription};
-    Prescrition ->
-      case prescription:is_processed(Prescrition) of
+    Prescription ->
+      case prescription:is_processed(Prescription) of
         ?PRESCRIPTION_PROCESSED ->
           {error,prescription_already_processed};
         ?PRESCRIPTION_NOT_PROCESSED ->
-          UpdateOperation = prescription:process("31/12/2016"),
+          CurrentDate = "31/12/2016",
+          UpdateOperation = prescription:process(CurrentDate),
+          PatientId = prescription:patient_id(Prescription),
+          PharmacyId = prescription:pharmacy_id(Prescription),
+          FacilityId = prescription:facility_id(Prescription),
+          PrescriberId = prescription:prescriber_id(Prescription),
+          %% gather required antidote keys
           PrescriptionKey = binary_prescription_key(Id),
-          antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,node(),Txn),
+          PatientKey = binary_patient_key(PatientId),
+          PharmacyKey = binary_pharmacy_key(PharmacyId),
+          FacilityKey = binary_facility_key(FacilityId),
+          PrescriberKey = binary_staff_key(PrescriberId),
+          %% build nested updates for patients, pharmacies, facilities and the prescriber
+          PatientUpdate = patient:process_prescription(Id,CurrentDate),
+          FacilityUpdate = facility:process_prescription(Id,CurrentDate),
+          PharmacyUpdate = pharmacy:process_prescription(Id,CurrentDate),
+          PrescriberUpdate = staff:process_prescription(Id,CurrentDate),
+          %% update top level prescription
+          antidote_lib:put_map(PrescriptionKey,?MAP,update,UpdateOperation,node(),Txn),
+          %% add to patient prescriptions
+          antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+          %% add to hospital prescriptions
+          antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+          %% add to pharmacy prescriptions
+          antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+          %% add to the prescriber's prescriptions
+          antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
           ok
       end
   end,
@@ -705,4 +729,4 @@ process_get_request(Key,Type,Txn) ->
   end.
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->
-  [Prescription || Prescription <- PharmacyPrescriptions, prescription:is_processed([Prescription])=/=no].
+  [Prescription || Prescription <- PharmacyPrescriptions, prescription:is_processed([Prescription])==?PRESCRIPTION_PROCESSED].

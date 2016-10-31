@@ -16,7 +16,8 @@
   add_prescription/6,
   add_event/5,
   add_treatment/4,
-  add_treatment/5
+  add_treatment/5,
+  process_prescription/2
   ]).
 
 %% Returns a list of operations ready to be inserted into antidote.
@@ -115,6 +116,15 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed
   %% return a top level facility update that contains the prescriptions map update
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
+
+-spec process_prescription(id(), binary()) -> [map_field_update()].
+process_prescription(PrescriptionId, CurrentDate) ->
+  PrescriptionUpdate = prescription:process(CurrentDate),
+  %% now to insert the nested operations inside the prescriptions map
+  FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
+  %% return a top level patient update that contains the prescriptions map update
+  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,FacilityPrescriptionsKey,[PrescriptionUpdate]),
+  [FacilityPrescriptionsOp].
 
 %% Returns an update operation for adding an event to a specific facility treatment.
 -spec add_event(id(), id(), id(), binary(), binary()) -> [map_field_update()].
