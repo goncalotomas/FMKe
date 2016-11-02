@@ -2,12 +2,13 @@
 %% -*- erlang -*-
 %%! -smp enable -name setup@127.0.0.1 -cookie antidote -mnesia debug verbose
 -mode(compile).
--define (NUM_PATIENTS, 5000).
+-define (NUM_PATIENTS, 10000).
 -define (NUM_PHARMACIES, 300).
 -define (NUM_FACILITIES, 50).
 -define (NUM_STAFF, 250).
--define (NUM_PRESCRIPTIONS, 1000).
+-define (NUM_PRESCRIPTIONS, 0).
 -define (ZIPF_SKEW, 1).
+-define (FMK_NODE, 'fmk@127.0.0.1').
 
 
 main([String]) ->
@@ -41,17 +42,16 @@ usage() ->
     io:format("usage: escript fmk_setup_script node_name\n"),
     halt(1).
 
-add_pharmacies(1) -> run_op(create_pharmacy,[1, "Chai Pharmacy","Costa da Caparica, Portugal"]);
+add_pharmacies(0) -> ok;
 add_pharmacies(Amount) ->
   case Amount rem 3 of
     0 -> run_op(create_pharmacy,[Amount, "Chai Pharmacy","Costa da Caparica, Portugal"]);
     1 -> run_op(create_pharmacy,[Amount, "Carlos Pharmacy","Costa da Caparica, Portugal"]);
-    2 -> run_op(create_pharmacy,[Amount, "Definitely not an online scam!","Lisbon, Portugal"])
+    2 -> run_op(create_pharmacy,[Amount, "Shanghai Central Pharmacy","Shanghai, China"])
   end,
   add_pharmacies(Amount-1).
 
-
-add_facilities(1) -> run_op(create_facility,[1, "Nordsjællands Hospital","Esbønderup, DK","Hospital"]);
+add_facilities(0) -> ok;
 add_facilities(Amount) ->
   case Amount rem 10 of
     0 -> run_op(create_facility,[Amount, "Amager Hospital","Amager Island, DK","Hospital"]);
@@ -67,16 +67,17 @@ add_facilities(Amount) ->
   end,
   add_facilities(Amount-1).
 
-add_patients(1) -> run_op(create_patient,[1, "Goncalo Tomas","Caparica, Portugal"]);
+add_patients(0) -> ok;
 add_patients(Amount) ->
-  run_op(create_patient,[Amount, "Goncalo Tomas","Caparica, Portugal"]),
+  run_op(create_patient,[Amount, "Phineas Gage","New Hampshire, United States"]),
   add_patients(Amount-1).
 
-add_staff(1) -> run_op(create_staff,[1, "Alexander Fleming","London, UK","Pharmacologist"]);
+add_staff(0) -> ok;
 add_staff(Amount) ->
   run_op(create_staff,[Amount, "Alexander Fleming","London, UK","Pharmacologist"]),
   add_staff(Amount-1).
 
+add_prescription(0) -> ok;
 add_prescription(Amount) ->
   ListPatientIds = gen_sequence(?NUM_PATIENTS,?ZIPF_SKEW,?NUM_PRESCRIPTIONS),
   ?NUM_PRESCRIPTIONS = length(ListPatientIds),
@@ -113,7 +114,7 @@ run_op(create_prescription,Params) ->
   run_rpc_op(create_prescription,Params).
 
 run_rpc_op(Op,Params) ->
-  ok = case rpc:call('fmk@127.0.0.1',fmk_core,Op,Params) of
+  ok = case rpc:call(?FMK_NODE,fmk_core,Op,Params) of
     {error, _} ->
       io:format("Error in ~p with params ~p\n",[Op,Params]),
       error;
@@ -122,13 +123,12 @@ run_rpc_op(Op,Params) ->
 
 gen_sequence(Size,Skew,SequenceSize) ->
   Bottom = 1/(lists:foldl(fun(X,Sum) -> Sum+(1/math:pow(X,Skew)) end,0,lists:seq(1,Size))),
-  random:seed(now()),
   lists:map(fun(_X)->
     zipf_next(Size,Skew,Bottom)
   end,lists:seq(1,SequenceSize)).
 
 zipf_next(Size,Skew,Bottom) ->
-  Dice = random:uniform(),
+  Dice = rand:uniform(),
   next(Dice,Size,Skew,Bottom,0,1).
 
 next(Dice,_Size,_Skew,_Bottom,Sum,CurrRank) when Sum >= Dice -> CurrRank-1;
