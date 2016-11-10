@@ -18,6 +18,7 @@ compile:
 	cd - ; \
 	cd ${BENCH}; make all; \
 	cd - ; \
+	./${REBAR3} compile; \
 	cp ${BENCH}/include/${BENCH_HRL}.hrl ./include/ ; \
 	erlc test/${CLIENT}.erl; \
 	mv ${CLIENT}.beam ${EBIN}/
