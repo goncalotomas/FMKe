@@ -1,6 +1,6 @@
 [{<<"antidote_crdt">>,
   {git,"https://github.com/SyncFree/antidote_crdt",
-       {ref,"d66dc6987833c3ff4737620b8f54f38790a970db"}},
+       {ref,"c07eb4664ca31067d826d70614eca64fac423577"}},
   0},
  {<<"basho_bench">>,
   {git,"https://github.com/goncalotomas/basho_bench",
