@@ -26,7 +26,7 @@
 %% as well as a date when the treatment was prescribed.
 %% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
 %% be supplied in binary
--spec new(id(),id(),id(),id(),id(),string(),[crdt()]) -> [map_field_update()].
+-spec new(id(),id(),id(),id(),id(),string(),[crdt()]) -> [term()].
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   IdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,Id),
   PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
@@ -40,7 +40,7 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
 
 %% Same as new/7, but includes a date that symbolizes when the prescription was processed.
 %% Indentically to new/5, DateEnded should be binary
--spec new(id(),id(),id(),id(),id(),string(),string(),[crdt()]) -> [map_field_update()].
+-spec new(id(),id(),id(),id(),id(),string(),string(),[crdt()]) -> [term()].
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
     new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
@@ -80,7 +80,7 @@ date_prescribed(Prescription) ->
   binary_to_list(antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT)).
 
 %% Returns the processing date from an already existant prescription object.
--spec date_processed(crdt()) -> binary().
+-spec date_processed(crdt()) -> string().
 date_processed(Prescription) ->
   binary_to_list(antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT)).
 
@@ -101,19 +101,19 @@ is_processed(Prescription) ->
 
 %% Returns a list of antidote operations to modify a prescription in order to fill in the processing
 %% date and update the prescription date.
--spec process(string()) -> [map_field_update()].
+-spec process(string()) -> [term()].
 process(CurrentDate) ->
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
   ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT,CurrentDate),
   [IsProcessedOp,ProcessedOp].
 
 %% Returns a list of antidote operations to modify a prescription in order to add drugs to a prescription.
--spec add_drugs([term()]) -> [map_field_update()].
+-spec add_drugs([term()]) -> [term()].
 add_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_add_elements(Drugs))].
 
 %% Returns a list of antidote operations to modify a prescription in order to remove drugs from a prescription.
--spec remove_drugs([term()]) -> [map_field_update()].
+-spec remove_drugs([term()]) -> [term()].
 remove_drugs(Drugs) ->
   [antidote_lib:build_map_op(?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT,antidote_lib:set_remove_elements(Drugs))].
 

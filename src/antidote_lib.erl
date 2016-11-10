@@ -102,7 +102,7 @@ txn_commit(TxnDetails) ->
 %% ------------------------------------------------------------------------------------------------
 %% Helper functions to assist in map updates
 %% ------------------------------------------------------------------------------------------------
--spec build_map_update([map_field_update()]) -> map_op().
+-spec build_map_update([term()]) -> map_op().
 build_map_update(OpList) ->
   {update, OpList}.
 
@@ -112,7 +112,7 @@ build_map_update(OpList) ->
 %% NestedMapKey - nested map's key inside the top-level map.
 %% TopLevelMapType - may be of type ?MAP or ?NESTED_MAP
 %% TopLevelMapKey - key for the outer map (may or may not be a top level map inside Antidote)
--spec build_nested_map_op(field(),crdt(),field(),[map_field_update()]) -> map_field_update().
+-spec build_nested_map_op(field(),crdt(),field(),[term()]) -> term().
 build_nested_map_op(TopLevelMapKey,TopLevelMapType,NestedMapKey,ListOps) ->
   NestedMapUpdate = build_map_update(ListOps),
   NestedMapOp = build_map_op(NestedMapKey,?NESTED_MAP,NestedMapUpdate),
@@ -120,7 +120,7 @@ build_nested_map_op(TopLevelMapKey,TopLevelMapType,NestedMapKey,ListOps) ->
   build_map_op(TopLevelMapKey,TopLevelMapType,[TopLevelMapUpdate]).
 
 %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
--spec build_map_op(field(), crdt(), crdt_op()) -> map_field_update().
+-spec build_map_op(field(), crdt(), crdt_op()) -> term().
 build_map_op(Key,Type,Op) ->
   {{Key,Type}, Op}.
 

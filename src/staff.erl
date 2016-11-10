@@ -20,7 +20,7 @@
 
 %% Creates a new staff member object from an ID, Name, Address and Speciality.
 %% Returns an update operation ready to insert into Antidote
--spec new(id(),string(),string(),string()) -> [map_field_update()].
+-spec new(id(),string(),string(),string()) -> [term()].
 new(Id,Name,Address,Speciality) ->
   IdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
@@ -31,7 +31,7 @@ new(Id,Name,Address,Speciality) ->
 
 
 %% Update operation: updates only the staff member's personal details
--spec update_details(string(),string(),string()) -> [map_field_update()].
+-spec update_details(string(),string(),string()) -> [term()].
 update_details(Name,Address,Speciality) ->
   NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
   AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,list_to_binary(Address)),
@@ -69,7 +69,7 @@ prescriptions(Staff) ->
   antidote_lib:find_key(Staff,?STAFF_PRESCRIPTIONS,?STAFF_PRESCRIPTIONS_CRDT).
 
 %% Returns an update operation for adding a prescription to a specific staff member.
--spec add_prescription(id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
+-spec add_prescription(id(), id(), id(), id(), string(), [crdt()]) -> [term()].
 add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% nested prescription operations
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
@@ -85,7 +85,7 @@ add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,D
   StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,ListOps),
   [StaffPrescriptionsOp].
 
--spec process_prescription(id(), string()) -> [map_field_update()].
+-spec process_prescription(id(), string()) -> [term()].
 process_prescription(PrescriptionId, CurrentDate) ->
   PrescriptionUpdate = prescription:process(CurrentDate),
   %% now to insert the nested operations inside the prescriptions map
@@ -94,7 +94,7 @@ process_prescription(PrescriptionId, CurrentDate) ->
   StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,PrescriptionUpdate),
   [StaffPrescriptionsOp].
 
--spec add_prescription_drugs(id(), [binary()]) -> [map_field_update()].
+-spec add_prescription_drugs(id(), [string()]) -> [term()].
 add_prescription_drugs(PrescriptionId, Drugs) ->
   PrescriptionUpdate = prescription:add_drugs(Drugs),
   %% now to insert the nested operations inside the prescriptions map

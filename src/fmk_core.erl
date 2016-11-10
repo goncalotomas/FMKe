@@ -52,7 +52,7 @@
 %% A check is done to determine if a patient with the given ID already exists,
 %% and if so the operation fails. If there isn't any indexed patient, he/she
 %% will be added to the system and indexed by both Name and ID.
--spec create_patient(id(),string(),binary()) -> ok | {error, reason()}.
+-spec create_patient(id(),string(),string()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_patient_by_id(Id,Txn) of
@@ -70,7 +70,7 @@ create_patient(Id,Name,Address) ->
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
 %% been seen. If the operation succeeds, the pharmacy will be indexed by both
 %% Name and ID.
--spec create_pharmacy(id(),binary(),binary()) -> ok | {error, reason()}.
+-spec create_pharmacy(id(),string(),string()) -> ok | {error, reason()}.
 create_pharmacy(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_pharmacy_by_id(Id,Txn) of
@@ -88,7 +88,7 @@ create_pharmacy(Id,Name,Address) ->
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet
 %% been seen. If the operation succeeds, the facility will be indexed by both
 %% Name and ID.
--spec create_facility(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
+-spec create_facility(id(),string(),string(),string()) -> ok | {error, reason()}.
 create_facility(Id,Name,Address,Type) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_facility_by_id(Id,Txn) of
@@ -106,7 +106,7 @@ create_facility(Id,Name,Address,Type) ->
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet
 %% been seen. If the operation succeeds, the staff member will be indexed by both
 %% Name and ID.
--spec create_staff(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
+-spec create_staff(id(),string(),string(),string()) -> ok | {error, reason()}.
 create_staff(Id,Name,Address,Speciality) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_staff_by_id(Id,Txn) of
@@ -370,7 +370,7 @@ update_facility_details(Id,Name,Address,Type) ->
   end.
 
 %% Updates the details of a staff member with a certain ID.
--spec update_staff_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
+-spec update_staff_details(id(),string(),string(),string()) -> ok | {error, reason()}.
 update_staff_details(Id,Name,Address,Speciality) ->
   Txn = antidote_lib:txn_start(),
   case get_staff_by_id(Id,Txn) of
@@ -392,7 +392,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
       ok = antidote_lib:txn_commit(Txn)
   end.
 
--spec update_prescription_medication(id(),atom(),[binary()]) -> ok | {error, reason()}.
+-spec update_prescription_medication(id(),atom(),[string()]) -> ok | {error, reason()}.
 update_prescription_medication(Id,add_drugs,Drugs) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_prescription_by_id(Id,Txn) of
@@ -434,7 +434,7 @@ update_prescription_medication(_Id,_action,_Drugs) -> {error,undefined}.
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy and treatment facility (hospital). The prescription also includes the prescription date
 %% and the list of drugs that should be administered.
--spec create_prescription(id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
+-spec create_prescription(id(), id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
@@ -471,7 +471,7 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
 
 %% Same as create_prescription/7, but includes a reference to the treatment to which the
 %% prescription is associated with.
--spec create_prescription(id(), id(), id(), id(), id(), id(), binary(), [crdt()]) -> ok | {error, reason()}.
+-spec create_prescription(id(), id(), id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
@@ -512,7 +512,7 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
 
 %% Creates a treatment event, with information about the staff member that registered it,
 %% along with a timestamp and description.
--spec create_event(id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
+-spec create_event(id(), id(), id(), string(), string()) -> ok | {error, reason()}.
 create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
@@ -544,7 +544,7 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
 
 %% Creates a treatment with information about the patient, the staff member that iniciated it,
 %% and also the facility ID and date when the treatment started.
--spec create_treatment(id(), id(), id(), id(), binary()) -> ok | {error, reason()}.
+-spec create_treatment(id(), id(), id(), id(), string()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
@@ -571,7 +571,7 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   ok.
 
 %% Same as create_treatment/5, but includes an ending date for the treatment.
--spec create_treatment(id(), id(), id(), id(), binary(), binary()) -> ok | {error, reason()}.
+-spec create_treatment(id(), id(), id(), id(), string(), string()) -> ok | {error, reason()}.
 create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
