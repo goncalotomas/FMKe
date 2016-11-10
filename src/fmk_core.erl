@@ -60,7 +60,7 @@ create_patient(Id,Name,Address) ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
       ok = fmk_index:index_patient(concatenate_id(patient,Id),Name,Txn),
-      ok = antidote_lib:put_map(PatientKey,?MAP,update,Patient,node(),Txn);
+      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,Txn);
     _Patient ->
       {error, patient_id_taken}
   end,
@@ -78,7 +78,7 @@ create_pharmacy(Id,Name,Address) ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
       ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name,Txn),
-      ok = antidote_lib:put_map(PharmacyKey,?MAP,update,Pharmacy,node(),Txn);
+      ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,Txn);
     _Pharmacy ->
       {error, pharmacy_id_taken}
   end,
@@ -96,7 +96,7 @@ create_facility(Id,Name,Address,Type) ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
       ok = fmk_index:index_facility(concatenate_id(facility,Id),Name,Txn),
-      ok = antidote_lib:put_map(FacilityKey,?MAP,update,Facility,node(),Txn);
+      ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,Txn);
     _Facility ->
       {error, facility_id_taken}
   end,
@@ -114,7 +114,7 @@ create_staff(Id,Name,Address,Speciality) ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
       ok = fmk_index:index_staff(concatenate_id(staff,Id),Name,Txn),
-      ok = antidote_lib:put_map(StaffKey,?MAP,update,Staff,node(),Txn);
+      ok = antidote_lib:put(StaffKey,?MAP,update,Staff,Txn);
     _Facility ->
       {error, staff_id_taken}
   end,
@@ -313,7 +313,7 @@ update_patient_details(Id,Name,Address) ->
       PatientKey = binary_patient_key(Id),
       PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
-      antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
       case string:equal(PatientName,Name) of
         true ->
           ok;
@@ -336,7 +336,7 @@ update_pharmacy_details(Id,Name,Address) ->
       PharmacyKey = binary_pharmacy_key(Id),
       PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
-      antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
       case string:equal(PharmacyName,Name) of
         true ->
           ok;
@@ -359,7 +359,7 @@ update_facility_details(Id,Name,Address,Type) ->
       FacilityKey = binary_pharmacy_key(Id),
       FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
-      antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
       case string:equal(FacilityName,Name) of
         true ->
           ok;
@@ -382,7 +382,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
       StaffKey = binary_pharmacy_key(Id),
       StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
-      antidote_lib:put_map(StaffKey,?MAP,update,StaffUpdate,node(),Txn),
+      antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,Txn),
       case string:equal(StaffName,Name) of
         true ->
           ok;
@@ -416,15 +416,15 @@ update_prescription_medication(Id,add_drugs,Drugs) ->
       PharmacyUpdate = pharmacy:add_prescription_drugs(Id,Drugs),
       PrescriberUpdate = staff:add_prescription_drugs(Id,Drugs),
       %% update top level prescription
-      antidote_lib:put_map(PrescriptionKey,?MAP,update,UpdateOperation,node(),Txn),
+      antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,Txn),
       %% add to patient prescriptions
-      antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+      antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
       %% add to hospital prescriptions
-      antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
       %% add to pharmacy prescriptions
-      antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
       %% add to the prescriber's prescriptions
-      antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
+      antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
       ok
   end,
   ok = antidote_lib:txn_commit(Txn),
@@ -457,15 +457,15 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
   %% add to patient prescriptions
-  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
   %% add to hospital prescriptions
-  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -496,17 +496,17 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  antidote_lib:put_map(PrescriptionKey,?MAP,update,TopLevelPrescription,node(),Txn),
+  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to patient prescriptions
-  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
   %% add to hospital prescriptions
-  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
   %% add to pharmaciy prescriptions
-  antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
   %% add to the prescriber's prescriptions
-  antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
+  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
   %% add to the treatment's prescriptions
-  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -535,10 +535,10 @@ create_event(EventId,TreatmentId,StaffMemberId,Timestamp,Description) ->
   FacilityUpdate = facility:add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description),
   TreatmentUpdate = treatment:add_event(EventId,StaffMemberId,Timestamp,Description),
   %% add top level event
-  antidote_lib:put_map(EventKey,?MAP,update,TopLevelEvent,node(),Txn),
-  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
-  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
-  antidote_lib:put_map(TreatmentKey,?MAP,update,TreatmentUpdate,node(),Txn),
+  antidote_lib:put(EventKey,?MAP,update,TopLevelEvent,Txn),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
+  antidote_lib:put(TreatmentKey,?MAP,update,TreatmentUpdate,Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -562,11 +562,11 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted) ->
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted),
   %% add top level treatment
-  antidote_lib:put_map(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,Txn),
   %% add to patient treatments
-  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
   %% add to facility treatments
-  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -589,11 +589,11 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
   PatientUpdate = patient:add_treatment(TreatmentId,StaffId,FacilityId,DateStarted,DateEnded),
   FacilityUpdate = facility:add_treatment(TreatmentId,PatientId,StaffId,DateStarted,DateEnded),
   %% add top level treatment
-  antidote_lib:put_map(TreatmentKey,?MAP,update,TopLevelTreatment,node(),Txn),
+  antidote_lib:put(TreatmentKey,?MAP,update,TopLevelTreatment,Txn),
   %% add to patient treatments
-  antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
   %% add to facility treatments
-  antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
   ok = antidote_lib:txn_commit(Txn),
   ok.
 
@@ -660,15 +660,15 @@ process_prescription(Id) ->
           PharmacyUpdate = pharmacy:process_prescription(Id,CurrentDate),
           PrescriberUpdate = staff:process_prescription(Id,CurrentDate),
           %% update top level prescription
-          antidote_lib:put_map(PrescriptionKey,?MAP,update,UpdateOperation,node(),Txn),
+          antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,Txn),
           %% add to patient prescriptions
-          antidote_lib:put_map(PatientKey,?MAP,update,PatientUpdate,node(),Txn),
+          antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
           %% add to hospital prescriptions
-          antidote_lib:put_map(FacilityKey,?MAP,update,FacilityUpdate,node(),Txn),
+          antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
           %% add to pharmacy prescriptions
-          antidote_lib:put_map(PharmacyKey,?MAP,update,PharmacyUpdate,node(),Txn),
+          antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
           %% add to the prescriber's prescriptions
-          antidote_lib:put_map(PrescriberKey,?MAP,update,PrescriberUpdate,node(),Txn),
+          antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
           ok
       end
   end,
