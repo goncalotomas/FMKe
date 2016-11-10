@@ -26,18 +26,18 @@
 -spec new(id(),string(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address,Type) ->
   IdOp = build_id_op(?FACILITY_ID,?FACILITY_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
-  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,Type),
+  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,list_to_binary(Address)),
+  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,list_to_binary(Type)),
   [IdOp,NameOp,AddressOp,TypeOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific facility's details.
 -spec update_details(string(),string(),string()) -> [map_field_update()].
 update_details(Name,Address,Type) ->
-  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
-  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,Type),
+  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,list_to_binary(Address)),
+  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,list_to_binary(Type)),
   [NameOp,AddressOp,TypeOp].
 
 %% Returns the facility name as from a facility object

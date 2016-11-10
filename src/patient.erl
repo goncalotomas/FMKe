@@ -27,16 +27,16 @@
 -spec new(id(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,list_to_binary(Address)),
   [IdOp,NameOp,AddressOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
 -spec update_details(string(),string()) -> [map_field_update()].
 update_details(Name,Address) ->
-  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,list_to_binary(Address)),
   [NameOp,AddressOp].
 
 %% Returns the patient name as a list from a patient object

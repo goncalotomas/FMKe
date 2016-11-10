@@ -18,7 +18,7 @@
 %% as well as a date when the event occured and also a small description.
 %% All Ids must be of type pos_integer() and the Timestamp and Description should
 %% be supplied in binary
--spec new(id(),id(),id(),binary(),binary()) -> [map_field_update()].
+-spec new(id(),id(),id(),string(),string()) -> [map_field_update()].
 new(Id,PatientId,StaffMemberId,Timestamp,Description) ->
   IdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,Id),
   PatientNameOp = build_id_op(?EVENT_PATIENT_ID,?EVENT_PATIENT_ID_CRDT,PatientId),
@@ -38,9 +38,9 @@ id(Event) ->
   antidote_lib:find_key(Event,?EVENT_ID,?EVENT_ID_CRDT).
 
 %% Returns the event timestamp from an already existant event object.
--spec timestamp(crdt()) -> binary().
+-spec timestamp(crdt()) -> string().
 timestamp(Event) ->
-  antidote_lib:find_key(Event,?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT).
+  binary_to_list(antidote_lib:find_key(Event,?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT)).
 
 %% Returns the staff ID from an already existant event object.
 -spec staff_id(crdt()) -> id().
@@ -48,9 +48,9 @@ staff_id(Event) ->
   antidote_lib:find_key(Event,?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT).
 
 %% Returns the description from an already existant event object.
--spec description(crdt()) -> binary().
+-spec description(crdt()) -> string().
 description(Event) ->
-  antidote_lib:find_key(Event,?EVENT_ID,?EVENT_ID_CRDT).
+  binary_to_list(antidote_lib:find_key(Event,?EVENT_ID,?EVENT_ID_CRDT)).
 
 
 %%-----------------------------------------------------------------------------

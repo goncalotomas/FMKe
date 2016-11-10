@@ -23,9 +23,9 @@
 -spec new(id(),string(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address,Speciality) ->
   IdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
-  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,list_to_binary(Address)),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,list_to_binary(Speciality)),
   %% initially a staff member does not have any treatments or prescriptions
   [IdOp,NameOp,AddressOp,SpecialityOp].
 
@@ -33,9 +33,9 @@ new(Id,Name,Address,Speciality) ->
 %% Update operation: updates only the staff member's personal details
 -spec update_details(string(),string(),string()) -> [map_field_update()].
 update_details(Name,Address,Speciality) ->
-  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
-  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,list_to_binary(Address)),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,list_to_binary(Speciality)),
   [NameOp,AddressOp,SpecialityOp].
 
 %% Returns the name in the form of a list from a staff member object.
