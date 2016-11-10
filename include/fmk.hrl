@@ -132,7 +132,7 @@
 -type op_name() :: antidote:op_name().
 -type op_param() :: antidote:op_param().
 -type crdt() :: term().
--type crdt_op() :: term().
+-type crdt_op() :: any().
 -type field() :: term().
 -type map_field_op() ::  {remove, field()}.
 -type map_field_update() :: {update, field(), crdt_op()}.
