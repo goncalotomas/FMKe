@@ -64,42 +64,51 @@ search_index(Key,Index) ->
     Results -> Results
   end.
 
+-spec index_patient(string(),string(),txid()) -> ok.
 index_patient(Key,Name,Txn) ->
   AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_PATIENT_NAME_INDEX,?ORSET,add,AddOperation,Txn).
 
+-spec index_facility(string(),string(),txid()) -> ok.
 index_facility(Key,Name,Txn) ->
   AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_FACILITY_NAME_INDEX,?ORSET,add,AddOperation,Txn).
 
+-spec index_pharmacy(string(),string(),txid()) -> ok.
 index_pharmacy(Key,Name,Txn) ->
   AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_PHARMACY_NAME_INDEX,?ORSET,add,AddOperation,Txn).
 
+-spec index_staff(string(),string(),txid()) -> ok.
 index_staff(Key,Name,Txn) ->
   AddOperation = build_binary_tuple(Name,Key),
   ok = antidote_lib:put(?FMK_STAFF_NAME_INDEX,?ORSET,add,AddOperation,Txn).
 
+-spec reindex_patient(string(),string(),string(),txid()) -> ok.
 reindex_patient(Key,OldName,NewName,Txn) ->
   RemoveOperation = build_binary_tuple(OldName,Key),
   AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_PATIENT_NAME_INDEX,RemoveOperation,AddOperation,Txn).
 
+-spec reindex_pharmacy(string(),string(),string(),txid()) -> ok.
 reindex_pharmacy(Key,OldName,NewName,Txn) ->
   RemoveOperation = build_binary_tuple(OldName,Key),
   AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_PHARMACY_NAME_INDEX,RemoveOperation,AddOperation,Txn).
 
+-spec reindex_facility(string(),string(),string(),txid()) -> ok.
 reindex_facility(Key,OldName,NewName,Txn) ->
   RemoveOperation = build_binary_tuple(OldName,Key),
   AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_FACILITY_NAME_INDEX,RemoveOperation,AddOperation,Txn).
 
+-spec reindex_staff(string(),string(),string(),txid()) -> ok.
 reindex_staff(Key,OldName,NewName,Txn) ->
   RemoveOperation = build_binary_tuple(OldName,Key),
   AddOperation = build_binary_tuple(NewName,Key),
   reindex_orset(?FMK_STAFF_NAME_INDEX,RemoveOperation,AddOperation,Txn).
 
+-spec reindex_orset(binary(),tuple(),tuple(),txid()) -> ok.
 reindex_orset(Key,RemoveOperation,AddOperation,Txn) ->
   ok = antidote_lib:put(Key,?ORSET,remove,RemoveOperation,Txn),
   ok = antidote_lib:put(Key,?ORSET,add,AddOperation,Txn).

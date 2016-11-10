@@ -22,8 +22,8 @@
   ]).
 
 %% Returns a list of operations ready to be inserted into antidote.
-%% All Ids must be of type pos_integer() and name, address and type should be binary()
--spec new(id(),binary(),binary(),binary()) -> [map_field_update()].
+%% All Ids must be of type pos_integer() and name, address and type should be string()
+-spec new(id(),string(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address,Type) ->
   IdOp = build_id_op(?FACILITY_ID,?FACILITY_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
@@ -33,7 +33,7 @@ new(Id,Name,Address,Type) ->
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific facility's details.
--spec update_details(binary(),binary(),binary()) -> [map_field_update()].
+-spec update_details(string(),string(),string()) -> [map_field_update()].
 update_details(Name,Address,Type) ->
   NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
@@ -41,14 +41,14 @@ update_details(Name,Address,Type) ->
   [NameOp,AddressOp,TypeOp].
 
 %% Returns the facility name as from a facility object
--spec name(crdt()) -> binary().
+-spec name(crdt()) -> string().
 name(Facility) ->
-  antidote_lib:find_key(Facility,?FACILITY_NAME,?FACILITY_NAME_CRDT).
+  binary_to_list(antidote_lib:find_key(Facility,?FACILITY_NAME,?FACILITY_NAME_CRDT)).
 
 %% Returns the facility type from a facility object
--spec type(crdt()) -> binary().
+-spec type(crdt()) -> string().
 type(Facility) ->
-  antidote_lib:find_key(Facility,?FACILITY_TYPE,?FACILITY_TYPE_CRDT).
+  binary_to_list(antidote_lib:find_key(Facility,?FACILITY_TYPE,?FACILITY_TYPE_CRDT)).
 
 %% Returns the facility id from a facility object
 -spec id(crdt()) -> id().
@@ -56,9 +56,9 @@ id(Facility) ->
   antidote_lib:find_key(Facility,?FACILITY_ID,?FACILITY_ID_CRDT).
 
 %% Returns the facility address from a facility object
--spec address(crdt()) -> binary().
+-spec address(crdt()) -> string().
 address(Facility) ->
-  antidote_lib:find_key(Facility,?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT).
+  binary_to_list(antidote_lib:find_key(Facility,?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT)).
 
 %% Returns the facility prescriptions from a facility object
 -spec prescriptions(crdt()) -> term().
@@ -118,7 +118,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
 
--spec process_prescription(id(), binary()) -> [map_field_update()].
+-spec process_prescription(id(), string()) -> [map_field_update()].
 process_prescription(PrescriptionId, CurrentDate) ->
   PrescriptionUpdate = prescription:process(CurrentDate),
   %% now to insert the nested operations inside the prescriptions map

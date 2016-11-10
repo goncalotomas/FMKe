@@ -121,15 +121,6 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,Dat
   %% of the nested operations for the prescription fields.
   [antidote_lib:build_nested_map_op(?TREATMENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps)].
 
--spec process_prescription(id(), binary()) -> [map_field_update()].
-process_prescription(PrescriptionId, CurrentDate) ->
-  PrescriptionUpdate = prescription:process(CurrentDate),
-  %% now to insert the nested operations inside the prescriptions map
-  TreatmentPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  %% return a top level patient update that contains the prescriptions map update
-  TreatmentPrescriptionsOp = antidote_lib:build_nested_map_op(?TREATMENT_PRESCRIPTIONS,?NESTED_MAP,TreatmentPrescriptionsKey,[PrescriptionUpdate]),
-  [TreatmentPrescriptionsOp].
-
 %% Returns a list of antidote operation to add a nested event to a treatment.
 %% Some IDs are necessary in order to create a prescription which should be self-explanatory.
 %% Timestamp and Description are supposed to be binaries.
