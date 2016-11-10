@@ -101,7 +101,7 @@ is_processed(Prescription) ->
 
 %% Returns a list of antidote operations to modify a prescription in order to fill in the processing
 %% date and update the prescription date.
--spec process(binary()) -> [map_field_update()].
+-spec process(string()) -> [map_field_update()].
 process(CurrentDate) ->
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
   ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT,CurrentDate),

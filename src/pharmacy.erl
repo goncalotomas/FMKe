@@ -18,7 +18,7 @@
 
 %% Returns a list of operations ready to be inserted into antidote.
 %% All Ids must be of type pos_integer() and name and address should be binary()
--spec new(id(),binary(),binary()) -> [map_field_update()].
+-spec new(id(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PHARMACY_ID,?PHARMACY_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
@@ -27,16 +27,16 @@ new(Id,Name,Address) ->
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
--spec update_details(binary(),binary()) -> [map_field_update()].
+-spec update_details(string(),string()) -> [map_field_update()].
 update_details(Name,Address) ->
   NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
 %% Returns the name of the pharmacy in the form of a list.
--spec name(crdt()) -> binary().
+-spec name(crdt()) -> string().
 name(Pharmacy) ->
-  antidote_lib:find_key(Pharmacy,?PHARMACY_NAME,?PHARMACY_NAME_CRDT).
+  binary_to_list(antidote_lib:find_key(Pharmacy,?PHARMACY_NAME,?PHARMACY_NAME_CRDT)).
 
 %% Returns the ID of the pharmacy in the form of an integer.
 -spec id(crdt()) -> id().
@@ -44,9 +44,9 @@ id(Pharmacy) ->
   antidote_lib:find_key(Pharmacy,?PHARMACY_ID,?PHARMACY_ID_CRDT).
 
 %% Returns the address of the pharmacy in the form of a list.
--spec address(crdt()) -> binary().
+-spec address(crdt()) -> string().
 address(Pharmacy) ->
-  antidote_lib:find_key(Pharmacy,?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT).
+  binary_to_list(antidote_lib:find_key(Pharmacy,?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT)).
 
 %% Returns a orset of prescriptions keys (index) associated with this pharmacy object.
 -spec prescriptions(crdt()) -> term().
@@ -70,7 +70,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed
   PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,PharmacyPrescriptionsKey,ListOps),
   [PharmacyPrescriptionsOp].
 
--spec process_prescription(id(), binary()) -> [map_field_update()].
+-spec process_prescription(id(), string()) -> [map_field_update()].
 process_prescription(PrescriptionId, CurrentDate) ->
   PrescriptionUpdate = prescription:process(CurrentDate),
   %% now to insert the nested operations inside the prescriptions map

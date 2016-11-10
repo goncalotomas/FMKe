@@ -24,7 +24,7 @@
 
 %% Returns a list of operations ready to be inserted into antidote.
 %% All Ids must be of type pos_integer() and name and address should be binary()
--spec new(id(),binary(),binary()) -> [map_field_update()].
+-spec new(id(),string(),string()) -> [map_field_update()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,Id),
   NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
@@ -33,16 +33,16 @@ new(Id,Name,Address) ->
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
--spec update_details(binary(),binary()) -> [map_field_update()].
+-spec update_details(string(),string()) -> [map_field_update()].
 update_details(Name,Address) ->
   NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
   AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
 %% Returns the patient name as a list from a patient object
--spec name(crdt()) -> binary().
+-spec name(crdt()) -> string().
 name(Patient) ->
-  antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT).
+  binary_to_list(antidote_lib:find_key(Patient,?PATIENT_NAME,?PATIENT_NAME_CRDT)).
 
 %% Returns the patient id as an integer from a patient object
 -spec id(crdt()) -> id().
@@ -50,9 +50,9 @@ id(Patient) ->
   antidote_lib:find_key(Patient,?PATIENT_ID,?PATIENT_ID_CRDT).
 
 %% Returns the patient address as a list from a patient object
--spec address(crdt()) -> binary().
+-spec address(crdt()) -> string().
 address(Patient) ->
-  antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT).
+  binary_to_list(antidote_lib:find_key(Patient,?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT)).
 
 %% Returns the patient treatments as a Riak map from a patient object
 -spec treatments(crdt()) -> term().
@@ -117,7 +117,7 @@ add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribe
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
 
--spec process_prescription(id(), binary()) -> [map_field_update()].
+-spec process_prescription(id(), string()) -> [map_field_update()].
 process_prescription(PrescriptionId, CurrentDate) ->
   PrescriptionUpdate = prescription:process(CurrentDate),
   %% now to insert the nested operations inside the prescriptions map

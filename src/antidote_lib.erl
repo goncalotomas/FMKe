@@ -59,44 +59,42 @@
 %% ------------------------------------------------------------------------------------------------
 
 %% A wrapper for Antidote's start_transaction function without a timestamp value.
--spec txn_start() -> {ok, txid()} | {error, reason()}.
+-spec txn_start() -> txid().
 txn_start() ->
   {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[ignore,[]]),
   TxnDetails.
 
 %% A wrapper for Antidote's start_transaction function with a specific timestamp value.
--spec txn_start(TimeStamp::snapshot_time()) -> {ok, txid()} | {error, reason()}.
+-spec txn_start(TimeStamp::snapshot_time()) -> txid().
 txn_start(TimeStamp) ->
   {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[TimeStamp,[]]),
   TxnDetails.
 
 %% A wrapper for Antidote's read_objects function, with a single object being read.
--spec txn_read_object(Object::bound_object(), TxnDetails::txid()) -> term() | {error, reason()}.
+-spec txn_read_object(Object::bound_object(), TxnDetails::txid()) -> term().
 txn_read_object(Object,TxnDetails) ->
   {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,read_objects,[[Object],TxnDetails]),
   Value.
 
 %% A wrapper for Antidote's read_objects function
 -spec txn_read_objects(Objects::[bound_object()], TxnDetails::txid())
-                                      -> [term()] | {error, reason()}.
+                                      -> [term()].
 txn_read_objects(Objects,TxnDetails) ->
   {ok,Values} = rpc:call(?ANTIDOTE,antidote,read_objects,[Objects,TxnDetails]),
   Values.
 
 %% A wrapper for Antidote's update_objects function, with a single object being written.
--spec txn_update_object({bound_object(), op_name(), op_param()}, txid())
-                                          -> ok | {error, reason()}.
+-spec txn_update_object({bound_object(), op_name(), op_param()}, txid()) -> ok.
 txn_update_object(ObjectUpdate,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[[ObjectUpdate],TxnDetails]).
 
 %% A wrapper for Antidote's update_objects function
--spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid())
-                                          -> ok | {error, reason()}.
+-spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid()) -> ok.
 txn_update_objects(ObjectUpdates,TxnDetails) ->
   ok = rpc:call(?ANTIDOTE,antidote,update_objects,[ObjectUpdates,TxnDetails]).
 
 %% A wrapper for Antidote's commit_transaction function
--spec txn_commit(TxnDetails::txid()) -> ok | {error, reason()}.
+-spec txn_commit(TxnDetails::txid()) -> ok.
 txn_commit(TxnDetails) ->
   {ok,_CommitTime} = rpc:call(?ANTIDOTE,antidote,commit_transaction,[TxnDetails]),
   ok.

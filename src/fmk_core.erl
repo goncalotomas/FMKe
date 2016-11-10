@@ -52,7 +52,7 @@
 %% A check is done to determine if a patient with the given ID already exists,
 %% and if so the operation fails. If there isn't any indexed patient, he/she
 %% will be added to the system and indexed by both Name and ID.
--spec create_patient(id(),binary(),binary()) -> ok | {error, reason()}.
+-spec create_patient(id(),string(),binary()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
   Result = case get_patient_by_id(Id,Txn) of
@@ -143,7 +143,7 @@ get_facility_by_id(Id,Txn) ->
   process_get_request(binary_facility_key(Id),?MAP,Txn).
 
 %% Fetches a facility by name.
--spec get_facility_by_name(binary()) -> [crdt()] | {error, reason()}.
+-spec get_facility_by_name(string()) -> [crdt()] | {error, reason()}.
 get_facility_by_name(Name) ->
   Txn = antidote_lib:txn_start(),
   Result = case search_facility_index(list_to_binary(Name),Txn) of
@@ -151,7 +151,7 @@ get_facility_by_name(Name) ->
     [H] -> antidote_lib:get(H,?MAP,Txn);
     List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
   end,
-  ok = antidote_lib:commit_transaction(Txn),
+  ok = antidote_lib:txn_commit(Txn),
   Result.
 
 %% Fetches the list of facility prescriptions given a certain facility ID.
@@ -191,7 +191,7 @@ get_patient_by_id(Id,Txn) ->
   process_get_request(binary_patient_key(Id),?MAP,Txn).
 
 %% Fetches a patient by name.
--spec get_patient_by_name(binary()) -> [crdt()] | {error, reason()}.
+-spec get_patient_by_name(string()) -> [crdt()] | {error, reason()}.
 get_patient_by_name(Name) ->
   Txn = antidote_lib:txn_start(),
   Result = case search_patient_index(list_to_binary(Name),Txn) of
@@ -203,7 +203,7 @@ get_patient_by_name(Name) ->
   Result.
 
 %% Fetches a pharmacy by name.
--spec get_pharmacy_by_name(binary()) -> [crdt()] | {error, reason()}.
+-spec get_pharmacy_by_name(string()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_name(Name) ->
   Txn = antidote_lib:txn_start(),
   Result = case search_pharmacy_index(list_to_binary(Name), Txn) of
@@ -263,7 +263,7 @@ get_staff_by_id(Id,Txn) ->
   process_get_request(binary_staff_key(Id),?MAP,Txn).
 
 %% Fetches a staff member by name.
--spec get_staff_by_name(binary()) -> [crdt()] | {error, reason()}.
+-spec get_staff_by_name(string()) -> [crdt()] | {error, reason()}.
 get_staff_by_name(Name) ->
   Txn = antidote_lib:txn_start(),
   Result = case search_staff_index(list_to_binary(Name),Txn) of
@@ -301,7 +301,7 @@ get_treatment_by_id(Id,Txn) ->
   process_get_request(binary_treatment_key(Id),?MAP,Txn).
 
 %% Updates the personal details of a patient with a certain ID.
--spec update_patient_details(id(),binary(),binary()) -> ok | {error, reason()}.
+-spec update_patient_details(id(),string(),string()) -> ok | {error, reason()}.
 update_patient_details(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
   case get_patient_by_id(Id,Txn) of
@@ -324,7 +324,7 @@ update_patient_details(Id,Name,Address) ->
   end.
 
 %% Updates the details of a pharmacy with a certain ID.
--spec update_pharmacy_details(id(),binary(),binary()) -> ok | {error, reason()}.
+-spec update_pharmacy_details(id(),string(),string()) -> ok | {error, reason()}.
 update_pharmacy_details(Id,Name,Address) ->
   Txn = antidote_lib:txn_start(),
   case get_pharmacy_by_id(Id,Txn) of
@@ -347,7 +347,7 @@ update_pharmacy_details(Id,Name,Address) ->
   end.
 
 %% Updates the details of a facility with a certain ID.
--spec update_facility_details(id(),binary(),binary(),binary()) -> ok | {error, reason()}.
+-spec update_facility_details(id(),string(),string(),string()) -> ok | {error, reason()}.
 update_facility_details(Id,Name,Address,Type) ->
   Txn = antidote_lib:txn_start(),
   case get_facility_by_id(Id,Txn) of
@@ -681,6 +681,7 @@ process_prescription(Id) ->
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
 
+-spec concatenate_id(atom(),integer()) -> list().
 concatenate_id(patient,Id) ->
   concatenate_list_with_id("patient_~p",Id);
 concatenate_id(pharmacy,Id) ->
@@ -694,9 +695,7 @@ concatenate_id(prescription,Id) ->
 concatenate_id(treatment,Id) ->
   concatenate_list_with_id("treatment_~p",Id);
 concatenate_id(event,Id) ->
-  concatenate_list_with_id("event_~p",Id);
-concatenate_id(_,_) ->
-  undefined.
+  concatenate_list_with_id("event_~p",Id).
 
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
@@ -714,15 +713,13 @@ search_staff_index(Name,Txn) ->
   search_fmk_index(staff,Name,Txn).
 
 search_fmk_index(staff,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_staff_name_index(),Txn);
+  fmk_index:search_index(Name,fmk_index:get_staff_name_index(Txn));
 search_fmk_index(facility,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_facility_name_index(),Txn);
+  fmk_index:search_index(Name,fmk_index:get_facility_name_index(Txn));
 search_fmk_index(patient,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_patient_name_index(),Txn);
+  fmk_index:search_index(Name,fmk_index:get_patient_name_index(Txn));
 search_fmk_index(pharmacy,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index(),Txn);
-search_fmk_index(_,_,_) ->
-  undefined.
+  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index(Txn)).
 
 check_prescription_id(Id,Txn) ->
   case get_prescription_by_id(Id,Txn) of
