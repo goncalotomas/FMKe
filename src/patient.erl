@@ -24,19 +24,19 @@
 
 %% Returns a list of operations ready to be inserted into antidote.
 %% All Ids must be of type pos_integer() and name and address should be binary()
--spec new(id(),string(),string()) -> [map_field_update()].
+-spec new(id(),string(),string()) -> [term()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,list_to_binary(Address)),
   [IdOp,NameOp,AddressOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
--spec update_details(string(),string()) -> [map_field_update()].
+-spec update_details(string(),string()) -> [term()].
 update_details(Name,Address) ->
-  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,Name),
-  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,Address),
+  NameOp = build_lwwreg_op(?PATIENT_NAME,?PATIENT_NAME_CRDT,list_to_binary(Name)),
+  AddressOp = build_lwwreg_op(?PATIENT_ADDRESS,?PATIENT_ADDRESS_CRDT,list_to_binary(Address)),
   [NameOp,AddressOp].
 
 %% Returns the patient name as a list from a patient object
@@ -70,7 +70,7 @@ events(Patient) ->
   antidote_lib:find_key(Patient,?PATIENT_EVENTS,?PATIENT_EVENTS_CRDT).
 
 %% Returns an update operation for adding a treatment to a specific patient.
--spec add_treatment(id(), id(), id(), binary()) -> [map_field_update()].
+-spec add_treatment(id(), id(), id(), string()) -> [term()].
 add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted) ->
   %% nested treatment operations
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
@@ -85,7 +85,7 @@ add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted) ->
   [PatientTreatmentsOp].
 
 %% Same as add_treatment/4, but includes an ending date for the treatment.
--spec add_treatment(id(), id(), id(), binary(), binary()) -> [map_field_update()].
+-spec add_treatment(id(), id(), id(), string(), string()) -> [term()].
 add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted, DateEnded) ->
   %% nested treatment operations
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
@@ -101,7 +101,7 @@ add_treatment(TreatmentId, PrescriberId, FacilityId, DateStarted, DateEnded) ->
   [PatientTreatmentsOp].
 
 %% Returns an update operation for adding a prescription to a specific patient.
--spec add_prescription(id(), id(), id(), id(), binary(), [crdt()]) -> [map_field_update()].
+-spec add_prescription(id(), id(), id(), id(), string(), [crdt()]) -> [term()].
 add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% nested prescription operations
   PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
@@ -117,7 +117,7 @@ add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribe
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
   [PatientPrescriptionsOp].
 
--spec process_prescription(id(), string()) -> [map_field_update()].
+-spec process_prescription(id(), string()) -> [term()].
 process_prescription(PrescriptionId, CurrentDate) ->
   PrescriptionUpdate = prescription:process(CurrentDate),
   %% now to insert the nested operations inside the prescriptions map
@@ -126,7 +126,7 @@ process_prescription(PrescriptionId, CurrentDate) ->
   PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?PATIENT_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,PrescriptionUpdate),
   [PatientPrescriptionsOp].
 
--spec add_prescription_drugs(id(), [binary()]) -> [map_field_update()].
+-spec add_prescription_drugs(id(), [string()]) -> [term()].
 add_prescription_drugs(PrescriptionId, Drugs) ->
   PrescriptionUpdate = prescription:add_drugs(Drugs),
   %% now to insert the nested operations inside the prescriptions map
@@ -136,7 +136,7 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   [PatientPrescriptionsOp].
 
 % Returns an update operation for adding an event to a specific patient.
--spec add_event(id(), id(), id(), binary(), binary()) -> [map_field_update()].
+-spec add_event(id(), id(), id(), string(), string()) -> [term()].
 add_event(TreatmentId,EventId,StaffMemberId,Timestamp,Description) ->
   %% nested event operations
   EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
