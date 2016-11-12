@@ -73,7 +73,7 @@ txn_start(TimeStamp) ->
 txn_read_object(Object,TxnDetails) ->
   Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
   %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,[Value]} = antidotec_pb:read_objects(Pid, [Object], TxnDetails),
+  {ok,[Value]} = antidotec_pb:read_values(Pid, [Object], TxnDetails),
   Value.
 
 %% A wrapper for Antidote's read_objects function
@@ -81,7 +81,7 @@ txn_read_object(Object,TxnDetails) ->
 txn_read_objects(Objects,TxnDetails) ->
   Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
   %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,Values} = antidotec_pb:read_objects(Pid, Objects, TxnDetails),
+  {ok,Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
   Values.
 
 %% A wrapper for Antidote's update_objects function, with a single object being written.
@@ -154,7 +154,7 @@ find_key(Map, Key, KeyType) ->
 %% Creates an Antidote bucket of a certain type.
 -spec create_bucket(field(), crdt()) -> object_bucket().
 create_bucket(Key,Type) ->
-  {Key,Type,bucket}.
+  {Key,Type,<<"bucket">>}.
 
 %% A simple way of getting information from antidote, just requiring a key and key-type.
 -spec get(field(), crdt()) -> term().
