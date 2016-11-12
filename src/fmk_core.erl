@@ -16,19 +16,15 @@
   create_treatment/6,
   get_event_by_id/1,
   get_facility_by_id/1,
-  get_facility_by_name/1,
   get_facility_prescriptions/1,
   get_facility_treatments/1,
   get_patient_by_id/1,
-  get_patient_by_name/1,
   get_pharmacy_by_id/1,
-  get_pharmacy_by_name/1,
   get_processed_pharmacy_prescriptions/1,
   get_pharmacy_prescriptions/1,
   get_prescription_by_id/1,
   get_prescription_medication/1,
   get_staff_by_id/1,
-  get_staff_by_name/1,
   get_staff_prescriptions/1,
   get_staff_treatments/1,
   get_treatment_by_id/1,
@@ -59,7 +55,6 @@ create_patient(Id,Name,Address) ->
     {error,not_found} ->
       Patient = patient:new(Id,Name,Address),
       PatientKey = binary_patient_key(Id),
-      ok = fmk_index:index_patient(concatenate_id(patient,Id),Name,Txn),
       ok = antidote_lib:put(PatientKey,?MAP,update,Patient,Txn);
     _Patient ->
       {error, patient_id_taken}
@@ -77,7 +72,6 @@ create_pharmacy(Id,Name,Address) ->
     {error,not_found} ->
       Pharmacy = pharmacy:new(Id,Name,Address),
       PharmacyKey = binary_pharmacy_key(Id),
-      ok = fmk_index:index_pharmacy(concatenate_id(pharmacy,Id),Name,Txn),
       ok = antidote_lib:put(PharmacyKey,?MAP,update,Pharmacy,Txn);
     _Pharmacy ->
       {error, pharmacy_id_taken}
@@ -95,7 +89,6 @@ create_facility(Id,Name,Address,Type) ->
     {error,not_found} ->
       Facility = facility:new(Id,Name,Address,Type),
       FacilityKey = binary_facility_key(Id),
-      ok = fmk_index:index_facility(concatenate_id(facility,Id),Name,Txn),
       ok = antidote_lib:put(FacilityKey,?MAP,update,Facility,Txn);
     _Facility ->
       {error, facility_id_taken}
@@ -113,7 +106,6 @@ create_staff(Id,Name,Address,Speciality) ->
     {error,not_found} ->
       Staff = staff:new(Id,Name,Address,Speciality),
       StaffKey = binary_staff_key(Id),
-      ok = fmk_index:index_staff(concatenate_id(staff,Id),Name,Txn),
       ok = antidote_lib:put(StaffKey,?MAP,update,Staff,Txn);
     _Facility ->
       {error, staff_id_taken}
@@ -141,18 +133,6 @@ get_facility_by_id(Id) ->
 -spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id,Txn) ->
   process_get_request(binary_facility_key(Id),?MAP,Txn).
-
-%% Fetches a facility by name.
--spec get_facility_by_name(string()) -> [crdt()] | {error, reason()}.
-get_facility_by_name(Name) ->
-  Txn = antidote_lib:txn_start(),
-  Result = case search_facility_index(list_to_binary(Name),Txn) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP,Txn);
-    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
-  end,
-  ok = antidote_lib:txn_commit(Txn),
-  Result.
 
 %% Fetches the list of facility prescriptions given a certain facility ID.
 -spec get_facility_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -190,29 +170,6 @@ get_patient_by_id(Id) ->
 get_patient_by_id(Id,Txn) ->
   process_get_request(binary_patient_key(Id),?MAP,Txn).
 
-%% Fetches a patient by name.
--spec get_patient_by_name(string()) -> [crdt()] | {error, reason()}.
-get_patient_by_name(Name) ->
-  Txn = antidote_lib:txn_start(),
-  Result = case search_patient_index(list_to_binary(Name),Txn) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP,Txn);
-    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
-  end,
-  ok = antidote_lib:txn_commit(Txn),
-  Result.
-
-%% Fetches a pharmacy by name.
--spec get_pharmacy_by_name(string()) -> [crdt()] | {error, reason()}.
-get_pharmacy_by_name(Name) ->
-  Txn = antidote_lib:txn_start(),
-  Result = case search_pharmacy_index(list_to_binary(Name), Txn) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP,Txn);
-    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
-  end,
-  ok = antidote_lib:txn_commit(Txn),
-  Result.
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
@@ -262,18 +219,6 @@ get_staff_by_id(Id) ->
 get_staff_by_id(Id,Txn) ->
   process_get_request(binary_staff_key(Id),?MAP,Txn).
 
-%% Fetches a staff member by name.
--spec get_staff_by_name(string()) -> [crdt()] | {error, reason()}.
-get_staff_by_name(Name) ->
-  Txn = antidote_lib:txn_start(),
-  Result = case search_staff_index(list_to_binary(Name),Txn) of
-    not_found -> not_found;
-    [H] -> antidote_lib:get(H,?MAP,Txn);
-    List -> [antidote_lib:get(Result,?MAP,Txn) || Result <- List]
-  end,
-  ok = antidote_lib:txn_commit(Txn),
-  Result.
-
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_staff_prescriptions(StaffId) ->
@@ -314,12 +259,6 @@ update_patient_details(Id,Name,Address) ->
       PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
       antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-      case string:equal(PatientName,Name) of
-        true ->
-          ok;
-        false ->
-          ok = fmk_index:reindex_patient(concatenate_id(patient,Id),PatientName,Name,Txn)
-      end,
       ok = antidote_lib:txn_commit(Txn)
   end.
 
@@ -337,12 +276,6 @@ update_pharmacy_details(Id,Name,Address) ->
       PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
       antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
-      case string:equal(PharmacyName,Name) of
-        true ->
-          ok;
-        false ->
-          ok = fmk_index:reindex_pharmacy(concatenate_id(pharmacy,Id),PharmacyName,Name,Txn)
-      end,
       ok = antidote_lib:txn_commit(Txn)
   end.
 
@@ -360,12 +293,6 @@ update_facility_details(Id,Name,Address,Type) ->
       FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
       antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
-      case string:equal(FacilityName,Name) of
-        true ->
-          ok;
-        false ->
-          ok = fmk_index:reindex_facility(concatenate_id(facility,Id),FacilityName,Name,Txn)
-      end,
       ok = antidote_lib:txn_commit(Txn)
   end.
 
@@ -383,12 +310,6 @@ update_staff_details(Id,Name,Address,Speciality) ->
       StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
       antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,Txn),
-      case string:equal(StaffName,Name) of
-        true ->
-          ok;
-        false ->
-          ok = fmk_index:reindex_staff(concatenate_id(staff,Id),StaffName,Name,Txn)
-      end,
       ok = antidote_lib:txn_commit(Txn)
   end.
 
@@ -699,27 +620,6 @@ concatenate_id(event,Id) ->
 
 concatenate_list_with_id(List,Id) ->
   lists:flatten(io_lib:format(List, [Id])).
-
-search_patient_index(Name,Txn) ->
-  search_fmk_index(patient,Name,Txn).
-
-search_pharmacy_index(Name,Txn) ->
-  search_fmk_index(pharmacy,Name,Txn).
-
-search_facility_index(Name,Txn) ->
-  search_fmk_index(facility,Name,Txn).
-
-search_staff_index(Name,Txn) ->
-  search_fmk_index(staff,Name,Txn).
-
-search_fmk_index(staff,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_staff_name_index(Txn));
-search_fmk_index(facility,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_facility_name_index(Txn));
-search_fmk_index(patient,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_patient_name_index(Txn));
-search_fmk_index(pharmacy,Name,Txn) ->
-  fmk_index:search_index(Name,fmk_index:get_pharmacy_name_index(Txn)).
 
 check_prescription_id(Id,Txn) ->
   case get_prescription_by_id(Id,Txn) of
