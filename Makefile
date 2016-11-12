@@ -1,34 +1,21 @@
-REBAR2=rebar
-REBAR3=rebar3
-RIAK_PB=_build/default/lib/riak_pb
-KATJA=_build/default/lib/katja
+REBAR=rebar3
 BENCH=_build/default/lib/basho_bench
-BENCH_HRL=basho_bench
 EBIN=_build/default/lib/fmk/ebin
 CLIENT=basho_bench_driver_fmkclient
 
 all: compile rel
 
 compile:
-	./${REBAR3} compile; \
-	cp ${RIAK_PB}/rebar ${KATJA}/ ; \
-	cd ${RIAK_PB}; ${REBAR2} get-deps; ${REBAR2} compile; \
-	cd - ; \
-	cd ${KATJA}; ${REBAR2} get-deps; ${REBAR2} compile; \
-	cd - ; \
+	${REBAR} compile; \
 	cd ${BENCH}; make all; \
-	cd - ; \
-	./${REBAR3} compile; \
-	cp ${BENCH}/include/${BENCH_HRL}.hrl ./include/ ; \
+	cd -; \
+	cp ${BENCH}/include/basho_bench.hrl ./include/ ; \
 	erlc test/${CLIENT}.erl; \
 	mv ${CLIENT}.beam ${EBIN}/
 
 rel:
-	./${REBAR3} release
-
-relclean:
-	rm -rf _build/
+	${REBAR} release
 
 bench:
-	${BENCH}/basho_bench test/fmkclient.config; \
-	Rscript --vanilla _build/default/lib/basho_bench/priv/summary.r -i tests/current
+	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config; \
+	Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
