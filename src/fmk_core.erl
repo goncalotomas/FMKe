@@ -766,14 +766,14 @@ check_event_id(Id,Txn) ->
 process_get_request(Key,Type) ->
   ReadResult = antidote_lib:get(Key,Type),
   case ReadResult of
-    [] -> {error,not_found};
+    {map,[]} -> {error,not_found};
     Object -> Object
   end.
 
 process_get_request(Key,Type,Txn) ->
   ReadResult = antidote_lib:get(Key,Type,Txn),
   case ReadResult of
-    [] -> {error,not_found};
+    {map,[]} -> {error,not_found};
     Object -> Object
   end.
 
