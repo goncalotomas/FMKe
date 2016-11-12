@@ -6,7 +6,11 @@
   {applications,
    [kernel,
     stdlib,
-    antidote_crdt
+    syntax_tools,
+    compiler,
+    mochiweb,
+    antidote_crdt,
+    antidote_pb
    ]},
   {env,[]},
   {modules, []},
