@@ -16,6 +16,12 @@ compile:
 rel:
 	${REBAR} release
 
-bench:
+relclean:
+	rm -rf _build
+
+bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config; \
 	Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
+
+console: rel
+	./_build/default/rel/fmk/bin/fmk console
