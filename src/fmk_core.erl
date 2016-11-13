@@ -374,7 +374,6 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
-  io:format("top level prescription: ~p",[TopLevelPrescription]),
   antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to pharmaciy prescriptions
   antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
@@ -671,8 +670,9 @@ process_get_request(Key,Type) ->
 process_get_request(Key,Type,Txn) ->
   ReadResult = antidote_lib:get(Key,Type,Txn),
   case ReadResult of
-    {map,[]} -> {error,not_found};
-    Object -> Object
+    {_Crdt,[]} -> {error,not_found};
+    {_Crdt,Object} -> Object;
+    _SomethingElse -> _SomethingElse
   end.
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->
