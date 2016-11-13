@@ -77,7 +77,7 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted) ->
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
   PatientIdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,PatientId),
   PrescriberIdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,PrescriberId),
-  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateStarted)),
   ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp],
   %% now to insert the nested operations inside the treatments map
   FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
@@ -92,8 +92,8 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
   PatientIdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,PatientId),
   PrescriberIdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,PrescriberId),
-  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
-  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateEnded),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateStarted)),
+  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateEnded)),
   ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp,DateEndedOp],
   %% now to insert the nested operations inside the treatments map
   FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
