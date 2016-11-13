@@ -124,7 +124,7 @@ build_nested_map_op(TopLevelMapKey,TopLevelMapType,NestedMapKey,ListOps) ->
   NestedMapUpdate = build_map_update(ListOps),
   NestedMapOp = build_map_op(NestedMapKey,?NESTED_MAP,NestedMapUpdate),
   TopLevelMapUpdate = [NestedMapOp],
-  build_map_op(TopLevelMapKey,TopLevelMapType,[TopLevelMapUpdate]).
+  build_map_op(TopLevelMapKey,TopLevelMapType,{update,TopLevelMapUpdate}).
 
 %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
 -spec build_map_op(field(), crdt(), crdt_op()) -> term().
