@@ -14,10 +14,10 @@ compile:
 	mv ${CLIENT}.beam ${EBIN}/
 
 rel:
-	${REBAR} release
+	./${REBAR} release
 
 relclean:
-	rm -rf _build
+	rm -rf _build/default/rel
 
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config; \
