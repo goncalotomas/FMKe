@@ -223,7 +223,7 @@ lwwreg_assign(Value) ->
 %% Returns an Antidote-compliant operation for adding a list of items to a CRDT set.
 -spec set_add_elements([term()]) -> crdt_op().
 set_add_elements(List) ->
-  {add, List}.
+  {add_all, List}.
 
 %% Returns an Antidote-compliant operation for removing a list of items from a CRDT set.
 -spec set_remove_elements([term()]) -> crdt_op().
