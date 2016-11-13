@@ -252,11 +252,10 @@ update_patient_details(Id,Name,Address) ->
   case get_patient_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_patient};
-    Patient ->
+    _Patient ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
       PatientKey = binary_patient_key(Id),
-      PatientName = patient:name(Patient),
       PatientUpdate = patient:update_details(Name,Address),
       antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
@@ -269,11 +268,10 @@ update_pharmacy_details(Id,Name,Address) ->
   case get_pharmacy_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_pharmacy};
-    Pharmacy ->
+    _Pharmacy ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
       PharmacyKey = binary_pharmacy_key(Id),
-      PharmacyName = pharmacy:name(Pharmacy),
       PharmacyUpdate = pharmacy:update_details(Name,Address),
       antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
@@ -286,11 +284,10 @@ update_facility_details(Id,Name,Address,Type) ->
   case get_facility_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_facility};
-    Facility ->
+    _Facility ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
       FacilityKey = binary_pharmacy_key(Id),
-      FacilityName = facility:name(Facility),
       FacilityUpdate = facility:update_details(Name,Address,Type),
       antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
@@ -303,11 +300,10 @@ update_staff_details(Id,Name,Address,Speciality) ->
   case get_staff_by_id(Id,Txn) of
     {error,not_found} ->
       {error,no_such_staff_member};
-    Staff ->
+    _Staff ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
       StaffKey = binary_pharmacy_key(Id),
-      StaffName = staff:name(Staff),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
       antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
@@ -666,15 +662,17 @@ check_event_id(Id,Txn) ->
 process_get_request(Key,Type) ->
   ReadResult = antidote_lib:get(Key,Type),
   case ReadResult of
-    [] -> {error,not_found};
-    Object -> Object
+    {_Crdt,[]} -> {error,not_found};
+    {_Crdt,Object} -> Object;
+    _SomethingElse -> _SomethingElse
   end.
 
 process_get_request(Key,Type,Txn) ->
   ReadResult = antidote_lib:get(Key,Type,Txn),
   case ReadResult of
-    [] -> {error,not_found};
-    Object -> Object
+    {_Crdt,[]} -> {error,not_found};
+    {_Crdt,Object} -> Object;
+    _SomethingElse -> _SomethingElse
   end.
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->

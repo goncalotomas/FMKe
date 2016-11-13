@@ -4,7 +4,7 @@
 %%%-------------------------------------------------------------------
 
 -module(fmk_app).
-
+-include("fmk.hrl").
 -behaviour(application).
 
 %% Application callbacks
@@ -15,12 +15,49 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    fmk_sup:start_link().
+    case fmk_sup:start_link() of
+        {ok, Pid} ->
+              case open_antidote_socket() of
+                ok -> {ok, Pid};
+                _ -> {error, cannot_open_protobuff_socket}
+              end;
+        {error, Reason} ->
+              {error, Reason}
+    end.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
-    ok.
+    close_antidote_socket().
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
+
+set_application_variable(ApplicationVariable, EnvironmentVariable, EnvironmentDefault) ->
+  %% try to load value from environment variable
+  Default = os:getenv(EnvironmentVariable, EnvironmentDefault),
+  Value = application:get_env(?APP,ApplicationVariable,Default),
+  fmk_config:set(ApplicationVariable,Value),
+  Value.
+
+open_antidote_socket() ->
+    set_application_variable(antidote_address,"ANTIDOTE_ADDRESS",?DEFAULT_ANTIDOTE_ADDRESS),
+    set_application_variable(antidote_port,"ANTIDOTE_PORT",?DEFAULT_ANTIDOTE_PORT),
+    AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
+    AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
+    case antidotec_pb_socket:start(AntidoteNodeAddress, AntidoteNodePort) of
+        {ok, Pid} ->
+            fmk_config:set(?VAR_ANTIDOTE_PB_PID,pid_to_list(Pid)),
+            ok;
+        _SomethingElse ->
+            {error, _SomethingElse}
+    end.
+
+close_antidote_socket() ->
+    AntidotePbPid = fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined),
+    case AntidotePbPid of
+        undefined ->
+            {error, error_closing_pb_socket};
+        _SomethingElse ->
+            ok
+    end.

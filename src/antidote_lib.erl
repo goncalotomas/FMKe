@@ -47,12 +47,6 @@
   set_remove_elements/1
   ]).
 
-%% Old API exports, these functions should only be used for benchmarking
--export ([
-  write_to_antidote/3,
-  read_from_antidote/2
-  ]).
-
 %% ------------------------------------------------------------------------------------------------
 %% Antidote's transaction API wrapper - Use when you need fine grain control over transactions
 %% Please refer to the official Antidote transaction documentation for reference on these functions
@@ -61,42 +55,55 @@
 %% A wrapper for Antidote's start_transaction function without a timestamp value.
 -spec txn_start() -> txid().
 txn_start() ->
-  {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[ignore,[]]),
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  {ok,TxnDetails} = antidotec_pb:start_transaction(Pid, ignore, {}),
   TxnDetails.
 
 %% A wrapper for Antidote's start_transaction function with a specific timestamp value.
 -spec txn_start(TimeStamp::snapshot_time()) -> txid().
 txn_start(TimeStamp) ->
-  {ok,TxnDetails} = rpc:call(?ANTIDOTE,antidote,start_transaction,[TimeStamp,[]]),
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  {ok,TxnDetails} = antidotec_pb:start_transaction(Pid, TimeStamp, {}),
   TxnDetails.
 
 %% A wrapper for Antidote's read_objects function, with a single object being read.
 -spec txn_read_object(Object::bound_object(), TxnDetails::txid()) -> term().
 txn_read_object(Object,TxnDetails) ->
-  {ok,[Value]} = rpc:call(?ANTIDOTE,antidote,read_objects,[[Object],TxnDetails]),
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  {ok,[Value]} = antidotec_pb:read_values(Pid, [Object], TxnDetails),
   Value.
 
 %% A wrapper for Antidote's read_objects function
--spec txn_read_objects(Objects::[bound_object()], TxnDetails::txid())
-                                      -> [term()].
+-spec txn_read_objects(Objects::[bound_object()], TxnDetails::txid()) -> [term()].
 txn_read_objects(Objects,TxnDetails) ->
-  {ok,Values} = rpc:call(?ANTIDOTE,antidote,read_objects,[Objects,TxnDetails]),
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  {ok,Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
   Values.
 
 %% A wrapper for Antidote's update_objects function, with a single object being written.
 -spec txn_update_object({bound_object(), op_name(), op_param()}, txid()) -> ok.
 txn_update_object(ObjectUpdate,TxnDetails) ->
-  ok = rpc:call(?ANTIDOTE,antidote,update_objects,[[ObjectUpdate],TxnDetails]).
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  ok = antidotec_pb:update_objects(Pid, [ObjectUpdate], TxnDetails).
 
 %% A wrapper for Antidote's update_objects function
 -spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid()) -> ok.
 txn_update_objects(ObjectUpdates,TxnDetails) ->
-  ok = rpc:call(?ANTIDOTE,antidote,update_objects,[ObjectUpdates,TxnDetails]).
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
 %% A wrapper for Antidote's commit_transaction function
 -spec txn_commit(TxnDetails::txid()) -> ok.
 txn_commit(TxnDetails) ->
-  {ok,_CommitTime} = rpc:call(?ANTIDOTE,antidote,commit_transaction,[TxnDetails]),
+  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
+  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+  {ok,_CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
   ok.
 
 %% ------------------------------------------------------------------------------------------------
@@ -117,7 +124,7 @@ build_nested_map_op(TopLevelMapKey,TopLevelMapType,NestedMapKey,ListOps) ->
   NestedMapUpdate = build_map_update(ListOps),
   NestedMapOp = build_map_op(NestedMapKey,?NESTED_MAP,NestedMapUpdate),
   TopLevelMapUpdate = [NestedMapOp],
-  build_map_op(TopLevelMapKey,TopLevelMapType,[TopLevelMapUpdate]).
+  build_map_op(TopLevelMapKey,TopLevelMapType,{update,TopLevelMapUpdate}).
 
 %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
 -spec build_map_op(field(), crdt(), crdt_op()) -> term().
@@ -147,7 +154,7 @@ find_key(Map, Key, KeyType) ->
 %% Creates an Antidote bucket of a certain type.
 -spec create_bucket(field(), crdt()) -> object_bucket().
 create_bucket(Key,Type) ->
-  {Key,Type,bucket}.
+  {Key,Type,<<"bucket">>}.
 
 %% A simple way of getting information from antidote, just requiring a key and key-type.
 -spec get(field(), crdt()) -> term().
@@ -195,18 +202,6 @@ put_map(Key,Type,Op,Param,Actor,Txn) ->
   ok = txn_update_map(Bucket,Op,Param,Txn,Actor).
 
 %% ------------------------------------------------------------------------------------------------
-%% ANTIDOTE'S OLD API - Should only be used for benchmarking
-%% ------------------------------------------------------------------------------------------------
-
-%% Wrapper for antidote's append function
-write_to_antidote(Key,Type,Params) ->
-  rpc:call(?ANTIDOTE,antidote,append,[Key,Type,{Params,self()}]).
-
-%% Wrapper for antidote's read function
-read_from_antidote(Key,Type) ->
-  rpc:call(?ANTIDOTE,antidote,read,[Key,Type]).
-
-%% ------------------------------------------------------------------------------------------------
 %% CRDT operations: because Antidote's operation parsing might change over time..?
 %% ------------------------------------------------------------------------------------------------
 
@@ -228,7 +223,7 @@ lwwreg_assign(Value) ->
 %% Returns an Antidote-compliant operation for adding a list of items to a CRDT set.
 -spec set_add_elements([term()]) -> crdt_op().
 set_add_elements(List) ->
-  {add, List}.
+  {add_all, List}.
 
 %% Returns an Antidote-compliant operation for removing a list of items from a CRDT set.
 -spec set_remove_elements([term()]) -> crdt_op().
