@@ -366,15 +366,15 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
   PharmacyKey = binary_pharmacy_key(PharmacyId),
   FacilityKey = binary_facility_key(FacilityId),
   PrescriberKey = binary_staff_key(PrescriberId),
-  BinaryDrugs = term_to_binary(Drugs),
   %% build top level update for the prescription
-  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
+  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% build nested updates for patients, pharmacies, facilities and the prescriber
-  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
-  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,BinaryDrugs),
-  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,BinaryDrugs),
-  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
+  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
+  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
+  io:format("top level prescription: ~p",[TopLevelPrescription]),
   antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to pharmaciy prescriptions
   antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
@@ -405,15 +405,14 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   FacilityKey = binary_facility_key(FacilityId),
   PrescriberKey = binary_staff_key(PrescriberId),
   TreatmentKey = binary_treatment_key(TreatmentId),
-  BinaryDrugs = term_to_binary(Drugs),
   %% build top level update for the prescription
-  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
+  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% build nested updates for patients, pharmacies, facilities and the prescriber
-  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
-  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,BinaryDrugs),
-  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,BinaryDrugs),
-  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
-  TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,BinaryDrugs),
+  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
+  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+  TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% add top level prescription
   antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to patient prescriptions
