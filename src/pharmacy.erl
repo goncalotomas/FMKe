@@ -21,16 +21,16 @@
 -spec new(id(),string(),string()) -> [term()].
 new(Id,Name,Address) ->
   IdOp = build_id_op(?PHARMACY_ID,?PHARMACY_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,list_to_binary(Address)),
+  NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,Address),
   [IdOp,NameOp,AddressOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific pharmacy's details.
 -spec update_details(string(),string()) -> [term()].
 update_details(Name,Address) ->
-  NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,list_to_binary(Address)),
+  NameOp = build_lwwreg_op(?PHARMACY_NAME,?PHARMACY_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS,?PHARMACY_ADDRESS_CRDT,Address),
   [NameOp,AddressOp].
 
 %% Returns the name of the pharmacy in the form of a list.
@@ -85,7 +85,8 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   %% now to insert the nested operations inside the prescriptions map
   PharmacyPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,PharmacyPrescriptionsKey,PrescriptionUpdate),
+  PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,
+  PharmacyPrescriptionsKey,PrescriptionUpdate),
   [PharmacyPrescriptionsOp].
 
 %%-----------------------------------------------------------------------------

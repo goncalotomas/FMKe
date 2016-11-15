@@ -23,9 +23,9 @@
 -spec new(id(),string(),string(),string()) -> [term()].
 new(Id,Name,Address,Speciality) ->
   IdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,list_to_binary(Address)),
-  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,list_to_binary(Speciality)),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
   %% initially a staff member does not have any treatments or prescriptions
   [IdOp,NameOp,AddressOp,SpecialityOp].
 
@@ -33,9 +33,9 @@ new(Id,Name,Address,Speciality) ->
 %% Update operation: updates only the staff member's personal details
 -spec update_details(string(),string(),string()) -> [term()].
 update_details(Name,Address,Speciality) ->
-  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,list_to_binary(Address)),
-  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,list_to_binary(Speciality)),
+  NameOp = build_lwwreg_op(?STAFF_NAME,?STAFF_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?STAFF_ADDRESS,?STAFF_ADDRESS_CRDT,Address),
+  SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY,?STAFF_SPECIALITY_CRDT,Speciality),
   [NameOp,AddressOp,SpecialityOp].
 
 %% Returns the name in the form of a list from a staff member object.
@@ -100,7 +100,8 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   %% now to insert the nested operations inside the prescriptions map
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,PrescriptionUpdate),
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,
+  StaffPrescriptionsKey,PrescriptionUpdate),
   [StaffPrescriptionsOp].
 
 %%-----------------------------------------------------------------------------

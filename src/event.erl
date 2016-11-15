@@ -23,8 +23,8 @@ new(Id,PatientId,StaffMemberId,Timestamp,Description) ->
   IdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,Id),
   PatientNameOp = build_id_op(?EVENT_PATIENT_ID,?EVENT_PATIENT_ID_CRDT,PatientId),
   StaffMemberNameOp = build_id_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberId),
-  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,list_to_binary(Timestamp)),
-  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,list_to_binary(Description)),
+  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Timestamp),
+  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,Description),
   [IdOp,PatientNameOp,StaffMemberNameOp,TimestampOp,DescriptionOp].
 
 %% Returns the patient ID from an already existant event object.

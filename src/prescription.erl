@@ -33,7 +33,7 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   PharmacyOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
   FacilityOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
   PrescriberOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
-  DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,list_to_binary(DatePrescribed)),
+  DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_NOT_PROCESSED),
   [DrugsOp] = add_drugs(Drugs),
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
@@ -45,7 +45,7 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
     new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% trying to keep DRY code by calling new/7 and discarding unnecessary ops
-  DateProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,list_to_binary(DateProcessed)),
+  DateProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DateProcessed),
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
   [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
 

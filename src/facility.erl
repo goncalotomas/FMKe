@@ -26,18 +26,18 @@
 -spec new(id(),string(),string(),string()) -> [term()].
 new(Id,Name,Address,Type) ->
   IdOp = build_id_op(?FACILITY_ID,?FACILITY_ID_CRDT,Id),
-  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,list_to_binary(Address)),
-  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,list_to_binary(Type)),
+  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
+  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,Type),
   [IdOp,NameOp,AddressOp,TypeOp].
 
 %% Returns a list of operations ready to be inserted into antidote, with the purpose
 %% of updating a specific facility's details.
 -spec update_details(string(),string(),string()) -> [term()].
 update_details(Name,Address,Type) ->
-  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,list_to_binary(Name)),
-  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,list_to_binary(Address)),
-  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,list_to_binary(Type)),
+  NameOp = build_lwwreg_op(?FACILITY_NAME,?FACILITY_NAME_CRDT,Name),
+  AddressOp = build_lwwreg_op(?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT,Address),
+  TypeOp = build_lwwreg_op(?FACILITY_TYPE,?FACILITY_TYPE_CRDT,Type),
   [NameOp,AddressOp,TypeOp].
 
 %% Returns the facility name as from a facility object
@@ -77,7 +77,7 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted) ->
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
   PatientIdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,PatientId),
   PrescriberIdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,PrescriberId),
-  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateStarted)),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
   ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp],
   %% now to insert the nested operations inside the treatments map
   FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
@@ -92,8 +92,8 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
   TreatmentIdOp = build_id_op(?TREATMENT_ID,?TREATMENT_ID_CRDT,TreatmentId),
   PatientIdOp = build_id_op(?PATIENT_ID,?PATIENT_ID_CRDT,PatientId),
   PrescriberIdOp = build_id_op(?STAFF_ID,?STAFF_ID_CRDT,PrescriberId),
-  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateStarted)),
-  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateEnded)),
+  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateStarted),
+  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateEnded),
   ListOps = [TreatmentIdOp,PrescriberIdOp,PatientIdOp,DateStartedOp,DateEndedOp],
   %% now to insert the nested operations inside the treatments map
   FacilityTreatmentKey = fmk_core:binary_treatment_key(TreatmentId),
@@ -124,7 +124,8 @@ process_prescription(PrescriptionId, CurrentDate) ->
   %% now to insert the nested operations inside the prescriptions map
   FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,FacilityPrescriptionsKey,PrescriptionUpdate),
+  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,
+  FacilityPrescriptionsKey,PrescriptionUpdate),
   [FacilityPrescriptionsOp].
 
 -spec add_prescription_drugs(id(), [string()]) -> [term()].
@@ -133,7 +134,8 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   %% now to insert the nested operations inside the prescriptions map
   FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,FacilityPrescriptionsKey,PrescriptionUpdate),
+  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,
+  ?NESTED_MAP,FacilityPrescriptionsKey,PrescriptionUpdate),
   [FacilityPrescriptionsOp].
 
 %% Returns an update operation for adding an event to a specific facility treatment.
