@@ -113,7 +113,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
   PharmacyId = rand:uniform(NumPharmacies),
   FacilityId = rand:uniform(NumFacilities),
   DatePrescribed = "1/1/2016",
-  Drugs = ["Adderall","Amitriptyline"],
+  Drugs = [<<"Adderall">>,<<"Amitriptyline">>],
   %% call create_prescription
   Result = run_op(FmkNode,create_prescription,[
     PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
@@ -122,7 +122,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
   case Result of
     ok -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
@@ -135,7 +135,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     [] -> {ok,State};
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
@@ -147,7 +147,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
   case Prescription of
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
@@ -159,7 +159,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     [] -> {ok,State};
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
@@ -171,7 +171,7 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     [] -> {ok,State};
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
@@ -183,7 +183,7 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
   case Patient of
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
@@ -196,19 +196,19 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     ok -> {ok, State};
     {error,prescription_already_processed} -> {ok, State}; % not an operation related error
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
   NumPrescriptions = State#state.numprescriptions,
   PrescriptionId = rand:uniform(NumPrescriptions),
   FmkNode = State#state.fmknode,
-  Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
+  Drugs = [<<"Amoxicillin">>,<<"Ativan">>,<<"Atorvastatin">>],
   Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
   case Result of
     ok -> {ok, State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end;
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
@@ -220,7 +220,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
   case Prescription of
     [_H|_T] -> {ok,State};
     {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    _ -> {error, unknown, State}
+    Error -> {error, Error, State}
   end.
 
 run_op(FmkNode,Op,Params) ->

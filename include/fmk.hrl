@@ -131,7 +131,7 @@
 -define (FMK_STAFF_NAME_INDEX, <<"staff_name_index">>).
 
 %% Type specification borrowed from antidote
--type txid() :: antidote:txid().
+-type txid() :: {pid(), antidote:txid()}.
 -type reason() :: antidote:reason().
 -type snapshot_time() :: antidote:snapshot_time().
 -type bound_object() :: antidote:bound_object().

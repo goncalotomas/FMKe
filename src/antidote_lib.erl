@@ -47,64 +47,60 @@
   set_remove_elements/1
   ]).
 
+
+
+
+
+
+
 %% ------------------------------------------------------------------------------------------------
 %% Antidote's transaction API wrapper - Use when you need fine grain control over transactions
 %% Please refer to the official Antidote transaction documentation for reference on these functions
 %% ------------------------------------------------------------------------------------------------
 
+
+
+
+
 %% A wrapper for Antidote's start_transaction function without a timestamp value.
 -spec txn_start() -> txid().
 txn_start() ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,TxnDetails} = antidotec_pb:start_transaction(Pid, ignore, {}),
-  TxnDetails.
+  txn_start(ignore).
 
 %% A wrapper for Antidote's start_transaction function with a specific timestamp value.
--spec txn_start(TimeStamp::snapshot_time()) -> txid().
+-spec txn_start(TimeStamp :: snapshot_time()) -> txid().
 txn_start(TimeStamp) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,TxnDetails} = antidotec_pb:start_transaction(Pid, TimeStamp, {}),
-  TxnDetails.
+  Pid = poolboy:checkout(antidote_connection_pool),
+  {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, TimeStamp, {}),
+  {Pid, TxnDetails}.
 
 %% A wrapper for Antidote's read_objects function, with a single object being read.
--spec txn_read_object(Object::bound_object(), TxnDetails::txid()) -> term().
-txn_read_object(Object,TxnDetails) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,[Value]} = antidotec_pb:read_values(Pid, [Object], TxnDetails),
+-spec txn_read_object(Object :: bound_object(), TxnDetails :: txid()) -> term().
+txn_read_object(Object, {Pid, TxnDetails}) ->
+  {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnDetails),
   Value.
 
 %% A wrapper for Antidote's read_objects function
--spec txn_read_objects(Objects::[bound_object()], TxnDetails::txid()) -> [term()].
-txn_read_objects(Objects,TxnDetails) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
+-spec txn_read_objects(Objects :: [bound_object()], TxnDetails :: txid()) -> [term()].
+txn_read_objects(Objects, {Pid, TxnDetails}) ->
+  {ok, Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
   Values.
 
 %% A wrapper for Antidote's update_objects function, with a single object being written.
 -spec txn_update_object({bound_object(), op_name(), op_param()}, txid()) -> ok.
-txn_update_object(ObjectUpdate,TxnDetails) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+txn_update_object(ObjectUpdate, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, [ObjectUpdate], TxnDetails).
 
 %% A wrapper for Antidote's update_objects function
 -spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid()) -> ok.
-txn_update_objects(ObjectUpdates,TxnDetails) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
+txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
 %% A wrapper for Antidote's commit_transaction function
--spec txn_commit(TxnDetails::txid()) -> ok.
-txn_commit(TxnDetails) ->
-  Pid = list_to_pid(fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined)),
-  %% Assume that there is already a protobuff socket opened between Antidote and FMKe
-  {ok,_CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
-  ok.
+-spec txn_commit(TxnDetails :: txid()) -> ok.
+txn_commit({Pid, TxnDetails}) ->
+  {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
+  poolboy:checkin(antidote_connection_pool, Pid).
 
 %% ------------------------------------------------------------------------------------------------
 %% Helper functions to assist in map updates
