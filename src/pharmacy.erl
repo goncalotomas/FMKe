@@ -63,7 +63,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed
   FacilityIdOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
   DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   [DrugsOp] = prescription:add_drugs(Drugs),
-  ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,build_binary_list(DrugsOp)],
+  ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
   %% now to insert the nested operations inside the prescriptions map
   PharmacyPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level pharmacy update that contains the prescriptions map update
@@ -86,7 +86,7 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   PharmacyPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
   PharmacyPrescriptionsOp = antidote_lib:build_nested_map_op(?PHARMACY_PRESCRIPTIONS,?NESTED_MAP,
-  PharmacyPrescriptionsKey,build_binary_list(PrescriptionUpdate)),
+  PharmacyPrescriptionsKey,PrescriptionUpdate),
   [PharmacyPrescriptionsOp].
 
 %%-----------------------------------------------------------------------------
