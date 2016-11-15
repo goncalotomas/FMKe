@@ -113,7 +113,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
   PharmacyId = rand:uniform(NumPharmacies),
   FacilityId = rand:uniform(NumFacilities),
   DatePrescribed = "1/1/2016",
-  Drugs = [<<"Adderall">>,<<"Amitriptyline">>],
+  Drugs = ["Adderall","Amitriptyline"],
   %% call create_prescription
   Result = run_op(FmkNode,create_prescription,[
     PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
@@ -203,7 +203,7 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
   NumPrescriptions = State#state.numprescriptions,
   PrescriptionId = rand:uniform(NumPrescriptions),
   FmkNode = State#state.fmknode,
-  Drugs = [<<"Amoxicillin">>,<<"Ativan">>,<<"Atorvastatin">>],
+  Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
   Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
   case Result of
     ok -> {ok, State};
