@@ -218,14 +218,18 @@ counter_decrement(Amount) ->
 %% Returns an Antidote-compliant operation for assigning a value to a CRDT lww-register.
 -spec lwwreg_assign(term()) -> crdt_op().
 lwwreg_assign(Value) ->
-  {assign,Value}.
+  {assign, term_to_binary(Value)}.
 
 %% Returns an Antidote-compliant operation for adding a list of items to a CRDT set.
 -spec set_add_elements([term()]) -> crdt_op().
 set_add_elements(List) ->
-  {add_all, List}.
+  {add_all, build_binary_element_list(List)}.
 
 %% Returns an Antidote-compliant operation for removing a list of items from a CRDT set.
 -spec set_remove_elements([term()]) -> crdt_op().
 set_remove_elements(List) ->
-  {remove, List}.
+  {remove, build_binary_element_list(List)}.
+
+-spec build_binary_element_list([term()]) -> [binary()].
+build_binary_element_list(NormalList) ->
+  [term_to_binary(X) || X <- NormalList].

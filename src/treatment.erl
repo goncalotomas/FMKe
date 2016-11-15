@@ -32,7 +32,7 @@ new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed) ->
   PatientIdOp = build_id_op(?TREATMENT_PATIENT_ID,?TREATMENT_PATIENT_ID_CRDT,PatientId),
   PrescriberIdOp = build_id_op(?TREATMENT_PRESCRIBER_ID,?TREATMENT_PRESCRIBER_ID_CRDT,PrescriberId),
   FacilityIdOp = build_id_op(?TREATMENT_FACILITY_ID,?TREATMENT_FACILITY_ID_CRDT,FacilityId),
-  DatePrescribedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DatePrescribed)),
+  DatePrescribedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DatePrescribed),
   HasEndedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ONGOING),
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,HasEndedOp].
 
@@ -44,7 +44,7 @@ new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed,DateEnded) ->
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,_IncorrectHasEndedOp] =
     new(Id,PatientId,PrescriberId,FacilityId,DatePrescribed),
   %% build missing ops
-  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,list_to_binary(DateEnded)),
+  DateEndedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DateEnded),
   HasEndedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ENDED),
   [IdOp,PatientIdOp,PrescriberIdOp,FacilityIdOp,DatePrescribedOp,DateEndedOp,HasEndedOp].
 
@@ -98,7 +98,7 @@ has_ended(Treatment) ->
 -spec finish(string()) -> [term()].
 finish(CurrentDate) ->
   IsProcessedOp = build_lwwreg_op(?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT,?TREATMENT_ENDED),
-  ProcessedOp = build_lwwreg_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,list_to_binary(CurrentDate)),
+  ProcessedOp = build_lwwreg_op(?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT,CurrentDate),
   [IsProcessedOp,ProcessedOp].
 
 %% Returns a list of antidote operation to add a nested prescription to a treatment.
@@ -112,7 +112,7 @@ add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,Dat
   PrescriberIdOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
   PharmacyIdOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
   FacilityIdOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
-  DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,list_to_binary(DatePrescribed)),
+  DateStartedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   [DrugsOp] = prescription:add_drugs(Drugs),
   ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,PharmacyIdOp,FacilityIdOp,DateStartedOp,DrugsOp],
   %% the nested prescription will be indexed by its key.
@@ -129,8 +129,8 @@ add_event(EventId,StaffMemberId,Timestamp,Description) ->
   %% nested operations
   EventIdOp = build_id_op(?EVENT_ID,?EVENT_ID_CRDT,EventId),
   PrescriberIdOp = build_id_op(?EVENT_STAFF_ID,?EVENT_STAFF_ID_CRDT,StaffMemberId),
-  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,list_to_binary(Timestamp)),
-  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,list_to_binary(Description)),
+  TimestampOp = build_lwwreg_op(?EVENT_TIMESTAMP,?EVENT_TIMESTAMP_CRDT,Timestamp),
+  DescriptionOp = build_lwwreg_op(?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT,Description),
   ListOps = [EventIdOp,PrescriberIdOp,TimestampOp,DescriptionOp],
   %% the nested event will be indexed by its key.
   PatientEventKey = fmk_core:binary_event_key(EventId),
