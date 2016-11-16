@@ -45,13 +45,8 @@ open_antidote_socket() ->
     set_application_variable(antidote_port,"ANTIDOTE_PORT",?DEFAULT_ANTIDOTE_PORT),
     AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
     AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
-    case antidotec_pb_socket:start(AntidoteNodeAddress, AntidoteNodePort) of
-        {ok, Pid} ->
-            fmk_config:set(?VAR_ANTIDOTE_PB_PID,pid_to_list(Pid)),
-            ok;
-        _SomethingElse ->
-            {error, _SomethingElse}
-    end.
+    {ok, _} =antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]),
+    ok.
 
 close_antidote_socket() ->
     AntidotePbPid = fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined),
