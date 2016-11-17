@@ -15,6 +15,20 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
+    Dispatch = cowboy_router:compile([
+  		{'_', [
+  			{"/prescriptions", prescription_handler, []},
+        {"/patients", patient_handler, []},
+        {"/pharmacies", pharmacy_handler, []},
+        {"/facilities", facility_handler, []},
+        {"/treatments", treatment_handler, []},
+        {"/events", event_handler, []},
+        {"/staff", staff_handler, []}
+  		]}
+  	]),
+  	{ok, _} = cowboy:start_clear(http, 100, [{port, 9090}], #{
+  		env => #{dispatch => Dispatch}
+  	}),
     case fmk_sup:start_link() of
         {ok, Pid} ->
               case open_antidote_socket() of

@@ -12,7 +12,8 @@
     antidote_crdt,
     antidote_pb,
     riak_pb,
-    poolboy
+    poolboy,
+    cowboy
    ]},
   {env,[]},
   {modules, []},
