@@ -29,7 +29,7 @@ create_event(Req) ->
 		IntegerId = binary_to_integer(EventId),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PATIENT_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_EVENT_ID, Req);
 				false ->
 						IntegerTreatmentId = binary_to_integer(TreatmentId),
 						IntegerStaffId = binary_to_integer(StaffMemberId),
@@ -47,7 +47,7 @@ create_event(Req) ->
 		end.
 
 get_event(Req) ->
-		Id = cowboy_req:binding(?BINDING_PATIENT_ID, Req, -1),
+		Id = cowboy_req:binding(?BINDING_EVENT_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
