@@ -1,4 +1,4 @@
-# FMK Application
+# FMK Application [![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe)
 
 FMK-- is a prototype application that serves as a use case for the [Antidote key-value store][3], which was built for the [SyncFree project][2].
 
