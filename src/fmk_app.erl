@@ -18,7 +18,7 @@ start(_StartType, _StartArgs) ->
     Dispatch = cowboy_router:compile([
   		{'_', [
   			{"/prescriptions", prescription_handler, []},
-        {"/patients", patient_handler, []},
+        {"/patients/[:id]", patient_handler, []},
         {"/pharmacies", pharmacy_handler, []},
         {"/facilities", facility_handler, []},
         {"/treatments", treatment_handler, []},
