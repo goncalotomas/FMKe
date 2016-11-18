@@ -17,13 +17,13 @@
 start(_StartType, _StartArgs) ->
     Dispatch = cowboy_router:compile([
   		{'_', [
-  			{"/prescriptions", prescription_handler, []},
+  			{"/prescriptions/[:id]", prescription_handler, []},
         {"/patients/[:id]", patient_handler, []},
-        {"/pharmacies", pharmacy_handler, []},
-        {"/facilities", facility_handler, []},
-        {"/treatments", treatment_handler, []},
-        {"/events", event_handler, []},
-        {"/staff", staff_handler, []}
+        {"/pharmacies/[:id]", pharmacy_handler, []},
+        {"/facilities/[:id]", facility_handler, []},
+        {"/treatments/[:id]", treatment_handler, []},
+        {"/events/[:id]", event_handler, []},
+        {"/staff/[:id]", staff_handler, []}
   		]}
   	]),
   	{ok, _} = cowboy:start_clear(http, 100, [{port, 9090}], #{
