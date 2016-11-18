@@ -1,17 +1,79 @@
 -module (event_handler).
+-include ("fmk_http.hrl").
 
 -export([init/2]).
--export([content_types_provided/2]).
--export([hello_to_json/2]).
 
-init(Req, Opts) ->
-	{cowboy_rest, Req, Opts}.
+init(Req0, Opts) ->
+	Method = cowboy_req:method(Req0),
+	HasBody = cowboy_req:has_body(Req0),
+	Req = handle_req(Method, HasBody, Req0),
+	{ok, Req, Opts}.
 
-content_types_provided(Req, State) ->
-	{[
-		{<<"application/json">>, hello_to_json}
-	], Req, State}.
+handle_req(<<"POST">>, true, Req) ->
+		create_event(Req);
+handle_req(<<"POST">>, false, Req) ->
+		cowboy_req:reply(400, [], ?ERR_MISSING_BODY, Req);
 
-hello_to_json(Req, State) ->
-	Body = <<"{\"rest\": \"Hello World!\"}">>,
-	{Body, Req, State}.
+handle_req(<<"GET">>, true, Req) ->
+		cowboy_req:reply(400, [], ?ERR_BODY_IN_A_GET_REQUEST, Req);
+handle_req(<<"GET">>, false, Req) ->
+		get_event(Req).
+
+create_event(Req) ->
+		{ok, [{<<"id">>, EventId},
+		{<<"treatment_id">>, TreatmentId},
+		{<<"staff_id">>, StaffMemberId},
+		{<<"timestamp">>, Timestamp},
+		{<<"description">>, Description}
+		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		IntegerId = binary_to_integer(EventId),
+		case IntegerId =< ?MIN_ID of
+				true ->
+						cowboy_req:reply(400, [], ?ERR_INVALID_PATIENT_ID, Req);
+				false ->
+						IntegerTreatmentId = binary_to_integer(TreatmentId),
+						IntegerStaffId = binary_to_integer(StaffMemberId),
+						StringTimestamp = binary_to_list(Timestamp),
+						StringDescription = binary_to_list(Description),
+						ServerResponse = fmk_core:create_event(IntegerId,IntegerTreatmentId,IntegerStaffId,StringTimestamp,StringDescription),
+						Success = ServerResponse =:= ok,
+						JsonReply =	lists:flatten(io_lib:format(
+								"{\"success\": \"~p\", \"result\": \"~p\"}",
+								[Success,ServerResponse]
+						)),
+						cowboy_req:reply(200, #{
+								<<"content-type">> => <<"application/json">>
+						}, JsonReply, Req)
+		end.
+
+get_event(Req) ->
+		Id = cowboy_req:binding(?BINDING_PATIENT_ID, Req, -1),
+		IntegerId = binary_to_integer(Id),
+		case IntegerId =< ?MIN_ID of
+				true ->
+						cowboy_req:reply(400, [], ?ERR_INVALID_EVENT_ID, Req);
+				false ->
+						ServerResponse = fmk_core:get_event_by_id(IntegerId),
+						Success = ServerResponse =/= {error,not_found},
+						JsonReply = case Success of
+								true ->
+										EventId = event:id(ServerResponse),
+										EventPatientId = event:patient_id(ServerResponse),
+										EventStaffId = event:staff_id(ServerResponse),
+										EventTimestamp = event:timestamp(ServerResponse),
+										EventDescription = event:description(ServerResponse),
+
+										lists:flatten(io_lib:format(
+												"{\"success\": \"~p\", \"result\": \"{\"eventId\": \"~p\", \"eventPatientId\": \"~p\", \"eventStaffId\": \"~p\", \"eventTimestamp\": \"~p\", \"eventDescription\": \"~p\"}}",
+												[Success,EventId,EventPatientId,EventStaffId,EventTimestamp,EventDescription]
+										));
+								false ->
+										lists:flatten(io_lib:format(
+												"{\"success\": \"~p\", \"result\": \"~p\"}",
+												[Success,ServerResponse]
+										))
+						end,
+						cowboy_req:reply(200, #{
+								<<"content-type">> => <<"text/plain">>
+						}, JsonReply, Req)
+		end.
