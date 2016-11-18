@@ -22,7 +22,7 @@ handle_req(<<"PUT">>, false, Req) ->
 handle_req(<<"GET">>, true, Req) ->
 		cowboy_req:reply(400, [], ?ERR_BODY_IN_A_GET_REQUEST, Req);
 handle_req(<<"GET">>, false, Req) ->
-		get_pharmacy(Req).
+		get_prescription(Req).
 
 create_prescription(Req) ->
 		{ok, [{<<"id">>, PharmacyId},
