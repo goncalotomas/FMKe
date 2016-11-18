@@ -66,7 +66,7 @@ update_patient(Req) ->
 								[Success,ServerResponse]
 						)),
 						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"text/plain">>
+								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
 
@@ -81,13 +81,9 @@ get_patient(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										PatientName = patient:name(ServerResponse),
-										PatientAddress = patient:address(ServerResponse),
-										PatientId = patient:id(ServerResponse),
-										%% TODO serialize nested map fields - need help
 										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"{\"patientId\": \"~p\", \"patientName\": \"~p\", \"patientAddress\": \"~p\"}}",
-												[Success,PatientId,PatientName,PatientAddress]
+												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(patient,ServerResponse) ++ "}"),
+												[Success]
 										));
 								false ->
 										lists:flatten(io_lib:format(
@@ -96,6 +92,6 @@ get_patient(Req) ->
 										))
 						end,
 						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"text/plain">>
+								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
