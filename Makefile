@@ -6,14 +6,14 @@ CLIENT=basho_bench_driver_fmkclient
 all: compile rel
 
 compile:
-	${REBAR} compile; \
-	cd ${BENCH}; make all; \
-	cd -; \
-	cp ${BENCH}/include/basho_bench.hrl ./include/ ; \
-	erlc test/${CLIENT}.erl; \
+	${REBAR} compile
+	cd ${BENCH}; make all; cd -
+	cp ${BENCH}/include/basho_bench.hrl ./include/
+	erlc test/${CLIENT}.erl
 	mv ${CLIENT}.beam ${EBIN}/
 
 rel:
+	rm -rf _build/default/rel/fmk/
 	./${REBAR} release
 
 relclean:
@@ -21,7 +21,7 @@ relclean:
 
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config; \
-	Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
+	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
 
 console: rel
 	./_build/default/rel/fmk/bin/fmk console
