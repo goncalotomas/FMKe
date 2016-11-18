@@ -53,13 +53,17 @@ Choose one of the following commands:
 
         make console
 
-4. *(optional)* Adjust Benchmark parameters in `test/fmkclient.config`
+4. *(must be executed once)* Fill the database with testdata used by the benchmark.
 
-5. Run the benchmark.
+        ./test/fmk_setup_script.erl
+
+5. *(optional)* Adjust Benchmark parameters in `test/fmkclient.config`
+
+6. Run the benchmark.
 
         make bench
 
-6. The results can be found in the `tests` folder.
+7. The results can be found in the `tests` folder.
 
 
 

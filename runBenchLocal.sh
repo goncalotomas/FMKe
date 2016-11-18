@@ -45,6 +45,8 @@ fi
 
 if [ -n "$ANTIDOTE_FOLDER" ]; then
     cd $ANTIDOTE_FOLDER
+    # clean last release
+    rm -rf _build/default/rel/
     make rel
     _build/default/rel/antidote/bin/env start
 fi
@@ -52,20 +54,35 @@ fi
 cd $SCRIPTPATH
 
 # compile FMK:
+echo "Compiling FMK"
 make all
+
 # Start FMK:
+echo "Starting FMK"
 _build/default/rel/fmk/bin/fmk start
+
+# wait for FMK to start (TODO better way?)
+echo "Waiting for FMK to start"
+sleep 2
+
+# Fill database with testdata:
+echo "Filling Antidote with testdata"
+./test/fmk_setup_script.erl 1 'fmk@127.0.0.1' || true
+
 # Start benchmark
+echo "Starting Benchmark"
 make bench
+echo "Benchmark done"
 
 # Stop FMK
+echo "Stopping FMK"
 _build/default/rel/fmk/bin/fmk stop
 
 if [ -n "$ANTIDOTE_FOLDER" ]; then
     # Stop Antidote
+    echo "Stopping Antidote"
     cd $ANTIDOTE_FOLDER
     _build/default/rel/antidote/bin/env stop
     cd $SCRIPTPATH
 fi
 
-echo "Benchmark done"
