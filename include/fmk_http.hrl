@@ -1,0 +1,12 @@
+
+-define (ERR_MISSING_BODY, <<"Missing body.">>).
+-define (ERR_BODY_IN_A_GET_REQUEST, <<"Get requests with body don't make sense.">>).
+-define (ERR_INVALID_PATIENT_ID, <<"Invalid user id.">>).
+-define (ERR_INVALID_FACILITY_ID, <<"Invalid facility id.">>).
+-define (ERR_INVALID_PHARMACY_ID, <<"Invalid pharmacy id.">>).
+-define (ERR_INVALID_PRESCRIPTION_ID, <<"Invalid prescription id.">>).
+-define (ERR_INVALID_TREATMENT_ID, <<"Invalid treatment id.">>).
+-define (ERR_INVALID_STAFF_ID, <<"Invalid staff member id.">>).
+-define (ERR_INVALID_EVENT_ID, <<"Invalid event id.">>).
+-define (MIN_ID, 0).
+-define (BINDING_PATIENT_ID, id).
