@@ -50,7 +50,7 @@ staff_id(Event) ->
 %% Returns the description from an already existant event object.
 -spec description(crdt()) -> string().
 description(Event) ->
-  binary_to_list(antidote_lib:find_key(Event,?EVENT_ID,?EVENT_ID_CRDT)).
+  binary_to_list(antidote_lib:find_key(Event,?EVENT_DESCRIPTION,?EVENT_DESCRIPTION_CRDT)).
 
 
 %%-----------------------------------------------------------------------------
