@@ -1,4 +1,4 @@
-REBAR=rebar3
+REBAR = $(shell pwd)/rebar3
 BENCH=_build/default/lib/basho_bench
 EBIN=_build/default/lib/fmk/ebin
 CLIENT=basho_bench_driver_fmkclient
@@ -14,7 +14,7 @@ compile:
 
 rel:
 	rm -rf _build/default/rel/fmk/
-	./${REBAR} release
+	${REBAR} release
 
 relclean:
 	rm -rf _build/default/rel
