@@ -1,0 +1,13 @@
+language: erlang
+otp_release:
+  - 18.3
+  - 19.1
+services:
+  - docker  
+install:
+  - make all
+script:
+  - sed -i 's/{duration,.*}/{duration, 1}/g' test/fmkclient.config
+  - ./runBenchLocal.sh docker
+sudo: required
+dist: trusty
