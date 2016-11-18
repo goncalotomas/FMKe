@@ -10,3 +10,9 @@
 -define (ERR_INVALID_EVENT_ID, <<"Invalid event id.">>).
 -define (MIN_ID, 0).
 -define (BINDING_PATIENT_ID, id).
+-define (BINDING_FACILITY_ID, id).
+-define (BINDING_EVENT_ID, id).
+-define (BINDING_PRESCRIPTION_ID, id).
+-define (BINDING_PHARMACY_ID, id).
+-define (BINDING_TREATMENT_ID, id).
+-define (BINDING_STAFF_ID, id).
