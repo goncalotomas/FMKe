@@ -6,7 +6,7 @@
 -define (NUM_PHARMACIES, 300).
 -define (NUM_FACILITIES, 50).
 -define (NUM_STAFF, 250).
--define (NUM_PRESCRIPTIONS, 0).
+-define (NUM_PRESCRIPTIONS, 1000).
 -define (ZIPF_SKEW, 1).
 
 
@@ -106,9 +106,9 @@ run_op(FmkNode,create_prescription,Params) ->
 
 run_rpc_op(FmkNode,Op,Params) ->
   ok = case rpc:call(FmkNode,fmk_core,Op,Params) of
-    {error, _} ->
+    {error, Reason} ->
       io:format("Error in ~p with params ~p\n",[Op,Params]),
-      error;
+      {error, Reason};
     ok -> ok
   end.
 
