@@ -228,4 +228,4 @@ set_remove_elements(List) ->
 
 -spec build_binary_element_list([term()]) -> [binary()].
 build_binary_element_list(NormalList) ->
-  [term_to_binary(X) || X <- NormalList].
+  [list_to_binary(X) || X <- NormalList].
