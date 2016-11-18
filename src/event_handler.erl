@@ -57,15 +57,9 @@ get_event(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										EventId = event:id(ServerResponse),
-										EventPatientId = event:patient_id(ServerResponse),
-										EventStaffId = event:staff_id(ServerResponse),
-										EventTimestamp = event:timestamp(ServerResponse),
-										EventDescription = event:description(ServerResponse),
-
 										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"{\"eventId\": \"~p\", \"eventPatientId\": \"~p\", \"eventStaffId\": \"~p\", \"eventTimestamp\": \"~p\", \"eventDescription\": \"~p\"}}",
-												[Success,EventId,EventPatientId,EventStaffId,EventTimestamp,EventDescription]
+												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(event,ServerResponse) ++ "}"),
+												[Success]
 										));
 								false ->
 										lists:flatten(io_lib:format(
