@@ -27,10 +27,17 @@ elif [ $1 = "docker" ]; then
     fi
 elif [ $1 = "github" ]; then
     # clone antidote from github
-    git clone https://github.com/SyncFree/antidote _build/antidote
+    ANTIDOTE_FOLDER=_build/antidote
+    if cd $ANTIDOTE_FOLDER; then
+        echo "Using antidote clone in $ANTIDOTE_FOLDER"
+        # already cloned
+    else
+        git clone https://github.com/SyncFree/antidote $ANTIDOTE_FOLDER
+        cd $ANTIDOTE_FOLDER
+    fi
     # use fixed version
     git checkout 170ab6a57161b56c4d7724b702e8b6c6008aa69b
-    ANTIDOTE_FOLDER=_build/antidote
+    cd $SCRIPTPATH
 else
     # use provided path to antidote
     ANTIDOTE_FOLDER=$1
@@ -44,14 +51,21 @@ fi
 
 cd $SCRIPTPATH
 
+# compile FMK:
 make all
-make rel
+# Start FMK:
 _build/default/rel/fmk/bin/fmk start
+# Start benchmark
 make bench
+
+# Stop FMK
 _build/default/rel/fmk/bin/fmk stop
 
 if [ -n "$ANTIDOTE_FOLDER" ]; then
+    # Stop Antidote
     cd $ANTIDOTE_FOLDER
     _build/default/rel/antidote/bin/env stop
     cd $SCRIPTPATH
 fi
+
+echo "Benchmark done"

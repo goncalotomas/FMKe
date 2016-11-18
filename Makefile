@@ -20,7 +20,7 @@ relclean:
 	rm -rf _build/default/rel
 
 bench: compile
-	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config; \
+	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config
 	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
 
 console: rel

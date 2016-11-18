@@ -4,6 +4,6 @@ otp_release:
   - 19.1
 script:
   - sed -i 's/{duration,.*}/{duration, 1}/g' test/fmkclient.config
-  - ./runBenchLocal.sh docker
+  - ./runBenchLocal.sh github
 sudo: required
 dist: trusty
