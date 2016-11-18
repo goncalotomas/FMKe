@@ -58,7 +58,7 @@ update_staff(Req) ->
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PATIENT_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_STAFF_ID, Req);
 				false ->
 						StringName = binary_to_list(Name),
 						StringAddress = binary_to_list(Address),
@@ -79,7 +79,7 @@ get_staff(Req) ->
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_EVENT_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_STAFF_ID, Req);
 				false ->
 						ServerResponse = fmk_core:get_staff_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
