@@ -86,7 +86,7 @@ get_patient(Req) ->
 										PatientId = patient:id(ServerResponse),
 										%% TODO serialize nested map fields - need help
 										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"{\"patientId\": \"~p\", \"patientName\": \"~p\", \"patientAddress\": \"~p\"}\"}",
+												"{\"success\": \"~p\", \"result\": \"{\"patientId\": \"~p\", \"patientName\": \"~p\", \"patientAddress\": \"~p\"}}",
 												[Success,PatientId,PatientName,PatientAddress]
 										));
 								false ->
