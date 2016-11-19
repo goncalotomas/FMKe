@@ -303,7 +303,7 @@ update_staff_details(Id,Name,Address,Speciality) ->
     _Staff ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
-      StaffKey = binary_pharmacy_key(Id),
+      StaffKey = binary_staff_key(Id),
       StaffUpdate = staff:update_details(Name,Address,Speciality),
       antidote_lib:put(StaffKey,?MAP,update,StaffUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
