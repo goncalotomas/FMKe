@@ -68,6 +68,6 @@ get_event(Req) ->
 										))
 						end,
 						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"text/plain">>
+								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
