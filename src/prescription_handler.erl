@@ -25,18 +25,26 @@ handle_req(<<"GET">>, false, Req) ->
 		get_prescription(Req).
 
 create_prescription(Req) ->
-		{ok, [{<<"id">>, PharmacyId},
-		{<<"name">>, PharmacyName},
-		{<<"address">>, PharmacyAddress}
+		{ok, [{<<"id">>, PrescriptionId},
+		{<<"patient_id">>, PatientId},
+		{<<"prescriber_id">>, PrescriberId},
+		{<<"pharmacy_id">>, PharmacyId},
+		{<<"facility_id">>, FacilityId},
+		{<<"date_prescribed">>, DatePrescribed},
+		{<<"drugs">>, Drugs},
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		IntegerId = binary_to_integer(PharmacyId),
+		IntegerId = binary_to_integer(PrescriptionId),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_FACILITY_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						StringName = binary_to_list(PharmacyName),
-						StringAddress = binary_to_list(PharmacyAddress),
-						ServerResponse = fmk_core:create_pharmacy(IntegerId,StringName,StringAddress),
+						IntPatientId = binary_to_integer(PatientId),
+						IntPrescriberId = binary_to_integer(PrescriberId),
+						IntPharmacyId = binary_to_integer(PharmacyId),
+						IntFacilityId = binary_to_integer(FacilityId),
+						StrDatePrescribed = binary_to_list(DatePrescribed),
+						StrDrugs = binary_to_list(Drugs),
+						ServerResponse = fmk_core:create_prescription(IntegerId,IntPatientId,IntPrescriberId,IntPharmacyId,IntFacilityId,StrDatePrescribed,StrDrugs),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
 								"{\"success\": \"~p\", \"result\": \"~p\"}",
@@ -48,18 +56,17 @@ create_prescription(Req) ->
 		end.
 
 update_prescription(Req) ->
-		{ok, [{<<"name">>, Name},
-		{<<"address">>, Address}
+		{ok,
+		{<<"date_processed">>, DateProcessed}
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
+		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PHARMACY_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						StringName = binary_to_list(Name),
-						StringAddress = binary_to_list(Address),
-						ServerResponse = fmk_core:update_pharmacy_details(IntegerId,StringName,StringAddress),
+						StrDate = binary_to_list(DateProcessed),
+						ServerResponse = fmk_core:process_prescription(IntegerId,StrDate),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
 								"{\"success\": \"~p\", \"result\": \"~p\"}",
@@ -71,18 +78,18 @@ update_prescription(Req) ->
 		end.
 
 get_prescription(Req) ->
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
+		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PHARMACY_ID, Req);
+						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						ServerResponse = fmk_core:get_pharmacy_by_id(IntegerId),
+						ServerResponse = fmk_core:get_prescription_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
 										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(pharmacy,ServerResponse) ++ "}"),
+												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(prescription,ServerResponse) ++ "}"),
 												[Success]
 										));
 								false ->
@@ -92,6 +99,6 @@ get_prescription(Req) ->
 										))
 						end,
 						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"text/plain">>
+								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
