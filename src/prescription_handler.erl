@@ -31,7 +31,7 @@ create_prescription(Req) ->
 		{<<"pharmacy_id">>, PharmacyId},
 		{<<"facility_id">>, FacilityId},
 		{<<"date_prescribed">>, DatePrescribed},
-		{<<"drugs">>, Drugs},
+		{<<"drugs">>, Drugs}
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
 		IntegerId = binary_to_integer(PrescriptionId),
 		case IntegerId =< ?MIN_ID of
@@ -56,7 +56,7 @@ create_prescription(Req) ->
 		end.
 
 update_prescription(Req) ->
-		{ok,
+		{ok,[
 		{<<"date_processed">>, DateProcessed}
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
 		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
