@@ -38,7 +38,7 @@ create_staff(Req) ->
 						StringName = binary_to_list(StaffName),
 						StringAddress = binary_to_list(StaffAddress),
 						StringSpeciality = binary_to_list(StaffSpeciality),
-						ServerResponse = fmk_core:create_facility(IntegerId,StringName,StringAddress,StringSpeciality),
+						ServerResponse = fmk_core:create_staff(IntegerId,StringName,StringAddress,StringSpeciality),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
 								"{\"success\": \"~p\", \"result\": \"~p\"}",
