@@ -287,7 +287,7 @@ update_facility_details(Id,Name,Address,Type) ->
     _Facility ->
       %% Patient already exists, prepare update operation and check if
       %% we need to re-index him/her.
-      FacilityKey = binary_pharmacy_key(Id),
+      FacilityKey = binary_facility_key(Id),
       FacilityUpdate = facility:update_details(Name,Address,Type),
       antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
       ok = antidote_lib:txn_commit(Txn)
