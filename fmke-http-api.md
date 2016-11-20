@@ -2,7 +2,8 @@
 
 FMKe has a total of 7 entities: `patient`, `facility`, `pharmacy`, `staff`, `event`, `prescription` and `treatment`.  
 Once an FMK node is running, an HTTP server will be started on the port defined for the environment variable `HTTP_PORT`.  
-**Important notes:**
+**Important notes:**  
+
 1. The order of the parameters listed in each request matters since pattern matching imposes order on the list of body parameters that is passed in.
 2. The casing (upper/lower case) for each of the parameters here listed matters.
 
