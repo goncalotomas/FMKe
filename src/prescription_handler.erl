@@ -57,7 +57,8 @@ create_prescription(Req) ->
 
 update_prescription(Req) ->
 		{ok,[
-		{<<"date_processed">>, DateProcessed}
+		{<<"date_processed">>, DateProcessed},
+		{<<"drugs">>, Drugs}
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
 		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
@@ -65,13 +66,30 @@ update_prescription(Req) ->
 				true ->
 						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						StrDate = binary_to_list(DateProcessed),
-						ServerResponse = fmk_core:process_prescription(IntegerId,StrDate),
-						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						JsonReply = case DateProcessed of
+								<<>> ->
+										%% Assuming that in this case we only want to update the prescription medication
+										case Drugs of
+												<<>> ->
+														nothing_to_update;
+												_ListDrugs ->
+														StrDrugs = parse_line(binary_to_list(Drugs)),
+														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,StrDrugs),
+														Success = ServerResponse =:= ok,
+														lists:flatten(io_lib:format(
+																"{\"success\": \"~p\", \"result\": \"~p\"}",
+																[Success,ServerResponse]
+														))
+										end;
+								_Date ->
+										StrDate = binary_to_list(DateProcessed),
+										ServerResponse = fmk_core:process_prescription(IntegerId,StrDate),
+										Success = ServerResponse =:= ok,
+										lists:flatten(io_lib:format(
+												"{\"success\": \"~p\", \"result\": \"~p\"}",
+												[Success,ServerResponse]
+										))
+						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
@@ -119,7 +137,6 @@ parse_field("," ++ _ = Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf
 parse_field([C|Line], Buf, Fields) -> parse_field(Line, [C|Buf], Fields);
 parse_field([], Buf, Fields) -> parse_line([], [lists:reverse(Buf)|Fields]).
 
-parse_field_q(Line, Fields) -> parse_field_q(Line, [], Fields).
 parse_field_q("\"\"" ++ Line, Buf, Fields) -> parse_field_q(Line, [$"|Buf], Fields);
 parse_field_q("\"" ++ Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf)|Fields]);
 parse_field_q([C|Line], Buf, Fields) -> parse_field_q(Line, [C|Buf], Fields).
