@@ -43,7 +43,7 @@ create_prescription(Req) ->
 						IntPharmacyId = binary_to_integer(PharmacyId),
 						IntFacilityId = binary_to_integer(FacilityId),
 						StrDatePrescribed = binary_to_list(DatePrescribed),
-						StrDrugs = binary_to_list(Drugs),
+						StrDrugs = parse_line(binary_to_list(Drugs)),
 						ServerResponse = fmk_core:create_prescription(IntegerId,IntPatientId,IntPrescriberId,IntPharmacyId,IntFacilityId,StrDatePrescribed,StrDrugs),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
@@ -102,3 +102,24 @@ get_prescription(Req) ->
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
+
+
+%% parse_line function fetched from @src http://stackoverflow.com/a/1532947/3547126
+
+parse_line(Line) -> parse_line(Line, []).
+
+parse_line([], Fields) -> lists:reverse(Fields);
+parse_line("," ++ Line, Fields) -> parse_field(Line, Fields);
+parse_line(Line, Fields) -> parse_field(Line, Fields).
+
+parse_field("\"" ++ Line, Fields) -> parse_field_q(Line, [], Fields);
+parse_field(Line, Fields) -> parse_field(Line, [], Fields).
+
+parse_field("," ++ _ = Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf)|Fields]);
+parse_field([C|Line], Buf, Fields) -> parse_field(Line, [C|Buf], Fields);
+parse_field([], Buf, Fields) -> parse_line([], [lists:reverse(Buf)|Fields]).
+
+parse_field_q(Line, Fields) -> parse_field_q(Line, [], Fields).
+parse_field_q("\"\"" ++ Line, Buf, Fields) -> parse_field_q(Line, [$"|Buf], Fields);
+parse_field_q("\"" ++ Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf)|Fields]);
+parse_field_q([C|Line], Buf, Fields) -> parse_field_q(Line, [C|Buf], Fields).
