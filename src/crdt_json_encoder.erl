@@ -6,8 +6,8 @@ encode(pharmacy, Object) ->
     PharmacyId = pharmacy:id(Object),
     PharmacyName = pharmacy:name(Object),
     PharmacyAddress = pharmacy:address(Object),
-    PharmacyPrescriptions = pharmacy:treatments(Object),
-    JsonPrescriptions = encode(list_treatments, PharmacyPrescriptions),
+    PharmacyPrescriptions = pharmacy:prescriptions(Object),
+    JsonPrescriptions = encode(list_prescriptions, PharmacyPrescriptions),
     lists:flatten(io_lib:format(
         "{\"pharmacyId\": \"~p\",\"pharmacyName\": ~p,\"pharmacyAddress\": ~p,\"pharmacyPrescriptions\": " ++ JsonPrescriptions ++ "}",
         [PharmacyId, PharmacyName, PharmacyAddress]
@@ -48,12 +48,12 @@ encode(staff, Object) ->
     StaffSpeciality = staff:speciality(Object),
     StaffAddress = staff:address(Object),
     StaffTreatments = staff:treatments(Object),
-    StaffPrescriptions = staff:treatments(Object),
+    StaffPrescriptions = staff:prescriptions(Object),
     JsonTreatments = encode(list_treatments, StaffTreatments),
-    JsonPrescriptions = encode(list_treatments, StaffPrescriptions),
+    JsonPrescriptions = encode(list_prescriptions, StaffPrescriptions),
     lists:flatten(io_lib:format(
-        "{\"staffId\": \"~p\",\"staffName\": ~p,\"staffAddress\": ~p,\"staffSpeciality\": ~p,\"staffTreatments\": ~p,\"staffPrescriptions\": ~p}",
-        [StaffId, StaffName, StaffAddress, StaffSpeciality, JsonTreatments, JsonPrescriptions]
+        "{\"staffId\": \"~p\",\"staffName\": ~p,\"staffAddress\": ~p,\"staffSpeciality\": ~p,\"staffTreatments\": " ++ JsonTreatments ++ ",\"staffPrescriptions\": " ++ JsonPrescriptions ++ "}",
+        [StaffId, StaffName, StaffAddress, StaffSpeciality]
     ));
 
 encode(event, Object) ->
@@ -63,23 +63,23 @@ encode(event, Object) ->
     EventTimestamp = event:timestamp(Object),
     EventDescription = event:description(Object),
     lists:flatten(io_lib:format(
-        "{\"eventId\": \"~p\",\"eventPatientId\": ~p,\"eventStaffId\": ~p,\"eventTimestamp\": ~p,\"eventDescription\": ~p}",
+        "{\"eventId\": \"~p\",\"eventPatientId\": \"~p\",\"eventStaffId\": \"~p\",\"eventTimestamp\": ~p,\"eventDescription\": ~p}",
         [EventId, EventPatientId, EventStaffId, EventTimestamp, EventDescription]
     ));
 
 encode(prescription, Object) ->
-    PrescriptionId = treatment:id(Object),
-    PrescriptionFacilityId = treatment:facility_id(Object),
-    PrescriptionPatientId = treatment:patient_id(Object),
-    PrescriptionPharmacyId = treatment:pharmacy_id(Object),
-    PrescriptionPrescriberId = treatment:prescriber_id(Object),
-    PrescriptionDrugs = treatment:drugs(Object),
-    PrescriptionIsProcessed = treatment:is_processed(Object),
-    PrescriptionDatePrescribed = treatment:date_prescribed(Object),
-    PrescriptionDateProcessed = treatment:date_processed(Object),
+    PrescriptionId = prescription:id(Object),
+    PrescriptionFacilityId = prescription:facility_id(Object),
+    PrescriptionPatientId = prescription:patient_id(Object),
+    PrescriptionPharmacyId = prescription:pharmacy_id(Object),
+    PrescriptionPrescriberId = prescription:prescriber_id(Object),
+    PrescriptionDrugs = prescription:drugs(Object),
+    PrescriptionIsProcessed = prescription:is_processed(Object),
+    PrescriptionDatePrescribed = prescription:date_prescribed(Object),
+    PrescriptionDateProcessed = prescription:date_processed(Object),
     JsonDrugs = encode(list_drugs, PrescriptionDrugs),
     lists:flatten(io_lib:format(
-        "{\"treatmentId\": \"~p\",\"treatmentFacilityId\": \"~p\",\"treatmentPatientId\": \"~p\",\"treatmentPharmacyId\": \"~p\",\"treatmentPrescriberId\": \"~p\",\"treatmentDrugs\": ~p,\"treatmentIsProcessed\": ~p,\"treatmentDatePrescribed\": ~p,\"treatmentDateProcessed\": ~p}",
+        "{\"prescriptionId\": \"~p\",\"prescriptionFacilityId\": \"~p\",\"prescriptionPatientId\": \"~p\",\"prescriptionPharmacyId\": \"~p\",\"prescriptionPrescriberId\": \"~p\",\"prescriptionDrugs\": ~p,\"prescriptionIsProcessed\": ~p,\"prescriptionDatePrescribed\": ~p,\"prescriptionDateProcessed\": ~p}",
         [PrescriptionId, PrescriptionFacilityId, PrescriptionPatientId, PrescriptionPharmacyId, PrescriptionPrescriberId, JsonDrugs, PrescriptionIsProcessed, PrescriptionDatePrescribed, PrescriptionDateProcessed]
     ));
 
@@ -89,7 +89,7 @@ encode(treatment, Object) ->
     PatientId = treatment:patient_id(Object),
     PrescriberId = treatment:prescriber_id(Object),
     Events = treatment:events(Object),
-    Prescriptions = treatment:treatments(Object),
+    Prescriptions = treatment:prescriptions(Object),
     HasEnded= treatment:has_ended(Object),
     DatePrescribed = treatment:date_prescribed(Object),
     DateEnded = treatment:date_ended(Object),
@@ -103,9 +103,9 @@ encode(treatment, Object) ->
 encode(list_prescriptions, NestedObject) ->
     case NestedObject of
         not_found ->
-            [];
+            "[]";
         _ListPrescriptions ->
-            "[" ++ [encode(treatment,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject] ++ "]"
+            "[" ++ [encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject] ++ "]"
     end;
 
 encode(list_drugs, PrescriptionDrugs) ->
