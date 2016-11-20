@@ -59,8 +59,8 @@
 -define (PRESCRIPTION_DATE_PROCESSED_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, antidote_crdt_orset).
--define (PRESCRIPTION_NOT_PROCESSED, <<"prescription_not_processed">>).
--define (PRESCRIPTION_PROCESSED, <<"prescription_processed">>).
+-define (PRESCRIPTION_NOT_PROCESSED, "prescription_not_processed").
+-define (PRESCRIPTION_PROCESSED, "prescription_processed").
 
 %% Treatment macros
 -define (TREATMENT_ID, <<"treatment_id">>).
@@ -81,8 +81,8 @@
 -define (TREATMENT_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
 -define (TREATMENT_EVENTS, <<"treatment_events">>).
 -define (TREATMENT_EVENTS_CRDT, antidote_crdt_gmap).
--define (TREATMENT_ONGOING, <<"ongoing_treatment">>).
--define (TREATMENT_ENDED, <<"finished_treatment">>).
+-define (TREATMENT_ONGOING, "ongoing_treatment").
+-define (TREATMENT_ENDED, "finished_treatment").
 
 %% Medical Staff macros
 -define (STAFF_ID, <<"staff_id">>).

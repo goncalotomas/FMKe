@@ -82,7 +82,13 @@ date_prescribed(Prescription) ->
 %% Returns the processing date from an already existant prescription object.
 -spec date_processed(crdt()) -> string().
 date_processed(Prescription) ->
-  binary_to_list(antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT)).
+    DateProcessed = antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PROCESSED,?PRESCRIPTION_DATE_PROCESSED_CRDT),
+    case DateProcessed of
+        not_found ->
+            "not_found";
+        Date ->
+            binary_to_list(Date)
+    end.
 
 %% Returns the prescription drugs from an already existant prescription object.
 -spec drugs(crdt()) -> [term()].
@@ -92,11 +98,12 @@ drugs(Prescription) ->
 %% Returns the prescription state (if it is processed) from an already existant prescription object.
 -spec is_processed(crdt()) -> binary().
 is_processed(Prescription) ->
-  Result = antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT),
-  case Result of
-    not_found ->
-      ?PRESCRIPTION_NOT_PROCESSED;
-    _State -> _State
+  IsProcessed = antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT),
+  case IsProcessed of
+      not_found ->
+          "not_found";
+      Result ->
+          binary_to_list(Result)
   end.
 
 %% Returns a list of antidote operations to modify a prescription in order to fill in the processing

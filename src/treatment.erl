@@ -76,7 +76,13 @@ date_prescribed(Treatment) ->
 %% Returns the finishing date of an already existant treatment object.
 -spec date_ended(crdt()) -> string().
 date_ended(Treatment) ->
-  binary_to_list(antidote_lib:find_key(Treatment,?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT)).
+  DateEnded = antidote_lib:find_key(Treatment,?TREATMENT_DATE_ENDED,?TREATMENT_DATE_ENDED_CRDT),
+  case DateEnded of
+      not_found ->
+          "not_found";
+      Date ->
+          binary_to_list(Date)
+  end.
 
 %% Returns the prescriptions associated with an already existant treatment object.
 -spec prescriptions(crdt()) -> term().
@@ -91,7 +97,13 @@ events(Treatment) ->
 %% Checks if a treatment has ended.
 -spec has_ended(crdt()) -> string().
 has_ended(Treatment) ->
-  binary_to_list(antidote_lib:find_key(Treatment,?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT)).
+  Result = antidote_lib:find_key(Treatment,?TREATMENT_HAS_ENDED,?TREATMENT_HAS_ENDED_CRDT),
+  case Result of
+      not_found ->
+          "not_found";
+      HasEnded ->
+          binary_to_list(HasEnded)
+  end.
 
 %% Returns a list of antidote operations to update a treatment with an ending date,
 %% also updating the HAS_ENDED field.
