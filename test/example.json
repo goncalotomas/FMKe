@@ -1,0 +1,29 @@
+[{"test" : {"id" : "FMKeTest",
+            "phases" : ["Phase1"],
+            "plugins" : ["LocalFMKeNode"]
+           }},
+
+ {"plugin" : {"id" : "LocalFMKeNode",
+              "plugin_info" : {"http-plugin" : {"servers" : [{"host" : "localhost",
+                                                              "port" : 9090,
+                                                              "ssl" : false}
+                                                            ],
+                                                "stats_per_url" : true
+                                               }}
+             }},
+
+ {"phase" : {"id" : "Phase1",
+             "arrival_rate" : 10,
+             "duration" : 60,
+             "concurrent_scenarios" : 250,
+             "rate" : 500,
+             "scenarios" : [{"Scenario1" : 1}]}},
+
+ {"scenario" : {"id" : "Scenario1",
+                "keepalive" : true,
+                "actions" : [ {"http-request" : {"plugin_id" : "LocalFMKeNode",
+                                                 "method" : "GET",
+                                                 "path" : "/patients/1"
+                                                }
+                              }]}}
+]

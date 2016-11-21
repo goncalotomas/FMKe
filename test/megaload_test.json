@@ -1,0 +1,127 @@
+[
+	{
+		"test": {
+			"id": "fmk-test",
+			"phases": [
+				"patient-phase"
+			],
+			"plugins": [
+				"fmk-server"
+			]
+		}
+	},
+	{
+		"plugin": {
+			"id": "fmk-server",
+			"plugin_info": {
+				"http-plugin": {
+					"servers": [
+						{
+							"host": "127.0.0.1",
+							"port": 9090,
+							"ssl": false
+						}
+					]
+				}
+			}
+		}
+	},
+	{
+		"phase": {
+			"id": "patient-phase",
+			"arrival_rate": 10,
+			"duration": 1000,
+			"concurrent_scenarios": 250,
+			"rate": 500,
+			"scenarios": [
+				{
+					"get-patient-scenario": 1
+				}
+			]
+		}
+	},
+	{
+		"scenario": {
+			"id": "get-patient-scenario",
+			"actions": [
+				{
+					"data-csv": {
+						"file": "patient_list.csv",
+						"name": "all_patients"
+					}
+				},
+				{
+					"data-csv_value": {
+						"name": "all_patients",
+						"fields": [
+							1,
+							2,
+							3
+						],
+						"vars": [
+							"patient_id",
+							"patient_name",
+							"patient_address"
+						]
+					}
+				},
+				{
+					"http-request": {
+						"plugin_id": "fmk-server",
+						"method": "POST",
+						"path": "/patients",
+						"body": {
+							"jsonpath-multiset": {
+								"object": "{\"id\":0, \"name\":0, \"address\":0 }",
+								"pairs": [
+									{
+										"path": "id",
+										"value": {
+											"var-get": {
+												"name": "patient_id"
+											}
+										}
+									},
+									{
+										"path": "name",
+										"value": {
+											"var-get": {
+												"name": "patient_name"
+											}
+										}
+									},
+									{
+										"path": "address",
+										"value": {
+											"var-get": {
+												"name": "patient_address"
+											}
+										}
+									}
+								]
+							}
+						}
+					}
+				},
+				{
+					"http-request": {
+						"plugin_id": "fmk-server",
+						"method": "GET",
+						"path": {
+							"string-join": {
+								"strings": [
+									"/patients/",
+									{
+										"var-get": {
+											"name": "patient_id"
+										}
+									}
+								]
+							}
+						}
+					}
+				}
+			]
+		}
+	}
+]

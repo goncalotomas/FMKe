@@ -13,3 +13,7 @@ erl_crash.dump
 .rebar
 logs
 _build
+deps/
+TEST-*
+rebar3.crashdump
+tests/
