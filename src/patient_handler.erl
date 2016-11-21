@@ -30,7 +30,7 @@ create_patient(Req) ->
 		Id = proplists:get_value(<<"id">>, Json),
 		Name = proplists:get_value(<<"name">>, Json),
 		Address = proplists:get_value(<<"address">>, Json),
-		IntegerId =
+		IntegerId = 
 			if
 				is_binary(Id) -> list_to_integer(binary_to_list(Id));
 				true -> Id
@@ -41,6 +41,7 @@ create_patient(Req) ->
 				false ->
 						StringName = binary_to_list(Name),
 						StringAddress = binary_to_list(Address),
+						io:format("calling fmk_core:create_patient(~p, ~p, ~p)~n", [IntegerId,StringName,StringAddress]),
 						ServerResponse = fmk_core:create_patient(IntegerId,StringName,StringAddress),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
