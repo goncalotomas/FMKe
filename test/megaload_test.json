@@ -30,7 +30,7 @@
 		"phase": {
 			"id": "patient-phase",
 			"arrival_rate": 10,
-			"duration": 1000,
+			"duration": 600000,
 			"concurrent_scenarios": 250,
 			"rate": 500,
 			"scenarios": [
