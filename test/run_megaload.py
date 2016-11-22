@@ -9,13 +9,13 @@ api = "http://admin:admin@localhost:8080"
 
 
 def read_file(file):
-	with open(file) as f: 
+	with open(file) as f:
 		return f.read()
 
 # Adds a loader, e.g. nodeName = 'loader@127.0.0.1'
 def add_node(nodeName, cookie):
 	response = requests.post(
-			url=api + '/api/topo/action/add-node', 
+			url=api + '/api/topo/action/add-node',
 			json={'name': nodeName, 'cookie':cookie})
 	if response.status_code == 200:
 		data = response.json()
@@ -42,7 +42,7 @@ def upload_config_file(familyUUID, filename):
 
 	with open(filename, 'rb') as file:
 		response = requests.post(
-			url=api + '/api/megaload/upload_config_file/' + familyUUID, 
+			url=api + '/api/megaload/upload_config_file/' + familyUUID,
 			files={filename: file})
 		if response.status_code == 200:
 			print("File " + filename + " uploaded.")
@@ -64,14 +64,14 @@ def upload_data_file(familyUUID, filename):
 			print("File " + filename + " uploaded.")
 		else:
 			responseData = response.json()
-			error = responseData['error'] 
+			error = responseData['error']
 			if error:
 				error = error.replace("\\n","\n").replace("\\t","   ")
 				raise Exception(error)
 
 def start_load(familyUUID, testId):
 	response = requests.post(
-			url=api + '/api/megaload/start_load/' + familyUUID, 
+			url=api + '/api/megaload/start_load/' + familyUUID,
 			json={'id': testId})
 	if response.status_code == 200:
 		print("Started test " + testId)
@@ -180,4 +180,4 @@ print("stats = " + str(statsList))
 # TODO add metrics:
 # First get nodes: http://localhost:8080/api/topo/node-family/db0312da-76e3-4c3a-97c7-07ae119c416d/node
 # Then read data: http://localhost:8080/api/metric/histogram/node/3cb3d4af-2f06-4870-9e97-2263d12a4a2f/global_histogram_requestsPerSecond?from=2016-11-22T22:59:58.078Z&to=2016-11-22T23:14:58.078Z
-# 
+#
