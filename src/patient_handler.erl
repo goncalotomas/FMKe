@@ -29,6 +29,7 @@ create_patient(Req) ->
 		{<<"name">>, Name},
 		{<<"address">>, Address}
 		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		io:format("~p\n",[jsx:decode(cowboy_req:body(Req))]),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
