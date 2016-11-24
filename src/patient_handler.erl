@@ -41,7 +41,6 @@ create_patient(Req) ->
 				false ->
 						StringName = binary_to_list(Name),
 						StringAddress = binary_to_list(Address),
-						io:format("calling fmk_core:create_patient(~p, ~p, ~p)~n", [IntegerId,StringName,StringAddress]),
 						ServerResponse = fmk_core:create_patient(IntegerId,StringName,StringAddress),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
