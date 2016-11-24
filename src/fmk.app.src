@@ -15,7 +15,10 @@
     poolboy,
     cowboy
    ]},
-  {env,[]},
+
+  {env, [{antidote_ip, '127.0.0.1'}, {antidote_port, 8187}
+  ]},
+
   {modules, []},
 
   {maintainers, []},

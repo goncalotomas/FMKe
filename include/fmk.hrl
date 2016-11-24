@@ -1,5 +1,5 @@
--define(ANTIDOTE, 'antidote@127.0.0.1').
--define(DEFAULT_ANTIDOTE_PORT, 8087).
+%%-define(ANTIDOTE, 'antidote@127.0.0.1').
+%%-define(DEFAULT_ANTIDOTE_PORT, 8087).
 -define(DEFAULT_ANTIDOTE_ADDRESS, "127.0.0.1").
 -define (APP, fmke).
 -define (VAR_ANTIDOTE_PB_PID, antidote_pb_pid).
