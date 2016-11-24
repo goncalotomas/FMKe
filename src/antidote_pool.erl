@@ -39,9 +39,11 @@ with_connection(Fun) ->
 %%% Supervisor callbacks
 %%%===================================================================
 
-init(Options) ->
-  Hostname = proplists:get_value(hostname, Options, "localhost"),
-  Port = proplists:get_value(port, Options, 8087),
+init(_Options) ->
+  {ok, Hostname} = application:get_env(fmk, antidote_ip),
+  {ok, Port} = application:get_env(fmk, antidote_port),
+%%  Hostname = proplists:get_value(hostname, Options, "localhost"),
+%%  Port = proplists:get_value(port, Options, 8087),
   PoolArgs = [
     {name, {local, antidote_connection_pool}},
     {worker_module, ?MODULE},
