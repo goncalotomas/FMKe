@@ -1,54 +1,28 @@
 #!/bin/bash
 
-# Handoff port.
-if [ -z "$HANDOFF_PORT" ]; then
-  export HANDOFF_PORT=8099
+# HTTP port.
+if [ -z "$HTTP_PORT" ]; then
+  export HTTP_PORT=9090
 fi
 
-# Protocol buffer port.
-if [ -z "$PB_PORT" ]; then
-  export PB_PORT=8087
+# HTTP IP address.
+if [ -z "$IP" ]; then
+  export IP="127.0.0.1"
 fi
 
-# Protocol buffer port.
-if [ -z "$PB_IP" ]; then
-  export PB_IP="127.0.0.1"
+# Antidote instance port.
+if [ -z "$ANTIDOTE_PB_PORT" ]; then
+  export ANTIDOTE_PB_PORT=8087
 fi
 
-# Pub/sub port.
-if [ -z "$PUBSUB_PORT" ]; then
-  export PUBSUB_PORT=8086
+# Antidote instance IP address.
+if [ -z "$ANTIDOTE_ADDRESS" ]; then
+  export ANTIDOTE_ADDRESS="127.0.0.1"
 fi
-
-# Logeader port.
-if [ -z "$LOGREADER_PORT" ]; then
-  export LOGREADER_PORT=8085
-fi
-
-# Ring State directory.
-if [ -z "$RING_STATE_DIR" ]; then
-  export RING_STATE_DIR="data/ring"
-fi
-
-# Platform data directory.
-if [ -z "$PLATFORM_DATA_DIR" ]; then
-  export PLATFORM_DATA_DIR="data"
-fi
-
-# If we're running in Mesos...
-if [ ! -z "$MESOS_TASK_ID" ]; then
-  # Choose publicly routable IP.
-  if [ -z "$IP" ]; then
-    export IP=$(ip route get 8.8.8.8 | head -1 | cut -d' ' -f8)
-  fi
-
-  # Caveat: there's only one antidote supported per node because of
-  # EPMD, so we will address it by name@IP.
-
 
   # Receive the host name from the parameters
   if [ -z "$INSTANCE_NAME" ]; then
-      export INSTANCE_NAME=antidote
+      export INSTANCE_NAME=fmk
       fi
 
   # Choose the hostname for the epmd long name if the hostname exists
@@ -65,19 +39,19 @@ if [ ! -z "$MESOS_TASK_ID" ]; then
   if [ -z "$NODE_NAME" ]; then
     export NODE_NAME=${INSTANCE_NAME}@${IP}
   fi
-
-  # Handoff port.
-  export HANDOFF_PORT=${PORT1}
-
-  # Protocol buffer port.
-  export PB_PORT=${PORT2}
-
-  # Pub/sub port.
-  export PUBSUB_PORT=${PORT3}
-
-  # Logeader port.
-  export LOGREADER_PORT=${PORT4}
-fi
+#
+#  # Handoff port.
+#  export HANDOFF_PORT=${PORT1}
+#
+#  # Protocol buffer port.
+#  export PB_PORT=${PORT2}
+#
+#  # Pub/sub port.
+#  export PUBSUB_PORT=${PORT3}
+#
+#  # Logeader port.
+#  export LOGREADER_PORT=${PORT4}
+#fi
 
 # Assume 127.0.0.1 as bind host.
 if [ -z "$IP" ]; then
@@ -95,8 +69,7 @@ fi
 
 export RELX_REPLACE_OS_VARS=true
 
-echo "MESOS_TASK_ID: ${MESOS_TASK_ID}"
-echo "PORT0: ${PORT0}"
+\echo "PORT0: ${PORT0}"
 echo "PORT1: ${PORT1}"
 echo "PORT2: ${PORT2}"
 echo "PORT3: ${PORT3}"
