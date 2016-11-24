@@ -87,12 +87,18 @@ def get_test_state(familyUUID):
 def wait_for_test(familyUUID):
 	while True:
 		state = get_test_state(familyUUID)
-		if state['state'] == 'finished':
+		if state['state'] == 'finished' or state['state'] == 'stopped':
 			break
 		print("Executing test " + state['id'] + " (" + state['state'] + ')')
 		time.sleep(1)
 
-add_node(nodeName='loader@127.0.0.1', cookie='loader')
+
+loaders = [
+	'loader1@127.0.0.1',
+	'loader2@127.0.0.1'
+]
+for loader in loaders:
+	add_node(nodeName=loader, cookie='loader')
 uid = get_family_uuid()
 print("Uid = " + uid)
 upload_config_file(uid, 'megaload_test.json')
