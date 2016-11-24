@@ -40,10 +40,8 @@ with_connection(Fun) ->
 %%%===================================================================
 
 init(_Options) ->
-  {ok, Hostname} = application:get_env(fmk, antidote_ip),
-  {ok, Port} = application:get_env(fmk, antidote_port),
-  %%  Hostname = proplists:get_value(hostname, Options, "localhost"),
-  %%  Port = proplists:get_value(port, Options, 8087),
+  AntidotePort = list_to_integer(fmk_config:get(antidote_port, "8087")),
+  AntidoteAddress = fmk_config:get(antidote_address,'127.0.0.1'),
   PoolArgs = [
     {name, {local, antidote_connection_pool}},
     {worker_module, ?MODULE},
