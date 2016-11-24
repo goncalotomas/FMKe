@@ -1,5 +1,6 @@
 #!/bin/bash
 
+<<<<<<< HEAD
 # HTTP port.
 if [ -z "$HTTP_PORT" ]; then
   export HTTP_PORT=9090
@@ -20,10 +21,10 @@ if [ -z "$ANTIDOTE_ADDRESS" ]; then
   export ANTIDOTE_ADDRESS="127.0.0.1"
 fi
 
-  # Receive the host name from the parameters
-  if [ -z "$INSTANCE_NAME" ]; then
-      export INSTANCE_NAME=fmk
-      fi
+# Receive the host name from the parameters
+if [ -z "$INSTANCE_NAME" ]; then
+    export INSTANCE_NAME=fmk
+fi
 
   # Choose the hostname for the epmd long name if the hostname exists
   # and if it resolves through the resolver; using a resolvable name
