@@ -16,7 +16,7 @@
     cowboy,
     jsx
    ]},
-  {env,[]},
+
   {modules, []},
 
   {maintainers, []},
