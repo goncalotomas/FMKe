@@ -18,7 +18,12 @@
 					"servers": [
 						{
 							"host": "127.0.0.1",
-							"port": 9090,
+							"port": 9190,
+							"ssl": false
+						},
+						{
+							"host": "127.0.0.1",
+							"port": 9290,
 							"ssl": false
 						}
 					]
