@@ -59,7 +59,7 @@ make all
 
 # Start FMK:
 echo "Starting FMK"
-_build/default/rel/fmk/bin/fmk start
+_build/default/rel/fmk/bin/env start
 
 # wait for FMK to start (TODO better way?)
 echo "Waiting for FMK to start"
