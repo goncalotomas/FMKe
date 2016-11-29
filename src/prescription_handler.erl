@@ -25,14 +25,15 @@ handle_req(<<"GET">>, false, Req) ->
 		get_prescription(Req).
 
 create_prescription(Req) ->
-		{ok, [{<<"id">>, PrescriptionId},
-		{<<"patient_id">>, PatientId},
-		{<<"prescriber_id">>, PrescriberId},
-		{<<"pharmacy_id">>, PharmacyId},
-		{<<"facility_id">>, FacilityId},
-		{<<"date_prescribed">>, DatePrescribed},
-		{<<"drugs">>, Drugs}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		PrescriptionId = proplists:get_value(<<"id">>, Json),
+		PatientId = proplists:get_value(<<"patient_id">>, Json),
+		PrescriberId = proplists:get_value(<<"prescriber_id">>, Json),
+		PharmacyId = proplists:get_value(<<"pharmacy_id">>, Json),
+		FacilityId = proplists:get_value(<<"facility_id">>, Json),
+		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
+		Drugs = proplists:get_value(<<"drugs">>, Json),
 		IntegerId = binary_to_integer(PrescriptionId),
 		case IntegerId =< ?MIN_ID of
 				true ->
@@ -56,10 +57,10 @@ create_prescription(Req) ->
 		end.
 
 update_prescription(Req) ->
-		{ok,[
-		{<<"date_processed">>, DateProcessed},
-		{<<"drugs">>, Drugs}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		DateProcessed = proplists:get_value(<<"date_processed">>, Json),
+		Drugs = proplists:get_value(<<"drugs">>, Json),
 		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
@@ -67,10 +68,10 @@ update_prescription(Req) ->
 						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						JsonReply = case DateProcessed of
-								<<>> ->
+								undefined ->
 										%% Assuming that in this case we only want to update the prescription medication
 										case Drugs of
-												<<>> ->
+												undefined ->
 														nothing_to_update;
 												_ListDrugs ->
 														StrDrugs = parse_line(binary_to_list(Drugs)),

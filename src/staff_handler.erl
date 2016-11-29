@@ -25,19 +25,20 @@ handle_req(<<"GET">>, false, Req) ->
 		get_staff(Req).
 
 create_staff(Req) ->
-		{ok, [{<<"id">>, StaffId},
-		{<<"name">>, StaffName},
-		{<<"address">>, StaffAddress},
-		{<<"speciality">>, StaffSpeciality}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		IntegerId = binary_to_integer(StaffId),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Id = proplists:get_value(<<"id">>, Json),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		Speciality = proplists:get_value(<<"speciality">>, Json),
+		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
 						cowboy_req:reply(400, [], ?ERR_INVALID_STAFF_ID, Req);
 				false ->
-						StringName = binary_to_list(StaffName),
-						StringAddress = binary_to_list(StaffAddress),
-						StringSpeciality = binary_to_list(StaffSpeciality),
+						StringName = binary_to_list(Name),
+						StringAddress = binary_to_list(Address),
+						StringSpeciality = binary_to_list(Speciality),
 						ServerResponse = fmk_core:create_staff(IntegerId,StringName,StringAddress,StringSpeciality),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
@@ -50,10 +51,11 @@ create_staff(Req) ->
 		end.
 
 update_staff(Req) ->
-		{ok, [{<<"name">>, Name},
-		{<<"address">>, Address},
-    {<<"speciality">>, Speciality}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		Speciality = proplists:get_value(<<"speciality">>, Json),
 		Id = cowboy_req:binding(?BINDING_STAFF_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
