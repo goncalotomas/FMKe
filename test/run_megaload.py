@@ -4,6 +4,8 @@ import pprint
 import json
 import time
 import datetime
+import sys
+import os
 
 api = "http://admin:admin@localhost:8080"
 
@@ -25,7 +27,7 @@ def add_node(nodeName, cookie):
 	elif response.status_code == 400:
 		print("Could not add node " + nodeName + ". Maybe it is already added?")
 	else:
-		raise Exception("Could not add node; " + str(response))
+		raise Exception("Could not add node " + nodeName + ": " + str(response))
 
 
 
@@ -123,7 +125,7 @@ def get_nodes(familyUUID):
 	return r.json()
 
 def print_nodes(familyUUID):
-	print("familyUUID = " + uid)
+	print("familyUUID = " + familyUUID)
 	nodes = get_nodes(familyUUID)
 	for node in nodes:
 		print("Node name = " + node['name'] + ", id = " + node['id'])
@@ -153,31 +155,32 @@ def get_statistics(nodes, statistic, start_time=0, end_time=0):
 		result.append(r.json())
 	return result
 
+def run_bench(
+		loaders=['loader1@127.0.0.1','loader2@127.0.0.1'],
+		loaderCookie='loader'):
 
-loaders = [
-	'loader1@127.0.0.1',
-	'loader2@127.0.0.1'
-]
-for loader in loaders:
-	add_node(nodeName=loader, cookie='loader')
+	for loader in loaders:
+		add_node(nodeName=loader, cookie='loader')
 
-uid = get_family_uuid()
-print_nodes(uid)
+	uid = get_family_uuid()
+	print_nodes(uid)
 
-nodes = get_nodes(uid)
+	nodes = get_nodes(uid)
 
+	currentFolder = os.path.dirname(os.path.realpath(__file__))
+	upload_config_file(uid, currentFolder + '/megaload_test.json')
+	upload_data_file(uid, currentFolder + '/patient_list.csv')
+	start_time = datetime.datetime.utcnow()
+	start_load(uid, 'fmk-test')
+	wait_for_test(uid, nodes)
+	end_time = datetime.datetime.utcnow()
 
-upload_config_file(uid, 'megaload_test.json')
-upload_data_file(uid, 'patient_list.csv')
-start_time = datetime.datetime.utcnow()
-start_load(uid, 'fmk-test')
-wait_for_test(uid, nodes)
-end_time = datetime.datetime.utcnow()
+	statsList = get_statistics(nodes, 'global_counter_successfulRequests')
+	print("stats = " + str(statsList))
 
-statsList = get_statistics(nodes, 'global_counter_successfulRequests')
-print("stats = " + str(statsList))
-
-# TODO add metrics:
-# First get nodes: http://localhost:8080/api/topo/node-family/db0312da-76e3-4c3a-97c7-07ae119c416d/node
-# Then read data: http://localhost:8080/api/metric/histogram/node/3cb3d4af-2f06-4870-9e97-2263d12a4a2f/global_histogram_requestsPerSecond?from=2016-11-22T22:59:58.078Z&to=2016-11-22T23:14:58.078Z
-# 
+if __name__ == "__main__":
+	loaders = sys.argv[1:]
+	if len(loaders) == 0:
+		loaders = ['loader1@127.0.0.1','loader2@127.0.0.1']
+	print("Running megaload with loaders " + str(loaders))
+	run_bench(loaders=loaders)
