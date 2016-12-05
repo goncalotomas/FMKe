@@ -73,7 +73,7 @@ new(Id) ->
     erlang:set_cookie(node(),antidote),
 
     %% check if we can connect to the FMK system using distributed erlang.
-    case net_adm:ping('fmk@127.0.0.1') of
+    case net_adm:ping(FmkNode) of
       pang ->
           ?FAIL_MSG("There is no FMK node online!",[]);
       pong ->
