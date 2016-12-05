@@ -59,11 +59,14 @@ make all
 
 # Start FMK:
 echo "Starting FMK"
-_build/default/rel/fmk/bin/fmk start
+_build/default/rel/fmk/bin/env start
 
 # wait for FMK to start (TODO better way?)
 echo "Waiting for FMK to start"
 sleep 2
+
+# Start Antidote read servers (see bug #266)
+echo "rpc:call('antidote@127.0.0.1', inter_dc_manager, start_bg_processes, [stable])." | erl -name 'debug@127.0.0.1' -setcookie antidote || true
 
 # Fill database with testdata:
 echo "Filling Antidote with testdata"
@@ -76,7 +79,7 @@ echo "Benchmark done"
 
 # Stop FMK
 echo "Stopping FMK"
-_build/default/rel/fmk/bin/fmk stop
+_build/default/rel/fmk/bin/env stop
 
 if [ -n "$ANTIDOTE_FOLDER" ]; then
     # Stop Antidote
