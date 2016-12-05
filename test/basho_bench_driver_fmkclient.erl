@@ -231,7 +231,7 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
     PrescriptionId = rand:uniform(NumPrescriptions),
     FmkNode = State#state.fmknode,
-    Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
+    Drugs = get_prescription_drugs(),
     Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
     case Result of
         ok -> {ok, State};
@@ -263,4 +263,4 @@ get_prescription_drugs() ->
     end.
 
 get_random_drug() ->
-    binary_to_list(base64:encode(crypto:strong_rand_bytes(16))).
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(16))). % 16 characters
