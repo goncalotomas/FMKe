@@ -62,6 +62,7 @@ new(Id) ->
     end,
 
     FmkNode = basho_bench_config:get(fmk_node, 'fmk@127.0.0.1'),
+    Cookie = basho_bench_config:get(fmk_cookie, antidote),
     NumPatients = basho_bench_config:get(numpatients, 5000),
     NumPharmacies = basho_bench_config:get(numpharmacies, 300),
     NumFacilities = basho_bench_config:get(numfacilities, 50),
@@ -70,7 +71,7 @@ new(Id) ->
     %% prepare node for testing
     MyNodeName = lists:flatten(io_lib:format("client~p@127.0.0.1",[Id])),
     net_kernel:start([list_to_atom(MyNodeName),longnames]),
-    erlang:set_cookie(node(),antidote),
+    erlang:set_cookie(node(),Cookie),
 
     %% check if we can connect to the FMK system using distributed erlang.
     case net_adm:ping(FmkNode) of
