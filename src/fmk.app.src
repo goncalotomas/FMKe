@@ -13,7 +13,8 @@
     antidote_pb,
     riak_pb,
     poolboy,
-    cowboy
+    cowboy,
+    hackney
    ]},
   {env,[]},
   {modules, []},
