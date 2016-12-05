@@ -225,3 +225,14 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
 
 run_op(FmkNode,Op,Params) ->
   rpc:call(FmkNode,fmk_core,Op,Params).
+
+get_prescription_drugs() ->
+    case rand:uniform(3) of
+        1 -> get_random_drug();
+        2 -> [get_random_drug(), get_random_drug()];
+        3 -> [get_random_drug(), get_random_drug(), get_random_drug()];
+        _ -> get_random_drug()
+    end.
+
+get_random_drug() ->
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(16))).
