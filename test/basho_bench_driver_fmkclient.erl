@@ -141,7 +141,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     PharmacyId = rand:uniform(NumPharmacies),
     FacilityId = rand:uniform(NumFacilities),
     DatePrescribed = "1/1/2016",
-    Drugs = get_prescription_drugs(),
+    Drugs = gen_prescription_drugs(),
     %% call create_prescription
     Result = run_op(FmkNode,create_prescription,[
       PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
@@ -231,7 +231,7 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
     PrescriptionId = rand:uniform(NumPrescriptions),
     FmkNode = State#state.fmknode,
-    Drugs = get_prescription_drugs(),
+    Drugs = gen_prescription_drugs(),
     Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
     case Result of
         ok -> {ok, State};
@@ -254,7 +254,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
 run_op(FmkNode,Op,Params) ->
     rpc:call(FmkNode,fmk_core,Op,Params).
 
-get_prescription_drugs() ->
+gen_prescription_drugs() ->
     case rand:uniform(3) of
         1 -> get_random_drug();
         2 -> [get_random_drug(), get_random_drug()];
