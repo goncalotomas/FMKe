@@ -75,10 +75,10 @@ new(Id) ->
 
     %% check if we can connect to the FMK system using distributed erlang.
     case net_adm:ping(FmkNode) of
-      pang ->
-          ?FAIL_MSG("There is no FMK node online!",[]);
-      pong ->
-          ok
+        pang ->
+            ?FAIL_MSG("There is no FMK node online!",[]);
+        pong ->
+            ok
     end,
 
     ZipfSize = basho_bench_config:get(zipf_size, 5000),
@@ -100,132 +100,132 @@ new(Id) ->
     }.
 
 run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumPrescriptions = State#state.numprescriptions,
-  NumPharmacies = State#state.numpharmacies,
-  NumStaff = State#state.numstaff,
-  NumPatients = State#state.numpatients,
-  NumFacilities = State#state.numfacilities,
-  %% to avoid conflicting prescription ids
-  MinimumId = 1000000+NumPrescriptions,
-  PrescriptionId = rand:uniform(MinimumId),
-  PatientId = rand:uniform(NumPatients),
-  PrescriberId = rand:uniform(NumStaff),
-  PharmacyId = rand:uniform(NumPharmacies),
-  FacilityId = rand:uniform(NumFacilities),
-  DatePrescribed = "1/1/2016",
-  Drugs = ["Adderall","Amitriptyline"],
-  %% call create_prescription
-  Result = run_op(FmkNode,create_prescription,[
-    PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
-  ]),
+    FmkNode = State#state.fmknode,
+    NumPrescriptions = State#state.numprescriptions,
+    NumPharmacies = State#state.numpharmacies,
+    NumStaff = State#state.numstaff,
+    NumPatients = State#state.numpatients,
+    NumFacilities = State#state.numfacilities,
+    %% to avoid conflicting prescription ids
+    MinimumId = 1000000+NumPrescriptions,
+    PrescriptionId = rand:uniform(MinimumId),
+    PatientId = rand:uniform(NumPatients),
+    PrescriberId = rand:uniform(NumStaff),
+    PharmacyId = rand:uniform(NumPharmacies),
+    FacilityId = rand:uniform(NumFacilities),
+    DatePrescribed = "1/1/2016",
+    Drugs = ["Adderall","Amitriptyline"],
+    %% call create_prescription
+    Result = run_op(FmkNode,create_prescription,[
+      PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
+    ]),
 
-  case Result of
-    ok -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    case Result of
+        ok -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  NumPharmacies = State#state.numpharmacies,
-  PharmacyId = rand:uniform(NumPharmacies),
-  FmkNode = State#state.fmknode,
+    NumPharmacies = State#state.numpharmacies,
+    PharmacyId = rand:uniform(NumPharmacies),
+    FmkNode = State#state.fmknode,
 
-  Result = run_op(FmkNode,get_pharmacy_prescriptions,[PharmacyId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    Result = run_op(FmkNode,get_pharmacy_prescriptions,[PharmacyId]),
+    case Result of
+        [] -> {ok,State};
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
+    FmkNode = State#state.fmknode,
 
-  Prescription = run_op(FmkNode,get_prescription_medication,[PrescriptionId]),
-  case Prescription of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    Prescription = run_op(FmkNode,get_prescription_medication,[PrescriptionId]),
+    case Prescription of
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumStaff = State#state.numstaff,
-  StaffId = rand:uniform(NumStaff),
-  Result = run_op(FmkNode,get_staff_prescriptions,[StaffId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    FmkNode = State#state.fmknode,
+    NumStaff = State#state.numstaff,
+    StaffId = rand:uniform(NumStaff),
+    Result = run_op(FmkNode,get_staff_prescriptions,[StaffId]),
+    case Result of
+        [] -> {ok,State};
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumPharmacies = State#state.numpharmacies,
-  PharmacyId = rand:uniform(NumPharmacies),
-  Result = run_op(FmkNode,get_processed_pharmacy_prescriptions,[PharmacyId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    FmkNode = State#state.fmknode,
+    NumPharmacies = State#state.numpharmacies,
+    PharmacyId = rand:uniform(NumPharmacies),
+    Result = run_op(FmkNode,get_processed_pharmacy_prescriptions,[PharmacyId]),
+    case Result of
+        [] -> {ok,State};
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
-  NumPatients = State#state.numpatients,
-  PatientId = rand:uniform(NumPatients),
-  FmkNode = State#state.fmknode,
+    NumPatients = State#state.numpatients,
+    PatientId = rand:uniform(NumPatients),
+    FmkNode = State#state.fmknode,
 
-  Patient = run_op(FmkNode,get_patient_by_id,[PatientId]),
-  case Patient of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    Patient = run_op(FmkNode,get_patient_by_id,[PatientId]),
+    case Patient of
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
-  %% the following operation is idempotent
-  Result = run_op(FmkNode,process_prescription,[PrescriptionId]),
-  case Result of
-    ok -> {ok, State};
-    {error,prescription_already_processed} -> {ok, State}; % not an operation related error
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
+    FmkNode = State#state.fmknode,
+    %% the following operation is idempotent
+    Result = run_op(FmkNode,process_prescription,[PrescriptionId]),
+    case Result of
+        ok -> {ok, State};
+        {error,prescription_already_processed} -> {ok, State}; % not an operation related error
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
-  Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
-  Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
-  case Result of
-    ok -> {ok, State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
+    FmkNode = State#state.fmknode,
+    Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
+    Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
+    case Result of
+        ok -> {ok, State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end;
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
+    FmkNode = State#state.fmknode,
 
-  Prescription = run_op(FmkNode,get_prescription_by_id,[PrescriptionId]),
-  case Prescription of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end.
+    Prescription = run_op(FmkNode,get_prescription_by_id,[PrescriptionId]),
+    case Prescription of
+        [_H|_T] -> {ok,State};
+        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
+        Error -> {error, Error, State}
+    end.
 
 run_op(FmkNode,Op,Params) ->
-  rpc:call(FmkNode,fmk_core,Op,Params).
+    rpc:call(FmkNode,fmk_core,Op,Params).
 
 get_prescription_drugs() ->
     case rand:uniform(3) of
