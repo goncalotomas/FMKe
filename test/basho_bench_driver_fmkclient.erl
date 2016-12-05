@@ -32,7 +32,7 @@ new(Id) ->
     %% Make sure the path is setup such that we can get at all required modules
     case code:which(fmk_core) of
         non_existing ->
-            ?FAIL_MSG("Client will not run without access to FMK code in the code path.\n",[]);
+            ?FAIL_MSG("Cannot use FMKe code.\n",[]);
         _ ->
             ok
     end,
@@ -60,6 +60,33 @@ new(Id) ->
         _ ->
             ok
     end,
+    case code:which(prescription) of
+        non_existing ->
+            ?FAIL_MSG("Cannot use prescription code.\n",[]);
+        _ ->
+            ok
+    end,
+    case code:which(treatment) of
+        non_existing ->
+            ?FAIL_MSG("Cannot use treatment code.\n",[]);
+        _ ->
+            ok
+    end,
+    case code:which(event) of
+        non_existing ->
+            ?FAIL_MSG("Cannot use event code.\n",[]);
+        _ ->
+            ok
+    end,
+    case code:which(hackney) of
+        non_existing ->
+            ?FAIL_MSG("Cannot use HTTP client code.\n",[]);
+        _ ->
+            ok
+    end,
+
+    %% will return error on subsequent clients but can be safely ignored
+    hackney:start(),
 
     FmkNode = basho_bench_config:get(fmk_node, 'fmk@127.0.0.1'),
     Cookie = basho_bench_config:get(fmk_cookie, antidote),
@@ -114,7 +141,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     PharmacyId = rand:uniform(NumPharmacies),
     FacilityId = rand:uniform(NumFacilities),
     DatePrescribed = "1/1/2016",
-    Drugs = ["Adderall","Amitriptyline"],
+    Drugs = get_prescription_drugs(),
     %% call create_prescription
     Result = run_op(FmkNode,create_prescription,[
       PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
