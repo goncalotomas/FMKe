@@ -19,7 +19,8 @@
     fmknode,
     zipf_size,
     zipf_skew,
-    zipf_bottom
+    zipf_bottom,
+    http_connection
  }).
 
 %-define(TOURNAMENT_APP, tournament_si_app). Is this needed???
@@ -87,6 +88,11 @@ new(Id) ->
 
     %% will return error on subsequent clients but can be safely ignored
     hackney:start(),
+    Transport = hackney_tcp,
+    Host = << "127.0.0.1" >>,
+    Port = 9090,
+    Options = [{pool, default}],
+    {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
 
     _FmkServers = basho_bench_config:get(fmk_servers, ["120.0.0.1:9090"]),
     NumPatients = basho_bench_config:get(numpatients, 5000),
@@ -112,7 +118,8 @@ new(Id) ->
         fmknode = "127.0.0.1:9090",
         zipf_size = ZipfSize,
         zipf_skew = ZipfSkew,
-        zipf_bottom = ZipfBottom
+        zipf_bottom = ZipfBottom,
+        http_connection = ConnRef
       }
     }.
 
@@ -134,14 +141,15 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _Drugs = gen_prescription_drugs(),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = ok,
 
     case Result of
@@ -155,14 +163,15 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _PharmacyId = rand:uniform(NumPharmacies),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [],
 
     case Result of
@@ -177,14 +186,15 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [1,2],
 
     case Result of
@@ -198,14 +208,15 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _StaffId = rand:uniform(NumStaff),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [],
 
     case Result of
@@ -220,14 +231,15 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _PharmacyId = rand:uniform(NumPharmacies),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [],
 
     case Result of
@@ -242,14 +254,15 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     _PatientId = rand:uniform(NumPatients),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [1,2],
 
     case Result of
@@ -263,14 +276,15 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = ok,
 
     case Result of
@@ -286,14 +300,15 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     _Drugs = gen_prescription_drugs(),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = ok,
 
     case Result of
@@ -307,14 +322,15 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    HttpConn = State#state.http_connection,
+    Method = get,
     URL = <<"http://127.0.0.1:9090/patients/1">>,
-    Headers = [],
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Options = [{pool, default}],
     Payload = <<>>,
-    Options = [],
-    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
-                                                            Headers, Payload,
-                                                            Options),
-    {ok, _Body} = hackney:body(ClientRef),
+    Req = {Method, URL, Headers, Payload},
+    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
+    {ok, _Body} = hackney:body(HttpConn),
     Result = [1,2],
 
     case Result of
