@@ -19,7 +19,7 @@
 
 %% Patient macros
 -define (PATIENT_ID, <<"patient_id">>).
--define (PATIENT_ID_CRDT, antidote_crdt_counter).
+-define (PATIENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (PATIENT_NAME, <<"patient_name">>).
 -define (PATIENT_NAME_CRDT, antidote_crdt_lwwreg).
 -define (PATIENT_ADDRESS, <<"patient_address">>).
@@ -33,7 +33,7 @@
 
 %% Pharmacy macros
 -define (PHARMACY_ID, <<"pharmacy_id">>).
--define (PHARMACY_ID_CRDT, antidote_crdt_counter).
+-define (PHARMACY_ID_CRDT, antidote_crdt_lwwreg).
 -define (PHARMACY_NAME, <<"pharmacy_name">>).
 -define (PHARMACY_NAME_CRDT, antidote_crdt_lwwreg).
 -define (PHARMACY_ADDRESS, <<"patient_address">>).
@@ -43,15 +43,15 @@
 
 %% Prescription macros
 -define (PRESCRIPTION_ID, <<"prescription_id">>).
--define (PRESCRIPTION_ID_CRDT, antidote_crdt_counter).
+-define (PRESCRIPTION_ID_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_PATIENT_ID, <<"prescription_patient_id">>).
--define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_counter).
+-define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_PRESCRIBER_ID, <<"prescription_prescriber_id">>).
--define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_counter).
+-define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_PHARMACY_ID, <<"prescription_pharmacy_id">>).
--define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_counter).
+-define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_FACILITY_ID, <<"prescription_facility_id">>).
--define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_counter).
+-define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_DATE_PRESCRIBED, <<"prescription_date_prescribed">>).
 -define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, antidote_crdt_lwwreg).
 -define (PRESCRIPTION_IS_PROCESSED, <<"prescription_is_processed">>).
@@ -65,13 +65,13 @@
 
 %% Treatment macros
 -define (TREATMENT_ID, <<"treatment_id">>).
--define (TREATMENT_ID_CRDT, antidote_crdt_counter).
+-define (TREATMENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (TREATMENT_PATIENT_ID, <<"treatment_patient_id">>).
--define (TREATMENT_PATIENT_ID_CRDT, antidote_crdt_counter).
+-define (TREATMENT_PATIENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (TREATMENT_PRESCRIBER_ID, <<"treatment_prescriber_id">>).
--define (TREATMENT_PRESCRIBER_ID_CRDT, antidote_crdt_counter).
+-define (TREATMENT_PRESCRIBER_ID_CRDT, antidote_crdt_lwwreg).
 -define (TREATMENT_FACILITY_ID, <<"treatment_facility_id">>).
--define (TREATMENT_FACILITY_ID_CRDT, antidote_crdt_counter).
+-define (TREATMENT_FACILITY_ID_CRDT, antidote_crdt_lwwreg).
 -define (TREATMENT_DATE_PRESCRIBED, <<"treatment_date_prescribed">>).
 -define (TREATMENT_DATE_PRESCRIBED_CRDT, antidote_crdt_lwwreg).
 -define (TREATMENT_HAS_ENDED, <<"treatment_has_ended">>).
@@ -87,7 +87,7 @@
 
 %% Medical Staff macros
 -define (STAFF_ID, <<"staff_id">>).
--define (STAFF_ID_CRDT, antidote_crdt_counter).
+-define (STAFF_ID_CRDT, antidote_crdt_lwwreg).
 -define (STAFF_NAME, <<"staff_name">>).
 -define (STAFF_NAME_CRDT, antidote_crdt_lwwreg).
 -define (STAFF_ADDRESS, <<"staff_address">>).
@@ -101,7 +101,7 @@
 
 %% Facility macros
 -define (FACILITY_ID, <<"facility_id">>).
--define (FACILITY_ID_CRDT, antidote_crdt_counter).
+-define (FACILITY_ID_CRDT, antidote_crdt_lwwreg).
 -define (FACILITY_NAME, <<"facility_name">>).
 -define (FACILITY_NAME_CRDT, antidote_crdt_lwwreg).
 -define (FACILITY_ADDRESS, <<"facility_address">>).
@@ -115,9 +115,9 @@
 
 %% Event macros
 -define (EVENT_ID, <<"event_id">>).
--define (EVENT_ID_CRDT, antidote_crdt_counter).
+-define (EVENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (EVENT_PATIENT_ID, <<"event_patient_id">>).
--define (EVENT_PATIENT_ID_CRDT, antidote_crdt_counter).
+-define (EVENT_PATIENT_ID_CRDT, antidote_crdt_lwwreg).
 -define (EVENT_DESCRIPTION, <<"event_description">>).
 -define (EVENT_DESCRIPTION_CRDT, antidote_crdt_lwwreg).
 -define (EVENT_TIMESTAMP, <<"event_timestamp">>).
