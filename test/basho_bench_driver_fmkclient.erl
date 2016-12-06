@@ -138,9 +138,10 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = ok,
 
     case Result of
@@ -158,9 +159,10 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [],
 
     case Result of
@@ -179,9 +181,10 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [1,2],
 
     case Result of
@@ -199,9 +202,10 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [],
 
     case Result of
@@ -220,9 +224,10 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [],
 
     case Result of
@@ -241,9 +246,10 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [1,2],
 
     case Result of
@@ -261,9 +267,10 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = ok,
 
     case Result of
@@ -283,9 +290,10 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = ok,
 
     case Result of
@@ -303,9 +311,10 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Headers = [],
     Payload = <<>>,
     Options = [],
-    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+    {ok, _StatusCode, _RespHeaders, ClientRef} = hackney:get(URL,
                                                             Headers, Payload,
                                                             Options),
+    {ok, _Body} = hackney:body(ClientRef),
     Result = [1,2],
 
     case Result of
