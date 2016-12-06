@@ -57,18 +57,11 @@ set_application_variable(ApplicationVariable, EnvironmentVariable, EnvironmentDe
   Value.
 
 open_antidote_socket() ->
-<<<<<<< HEAD
     set_application_variable(http_port,"HTTP_PORT",?DEFAULT_FMKE_HTTP_PORT),
     set_application_variable(antidote_address,"ANTIDOTE_ADDRESS",?DEFAULT_ANTIDOTE_ADDRESS),
     set_application_variable(antidote_port,"ANTIDOTE_PB_PORT",?DEFAULT_ANTIDOTE_PORT),
     AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
     AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
-=======
-    {ok, AntidoteNodeAddress} = application:get_env(fmk, antidote_ip),
-    {ok, AntidoteNodePort} = application:get_env(fmk, antidote_port),
-    set_application_variable(antidote_address,"ANTIDOTE_ADDRESS",AntidoteNodeAddress),
-    set_application_variable(antidote_port,"ANTIDOTE_PORT", AntidoteNodePort),
->>>>>>> making antidote IP and port configurable
     {ok, _} =antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]),
     ok.
 

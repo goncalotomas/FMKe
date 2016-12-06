@@ -71,6 +71,7 @@ export RELX_REPLACE_OS_VARS=true
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 =======
 \echo "PORT0: ${PORT0}"
@@ -82,6 +83,9 @@ echo "PORT4: ${PORT4}"
 =======
 
 >>>>>>> scritps for multi fmk instances on a single machine working
+=======
+
+>>>>>>> origin/multi-fmk2
 echo "NODE_NAME: ${NODE_NAME}"
 echo "COOKIE: ${COOKIE}"
 echo "IP: ${IP}"
@@ -89,4 +93,8 @@ echo "IP: ${IP}"
 echo "HTTP_PORT: ${HTTP_PORT}"
 
 RELNAME="`dirname \"$0\"`"/${INSTANCE_NAME}
+<<<<<<< HEAD
 exec ${RELNAME} "$@"
+=======
+exec ${RELNAME} "$@"
+>>>>>>> origin/multi-fmk2
