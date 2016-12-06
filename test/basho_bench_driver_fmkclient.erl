@@ -324,22 +324,28 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
-    _PrescriptionId = rand:uniform(NumPrescriptions),
+    PrescriptionId = integer_to_list(rand:uniform(NumPrescriptions)),
 
-    %%TODO use right address, port and endpoint
     FmkServerAddress = State#state.fmk_server_ip,
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/prescriptions/" ++ PrescriptionId),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, _Body} = hackney:body(HttpConn),
-            {ok,State};
+            {ok, Body} = hackney:body(HttpConn),
+            Json = jsx:decode(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                <<"true">> ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
         {error, Reason} ->
             {error, Reason, State}
     end.
