@@ -90,7 +90,7 @@ new(Id) ->
 
     %% read relevant configuration from config file
     IPs = basho_bench_config:get(fmk_server_ips,["127.0.0.1"]),
-    PbPorts = basho_bench_config:get(fmk_server_ports,["9090"]),
+    Ports = basho_bench_config:get(fmk_server_ports,[9090]),
     NumPatients = basho_bench_config:get(numpatients, 5000),
     NumPharmacies = basho_bench_config:get(numpharmacies, 300),
     NumFacilities = basho_bench_config:get(numfacilities, 50),
@@ -107,7 +107,8 @@ new(Id) ->
     hackney:start(),
 
     TargetNode = lists:nth((Id rem length(IPs)+1), IPs),
-    TargetPort = lists:nth((Id rem length(IPs)+1), PbPorts),
+    io:format("TARGET NODE IS ########################~p\n",[TargetNode]),
+    TargetPort = lists:nth((Id rem length(IPs)+1), Ports),
     Transport = hackney_tcp,
     Host = list_to_binary(TargetNode),
     Port = TargetPort,
@@ -122,7 +123,6 @@ new(Id) ->
         numstaff = NumStaff,
         numfacilities = NumFacilities,
         numprescriptions = NumPrescriptions,
-        fmknode = "127.0.0.1:9090",
         zipf_size = ZipfSize,
         zipf_skew = ZipfSkew,
         zipf_bottom = ZipfBottom,
@@ -133,7 +133,6 @@ new(Id) ->
     }.
 
 run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     NumPharmacies = State#state.numpharmacies,
     NumStaff = State#state.numstaff,
@@ -154,23 +153,20 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = ok,
 
-    case Result of
-        ok -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPharmacies = State#state.numpharmacies,
     _PharmacyId = rand:uniform(NumPharmacies),
 
@@ -179,24 +175,20 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [],
 
-    case Result of
-        [] -> {ok,State};
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
@@ -205,23 +197,20 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [1,2],
 
-    case Result of
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumStaff = State#state.numstaff,
     _StaffId = rand:uniform(NumStaff),
 
@@ -230,24 +219,20 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [],
 
-    case Result of
-        [] -> {ok,State};
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPharmacies = State#state.numpharmacies,
     _PharmacyId = rand:uniform(NumPharmacies),
 
@@ -256,24 +241,20 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [],
 
-    case Result of
-        [] -> {ok,State};
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPatients = State#state.numpatients,
     _PatientId = rand:uniform(NumPatients),
 
@@ -282,23 +263,20 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [1,2],
 
-    case Result of
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
@@ -307,24 +285,20 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = ok,
 
-    case Result of
-        ok -> {ok, State};
-        {error,prescription_already_processed} -> {ok, State}; % not an operation related error
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     _PrescriptionId = rand:uniform(NumPrescriptions),
     _Drugs = gen_prescription_drugs(),
@@ -334,23 +308,20 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = ok,
 
-    case Result of
-        ok -> {ok, State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end;
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
-    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
@@ -359,19 +330,17 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress
-        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Options = [{pool, default}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
-    {ok, _Status, _RespHeaders, HttpConn} = hackney:send_request(HttpConn,Req),
-    {ok, _Body} = hackney:body(HttpConn),
-    Result = [1,2],
 
-    case Result of
-        [_H|_T] -> {ok,State};
-        Error -> {error, Error, State}
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, _Body} = hackney:body(HttpConn),
+            {ok,State};
+        {error, Reason} ->
+            {error, Reason, State}
     end.
 
 gen_prescription_drugs() ->
