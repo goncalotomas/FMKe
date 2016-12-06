@@ -354,3 +354,6 @@ gen_prescription_drugs() ->
 
 get_random_drug() ->
     binary_to_list(base64:encode(crypto:strong_rand_bytes(16))). % 16 characters
+
+get_random_date() ->
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(8))). % 8 character "date"
