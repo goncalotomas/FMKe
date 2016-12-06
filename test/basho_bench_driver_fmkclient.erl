@@ -88,46 +88,36 @@ new(Id) ->
     %% will return error on subsequent clients but can be safely ignored
     hackney:start(),
 
-    FmkNode = basho_bench_config:get(fmk_node, 'fmk@127.0.0.1'),
-    Cookie = basho_bench_config:get(fmk_cookie, antidote),
+    _FmkServers = basho_bench_config:get(fmk_servers, ["120.0.0.1:9090"]),
     NumPatients = basho_bench_config:get(numpatients, 5000),
     NumPharmacies = basho_bench_config:get(numpharmacies, 300),
     NumFacilities = basho_bench_config:get(numfacilities, 50),
     NumPrescriptions = basho_bench_config:get(numprescriptions, 2000),
     NumStaff = basho_bench_config:get(numstaff,250),
-    %% prepare node for testing
-    MyNodeName = lists:flatten(io_lib:format("client~p@127.0.0.1",[Id])),
-    net_kernel:start([list_to_atom(MyNodeName),longnames]),
-    erlang:set_cookie(node(),Cookie),
-
-    %% check if we can connect to the FMK system using distributed erlang.
-    case net_adm:ping(FmkNode) of
-        pang ->
-            ?FAIL_MSG("There is no FMK node online!",[]);
-        pong ->
-            ok
-    end,
 
     ZipfSize = basho_bench_config:get(zipf_size, 5000),
     ZipfSkew = basho_bench_config:get(zipf_skew, 1),
+    ZipfBottom = 1/(lists:foldl(
+        fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,
+        0,lists:seq(1,ZipfSize))
+    ),
     {ok,
       #state {
         pid = Id,
-        nodename = MyNodeName,
         numpatients = NumPatients,
         numpharmacies = NumPharmacies,
         numstaff = NumStaff,
         numfacilities = NumFacilities,
         numprescriptions = NumPrescriptions,
-        fmknode = FmkNode,
+        fmknode = "127.0.0.1:9090",
         zipf_size = ZipfSize,
         zipf_skew = ZipfSkew,
-        zipf_bottom = 1/(lists:foldl(fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,0,lists:seq(1,ZipfSize)))
+        zipf_bottom = ZipfBottom
       }
     }.
 
 run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
-    FmkNode = State#state.fmknode,
+    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
     NumPharmacies = State#state.numpharmacies,
     NumStaff = State#state.numstaff,
@@ -135,124 +125,193 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumFacilities = State#state.numfacilities,
     %% to avoid conflicting prescription ids
     MinimumId = 1000000+NumPrescriptions,
-    PrescriptionId = rand:uniform(MinimumId),
-    PatientId = rand:uniform(NumPatients),
-    PrescriberId = rand:uniform(NumStaff),
-    PharmacyId = rand:uniform(NumPharmacies),
-    FacilityId = rand:uniform(NumFacilities),
-    DatePrescribed = "1/1/2016",
-    Drugs = gen_prescription_drugs(),
-    %% call create_prescription
-    Result = run_op(FmkNode,create_prescription,[
-      PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
-    ]),
+    _PrescriptionId = rand:uniform(MinimumId),
+    _PatientId = rand:uniform(NumPatients),
+    _PrescriberId = rand:uniform(NumStaff),
+    _PharmacyId = rand:uniform(NumPharmacies),
+    _FacilityId = rand:uniform(NumFacilities),
+    _DatePrescribed = "1/1/2016",
+    _Drugs = gen_prescription_drugs(),
+
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = ok,
 
     case Result of
         ok -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPharmacies = State#state.numpharmacies,
-    PharmacyId = rand:uniform(NumPharmacies),
-    FmkNode = State#state.fmknode,
+    _PharmacyId = rand:uniform(NumPharmacies),
 
-    Result = run_op(FmkNode,get_pharmacy_prescriptions,[PharmacyId]),
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [],
+
     case Result of
         [] -> {ok,State};
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
-    PrescriptionId = rand:uniform(NumPrescriptions),
-    FmkNode = State#state.fmknode,
+    _PrescriptionId = rand:uniform(NumPrescriptions),
 
-    Prescription = run_op(FmkNode,get_prescription_medication,[PrescriptionId]),
-    case Prescription of
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [1,2],
+
+    case Result of
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-    FmkNode = State#state.fmknode,
+    _FmkNode = State#state.fmknode,
     NumStaff = State#state.numstaff,
-    StaffId = rand:uniform(NumStaff),
-    Result = run_op(FmkNode,get_staff_prescriptions,[StaffId]),
+    _StaffId = rand:uniform(NumStaff),
+
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [],
+
     case Result of
         [] -> {ok,State};
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-    FmkNode = State#state.fmknode,
+    _FmkNode = State#state.fmknode,
     NumPharmacies = State#state.numpharmacies,
-    PharmacyId = rand:uniform(NumPharmacies),
-    Result = run_op(FmkNode,get_processed_pharmacy_prescriptions,[PharmacyId]),
+    _PharmacyId = rand:uniform(NumPharmacies),
+
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [],
+
     case Result of
         [] -> {ok,State};
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPatients = State#state.numpatients,
-    PatientId = rand:uniform(NumPatients),
-    FmkNode = State#state.fmknode,
+    _PatientId = rand:uniform(NumPatients),
 
-    Patient = run_op(FmkNode,get_patient_by_id,[PatientId]),
-    case Patient of
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [1,2],
+
+    case Result of
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
-    PrescriptionId = rand:uniform(NumPrescriptions),
-    FmkNode = State#state.fmknode,
-    %% the following operation is idempotent
-    Result = run_op(FmkNode,process_prescription,[PrescriptionId]),
+    _PrescriptionId = rand:uniform(NumPrescriptions),
+
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = ok,
+
     case Result of
         ok -> {ok, State};
         {error,prescription_already_processed} -> {ok, State}; % not an operation related error
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
-    PrescriptionId = rand:uniform(NumPrescriptions),
-    FmkNode = State#state.fmknode,
-    Drugs = gen_prescription_drugs(),
-    Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
+    _PrescriptionId = rand:uniform(NumPrescriptions),
+    _Drugs = gen_prescription_drugs(),
+
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = ok,
+
     case Result of
         ok -> {ok, State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end;
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
+    _FmkNode = State#state.fmknode,
     NumPrescriptions = State#state.numprescriptions,
-    PrescriptionId = rand:uniform(NumPrescriptions),
-    FmkNode = State#state.fmknode,
+    _PrescriptionId = rand:uniform(NumPrescriptions),
 
-    Prescription = run_op(FmkNode,get_prescription_by_id,[PrescriptionId]),
-    case Prescription of
+    %%TODO use right address, port and endpoint
+    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    Headers = [],
+    Payload = <<>>,
+    Options = [],
+    {ok, _StatusCode, _RespHeaders, _ClientRef} = hackney:get(URL,
+                                                            Headers, Payload,
+                                                            Options),
+    Result = [1,2],
+
+    case Result of
         [_H|_T] -> {ok,State};
-        {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
         Error -> {error, Error, State}
     end.
-
-run_op(FmkNode,Op,Params) ->
-    rpc:call(FmkNode,fmk_core,Op,Params).
 
 gen_prescription_drugs() ->
     case rand:uniform(3) of
