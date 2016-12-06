@@ -128,7 +128,7 @@ new(Id) ->
         zipf_skew = ZipfSkew,
         zipf_bottom = ZipfBottom,
         fmk_server_ip = TargetNode,
-        fmk_server_port = TargetPort,
+        fmk_server_port = integer_to_list(TargetPort),
         http_connection = ConnRef
       }
     }.
@@ -154,7 +154,7 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -176,7 +176,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -198,7 +198,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -220,7 +220,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -242,7 +242,7 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -264,7 +264,7 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -286,7 +286,7 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -309,7 +309,7 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -331,7 +331,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
+    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -346,10 +346,10 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
 
 gen_prescription_drugs() ->
     case rand:uniform(3) of
-        1 -> get_random_drug();
+        1 -> [get_random_drug()];
         2 -> [get_random_drug(), get_random_drug()];
         3 -> [get_random_drug(), get_random_drug(), get_random_drug()];
-        _ -> get_random_drug()
+        _ -> [get_random_drug()]
     end.
 
 get_random_drug() ->
