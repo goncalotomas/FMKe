@@ -20,6 +20,8 @@
     zipf_size,
     zipf_skew,
     zipf_bottom,
+    fmk_server_ip,
+    fmk_server_port,
     http_connection
  }).
 
@@ -86,15 +88,9 @@ new(Id) ->
             ok
     end,
 
-    %% will return error on subsequent clients but can be safely ignored
-    hackney:start(),
-    Transport = hackney_tcp,
-    Host = << "127.0.0.1" >>,
-    Port = 9090,
-    Options = [{pool, default}],
-    {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
-
-    _FmkServers = basho_bench_config:get(fmk_servers, ["120.0.0.1:9090"]),
+    %% read relevant configuration from config file
+    IPs = basho_bench_config:get(fmk_server_ips,["127.0.0.1"]),
+    PbPorts = basho_bench_config:get(fmk_server_ports,["9090"]),
     NumPatients = basho_bench_config:get(numpatients, 5000),
     NumPharmacies = basho_bench_config:get(numpharmacies, 300),
     NumFacilities = basho_bench_config:get(numfacilities, 50),
@@ -107,6 +103,17 @@ new(Id) ->
         fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,
         0,lists:seq(1,ZipfSize))
     ),
+
+    hackney:start(),
+
+    TargetNode = lists:nth((Id rem length(IPs)+1), IPs),
+    TargetPort = lists:nth((Id rem length(IPs)+1), PbPorts),
+    Transport = hackney_tcp,
+    Host = list_to_binary(TargetNode),
+    Port = TargetPort,
+    Options = [{pool, default}],
+    {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
+
     {ok,
       #state {
         pid = Id,
@@ -119,6 +126,8 @@ new(Id) ->
         zipf_size = ZipfSize,
         zipf_skew = ZipfSkew,
         zipf_bottom = ZipfBottom,
+        fmk_server_ip = TargetNode,
+        fmk_server_port = TargetPort,
         http_connection = ConnRef
       }
     }.
@@ -141,9 +150,12 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _Drugs = gen_prescription_drugs(),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -163,9 +175,12 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _PharmacyId = rand:uniform(NumPharmacies),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -186,9 +201,12 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -208,9 +226,12 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _StaffId = rand:uniform(NumStaff),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -231,9 +252,12 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     _PharmacyId = rand:uniform(NumPharmacies),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -254,9 +278,12 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     _PatientId = rand:uniform(NumPatients),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -276,9 +303,12 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -300,9 +330,12 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     _Drugs = gen_prescription_drugs(),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
@@ -322,9 +355,12 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     _PrescriptionId = rand:uniform(NumPrescriptions),
 
     %%TODO use right address, port and endpoint
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = <<"http://127.0.0.1:9090/patients/1">>,
+    URL = list_to_binary("http://" ++ FmkServerAddress
+        ++ ":" ++ integer_to_list(FmkServerPort) ++ "/patients/1"),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Options = [{pool, default}],
     Payload = <<>>,
