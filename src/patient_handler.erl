@@ -29,8 +29,8 @@ create_patient(Req) ->
 		Json = jsx:decode(Data),
 		Id = proplists:get_value(<<"id">>, Json),
 		Name = proplists:get_value(<<"name">>, Json),
-		Address = proplists:get_value(<<"address">>, Json), 
-		IntegerId = 
+		Address = proplists:get_value(<<"address">>, Json),
+		IntegerId =
 			if
 				is_binary(Id) -> list_to_integer(binary_to_list(Id));
 				true -> Id
