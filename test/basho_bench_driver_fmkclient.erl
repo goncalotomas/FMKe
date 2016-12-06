@@ -257,22 +257,28 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     NumPatients = State#state.numpatients,
-    _PatientId = rand:uniform(NumPatients),
+    PatientId = integer_to_list(rand:uniform(NumPatients)),
 
-    %%TODO use right address, port and endpoint
     FmkServerAddress = State#state.fmk_server_ip,
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
+    URL = generate_url(FmkServerAddress,FmkServerPort,"patients/" ++ PatientId),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, _Body} = hackney:body(HttpConn),
-            {ok,State};
+            {ok, Body} = hackney:body(HttpConn),
+            Json = jsx:decode(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                <<"true">> ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
         {error, Reason} ->
             {error, Reason, State}
     end;
@@ -330,7 +336,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/prescriptions/" ++ PrescriptionId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,"prescriptions/" ++ PrescriptionId),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -349,6 +355,9 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
         {error, Reason} ->
             {error, Reason, State}
     end.
+
+generate_url(Address,Port,Path) ->
+  list_to_binary("http://" ++ Address ++ ":" ++ Port ++ "/" ++ Path).
 
 gen_prescription_drugs() ->
     case rand:uniform(3) of
