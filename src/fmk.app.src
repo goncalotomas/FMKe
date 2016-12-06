@@ -13,9 +13,10 @@
     antidote_pb,
     riak_pb,
     poolboy,
-    cowboy
+    cowboy,
+    jsx
    ]},
-  {env,[]},
+
   {modules, []},
 
   {maintainers, []},
