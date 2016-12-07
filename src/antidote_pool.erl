@@ -45,7 +45,7 @@ init(Options) ->
   PoolArgs = [
     {name, {local, antidote_connection_pool}},
     {worker_module, ?MODULE},
-    {size, 15},
+    {size, 30},
     {max_overflow, 0}
   ],
   WorkerArgs = [Hostname, Port],
