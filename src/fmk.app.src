@@ -14,7 +14,8 @@
     riak_pb,
     poolboy,
     cowboy,
-    hackney
+    hackney,
+    jsx
    ]},
   {env,[]},
   {modules, []},

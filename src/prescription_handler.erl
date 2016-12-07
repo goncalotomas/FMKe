@@ -25,14 +25,15 @@ handle_req(<<"GET">>, false, Req) ->
 		get_prescription(Req).
 
 create_prescription(Req) ->
-		{ok, [{<<"id">>, PrescriptionId},
-		{<<"patient_id">>, PatientId},
-		{<<"prescriber_id">>, PrescriberId},
-		{<<"pharmacy_id">>, PharmacyId},
-		{<<"facility_id">>, FacilityId},
-		{<<"date_prescribed">>, DatePrescribed},
-		{<<"drugs">>, Drugs}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		PrescriptionId = proplists:get_value(<<"id">>, Json),
+		PatientId = proplists:get_value(<<"patient_id">>, Json),
+		PrescriberId = proplists:get_value(<<"prescriber_id">>, Json),
+		PharmacyId = proplists:get_value(<<"pharmacy_id">>, Json),
+		FacilityId = proplists:get_value(<<"facility_id">>, Json),
+		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
+		Drugs = proplists:get_value(<<"drugs">>, Json),
 		IntegerId = binary_to_integer(PrescriptionId),
 		case IntegerId =< ?MIN_ID of
 				true ->
