@@ -15,22 +15,7 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    Dispatch = cowboy_router:compile([
-  		{'_', [
-        {"/", fmk_handler, []},
-  			{"/prescriptions/[:id]", prescription_handler, []},
-        {"/patients/[:id]", patient_handler, []},
-        {"/pharmacies/[:id]", pharmacy_handler, []},
-        {"/facilities/[:id]", facility_handler, []},
-        {"/treatments/[:id]", treatment_handler, []},
-        {"/events/[:id]", event_handler, []},
-        {"/staff/[:id]", staff_handler, []}
-  		]}
-  	]),
-  	{ok, _} = cowboy:start_clear(http, 100, [{port, 9090}], #{
-  		env => #{dispatch => Dispatch}
-  	}),
-    case fmk_sup:start_link() of
+    Result = case fmk_sup:start_link() of
         {ok, Pid} ->
               case open_antidote_socket() of
                 ok -> {ok, Pid};
@@ -38,7 +23,24 @@ start(_StartType, _StartArgs) ->
               end;
         {error, Reason} ->
               {error, Reason}
-    end.
+    end,
+    Dispatch = cowboy_router:compile([
+      {'_', [
+        {"/", fmk_handler, []},
+        {"/prescriptions/[:id]", prescription_handler, []},
+        {"/patients/[:id]", patient_handler, []},
+        {"/pharmacies/[:id]", pharmacy_handler, []},
+        {"/facilities/[:id]", facility_handler, []},
+        {"/treatments/[:id]", treatment_handler, []},
+        {"/events/[:id]", event_handler, []},
+        {"/staff/[:id]", staff_handler, []}
+      ]}
+    ]),
+    HttpPort = list_to_integer(fmk_config:get(http_port,9090)),
+    {ok, _} = cowboy:start_clear(http, 100, [{port, HttpPort}], #{
+      env => #{dispatch => Dispatch}
+    }),
+    Result.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
@@ -56,8 +58,9 @@ set_application_variable(ApplicationVariable, EnvironmentVariable, EnvironmentDe
   Value.
 
 open_antidote_socket() ->
+    set_application_variable(http_port,"HTTP_PORT",?DEFAULT_FMKE_HTTP_PORT),
     set_application_variable(antidote_address,"ANTIDOTE_ADDRESS",?DEFAULT_ANTIDOTE_ADDRESS),
-    set_application_variable(antidote_port,"ANTIDOTE_PORT",?DEFAULT_ANTIDOTE_PORT),
+    set_application_variable(antidote_port,"ANTIDOTE_PB_PORT",?DEFAULT_ANTIDOTE_PORT),
     AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
     AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
     {ok, _} =antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]),

@@ -25,11 +25,16 @@ handle_req(<<"GET">>, false, Req) ->
 		get_patient(Req).
 
 create_patient(Req) ->
-		{ok, [{<<"id">>, Id},
-		{<<"name">>, Name},
-		{<<"address">>, Address}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		IntegerId = binary_to_integer(Id),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Id = proplists:get_value(<<"id">>, Json),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		IntegerId = 
+			if
+				is_binary(Id) -> list_to_integer(binary_to_list(Id));
+				true -> Id
+			end,
 		case IntegerId =< ?MIN_ID of
 				true ->
 						cowboy_req:reply(400, [], ?ERR_INVALID_PATIENT_ID, Req);

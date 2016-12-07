@@ -17,7 +17,7 @@
     hackney,
     jsx
    ]},
-  {env,[]},
+
   {modules, []},
 
   {maintainers, []},

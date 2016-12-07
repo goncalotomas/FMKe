@@ -13,8 +13,8 @@ compile:
 	mv ${CLIENT}.beam ${EBIN}/
 
 rel:
-	rm -rf _build/default/rel/fmk/
-	${REBAR} release
+	rm -rf _build/default/rel/
+	${REBAR} release -n fmk
 
 relclean:
 	rm -rf _build/default/rel
@@ -27,4 +27,4 @@ bench: compile
 	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
 
 console: rel
-	./_build/default/rel/fmk/bin/fmk console
+	./_build/default/rel/fmk/bin/env console

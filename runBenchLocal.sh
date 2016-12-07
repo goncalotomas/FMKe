@@ -59,7 +59,7 @@ make all
 
 # Start FMK:
 echo "Starting FMK"
-_build/default/rel/fmk/bin/fmk start
+_build/default/rel/fmk/bin/env start
 
 # wait for FMK to start (TODO better way?)
 echo "Waiting for FMK to start"
@@ -76,7 +76,7 @@ echo "Benchmark done"
 
 # Stop FMK
 echo "Stopping FMK"
-_build/default/rel/fmk/bin/fmk stop
+_build/default/rel/fmk/bin/env stop
 
 if [ -n "$ANTIDOTE_FOLDER" ]; then
     # Stop Antidote
