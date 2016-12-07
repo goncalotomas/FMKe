@@ -40,10 +40,7 @@ create_staff(Req) ->
 						StringSpeciality = binary_to_list(StaffSpeciality),
 						ServerResponse = fmk_core:create_staff(IntegerId,StringName,StringAddress,StringSpeciality),
 						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
@@ -65,10 +62,7 @@ update_staff(Req) ->
             StringSpeciality = binary_to_list(Speciality),
 						ServerResponse = fmk_core:update_staff_details(IntegerId,StringName,StringAddress,StringSpeciality),
 						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
@@ -85,15 +79,9 @@ get_staff(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(staff,ServerResponse) ++ "}"),
-												[Success]
-										));
+										jsx:encode([{success,Success},{result,crdt_json_encoder:encode(staff,ServerResponse)}]);
 								false ->
-										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"~p\"}",
-												[Success,ServerResponse]
-										))
+										jsx:encode([{success,Success},{result,ServerResponse}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>

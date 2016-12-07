@@ -38,10 +38,7 @@ create_patient(Req) ->
 						StringAddress = binary_to_list(Address),
 						ServerResponse = fmk_core:create_patient(IntegerId,StringName,StringAddress),
 						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
@@ -61,10 +58,7 @@ update_patient(Req) ->
 						StringAddress = binary_to_list(Address),
 						ServerResponse = fmk_core:update_patient_details(IntegerId,StringName,StringAddress),
 						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
@@ -81,15 +75,9 @@ get_patient(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(patient,ServerResponse) ++ "}"),
-												[Success]
-										));
+										jsx:encode([{success,Success},{result,crdt_json_encoder:encode(patient,ServerResponse)}]);
 								false ->
-										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"~p\"}",
-												[Success,ServerResponse]
-										))
+										jsx:encode([{success,Success},{result,not_found}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
