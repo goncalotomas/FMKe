@@ -32,61 +32,6 @@
 %% ====================================================================
 
 new(Id) ->
-    %% Make sure the path is setup such that we can get at all required modules
-    case code:which(fmk_core) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use FMKe code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(patient) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use patient code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(pharmacy) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use pharmacy code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(facility) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use facility code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(staff) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use staff code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(prescription) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use prescription code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(treatment) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use treatment code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(event) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use event code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(hackney) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use HTTP client code.\n",[]);
-        _ ->
-            ok
-    end,
 
     %% read relevant configuration from config file
     IPs = basho_bench_config:get(fmk_server_ips,["127.0.0.1"]),
