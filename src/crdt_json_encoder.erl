@@ -105,7 +105,7 @@ encode(list_prescriptions, NestedObject) ->
         not_found ->
             "[]";
         _ListPrescriptions ->
-            "[" ++ [encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject] ++ "]"
+            "[" ++ string:join([encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject], ", ") ++ "]"
     end;
 
 encode(list_drugs, PrescriptionDrugs) ->
@@ -121,7 +121,7 @@ encode(list_events, NestedObject) ->
         not_found ->
             "[]";
         _ListEvents ->
-            "[" ++ [encode(treatment,EventObject) || {{_EventKey, antidote_crdt_gmap},EventObject} <- NestedObject] ++ "]"
+            "[" ++ string:join([encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject], ", ") ++ "]"
     end;
 
 encode(list_treatments, NestedObject) ->
@@ -129,5 +129,5 @@ encode(list_treatments, NestedObject) ->
         not_found ->
             "[]";
         _ListPrescriptions ->
-            "[" ++ [encode(treatment,TreatmentObject) || {{_TreatmentKey, antidote_crdt_gmap},TreatmentObject} <- NestedObject] ++ "]"
+            "[" ++ string:join([encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject], ", ") ++ "]"
     end.
