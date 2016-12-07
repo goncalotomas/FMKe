@@ -164,7 +164,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "prescriptions/" ++ PrescriptionId,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -193,7 +193,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "staff/" ++ StaffId,
+    Path = "staff/" ++ integer_to_list(StaffId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -340,6 +340,10 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     end.
 
 generate_url(Address,Port,Path) ->
+    % for debugging:
+    true = io_lib:printable_unicode_list(Address),
+    true = io_lib:printable_unicode_list(Port),
+    true = io_lib:printable_unicode_list(Path),
   list_to_binary("http://" ++ Address ++ ":" ++ Port ++ "/" ++ Path).
 
 gen_prescription_drugs() ->
