@@ -114,8 +114,15 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
 
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, _Body} = hackney:body(HttpConn),
-            {ok,State};
+            {ok, Body} = hackney:body(HttpConn),
+            Json = jsx:decode(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                <<"true">> ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
         {error, Reason} ->
             {error, Reason, State}
     end;
@@ -157,7 +164,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "prescriptions/" ++ PrescriptionId
+    Path = "prescriptions/" ++ PrescriptionId,
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -211,7 +218,7 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     NumPharmacies = State#state.numpharmacies,
     _PharmacyId = rand:uniform(NumPharmacies),
 
-    %%TODO use right address, port and endpoint
+    %%TODO this is fetching all operations
     FmkServerAddress = State#state.fmk_server_ip,
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
