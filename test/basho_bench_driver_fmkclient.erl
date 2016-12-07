@@ -61,6 +61,9 @@ new(Id) ->
     Options = [{pool, default}],
     {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
 
+    %% Seed random number
+    rand:seed(exsplus, {erlang:phash2([node()]), erlang:monotonic_time(), erlang:unique_integer()}),
+
     {ok,
       #state {
         pid = Id,
