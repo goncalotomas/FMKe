@@ -115,12 +115,12 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
-            case proplists:get_value(<<"success">>, Json) of
+            JsonResponse = decode_json(Body),
+            case proplists:get_value(<<"success">>, JsonResponse) of
                 <<"true">> ->
                       {ok,State};
                 _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
+                  Reason = proplists:get_value(<<"result">>, JsonResponse),
                   {error, Reason, State}
             end;
         {error, Reason} ->
@@ -144,7 +144,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -173,7 +173,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -202,7 +202,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -253,7 +253,7 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -327,7 +327,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -337,6 +337,15 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
             end;
         {error, Reason} ->
             {error, Reason, State}
+    end.
+
+decode_json(Body) ->
+    try
+        jsx:decode(Body)
+    catch
+        error:Err ->
+            io:format("JSON error ~p~nfor JSON:~n~p~n~p~n~n~n", [Err, Body, erlang:get_stacktrace()]),
+            []
     end.
 
 generate_url(Address,Port,Path) ->

@@ -4,7 +4,8 @@
 
 
 encode(Type, Object) ->
-    jsx:encode(encode_intern(Type, Object)).
+    JsonBin = jsx:encode(encode_intern(Type, Object)),
+    binary_to_list(JsonBin).
 
 encode_intern(pharmacy, Object) ->
     PharmacyId = pharmacy:id(Object),
