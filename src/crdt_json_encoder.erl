@@ -2,72 +2,95 @@
 
 -export ([encode/2]).
 
-encode(pharmacy, Object) ->
-    PharmacyId = pharmacy:id(Object),
-    PharmacyName = pharmacy:name(Object),
-    PharmacyAddress = pharmacy:address(Object),
-    PharmacyPrescriptions = pharmacy:prescriptions(Object),
-    JsonPrescriptions = encode(list_prescriptions, PharmacyPrescriptions),
-    lists:flatten(io_lib:format(
-        "{\"pharmacyId\": \"~p\",\"pharmacyName\": ~p,\"pharmacyAddress\": ~p,\"pharmacyPrescriptions\": " ++ JsonPrescriptions ++ "}",
-        [PharmacyId, PharmacyName, PharmacyAddress]
-    ));
 
-encode(facility, Object) ->
+encode(Type, Object) ->
+    JsonBin = jsx:encode(encode_intern(Type, Object)),
+    binary_to_list(JsonBin).
+
+encode_intern(pharmacy, Object) ->
+    PharmacyId = pharmacy:id(Object),
+    PharmacyName = list_to_binary(pharmacy:name(Object)),
+    PharmacyAddress = list_to_binary(pharmacy:address(Object)),
+    PharmacyPrescriptions = pharmacy:prescriptions(Object),
+    JsonPrescriptions = encode_intern(list_prescriptions, PharmacyPrescriptions),
+    [
+        {<<"pharmacyId">>, PharmacyId},
+        {<<"pharmacyName">>, PharmacyName},
+        {<<"pharmacyAddress">>, PharmacyAddress},
+        {<<"pharmacyPrescriptions">>, JsonPrescriptions}
+    ];
+
+encode_intern(facility, Object) ->
     FacilityId = facility:id(Object),
-    FacilityName = facility:name(Object),
-    FacilityAddress = facility:address(Object),
-    FacilityType = facility:type(Object),
+    FacilityName = list_to_binary(facility:name(Object)),
+    FacilityAddress = list_to_binary(facility:address(Object)),
+    FacilityType = list_to_binary(facility:type(Object)),
     FacilityTreatments = facility:treatments(Object),
     FacilityPrescriptions = facility:treatments(Object),
-    JsonTreatments = encode(list_treatments, FacilityTreatments),
-    JsonPrescriptions = encode(list_treatments, FacilityPrescriptions),
-    lists:flatten(io_lib:format(
-        "{\"facilityId\": \"~p\",\"facilityName\": ~p,\"facilityAddress\": ~p,\"facilityType\": ~p,\"facilityTreatments\": " ++ JsonTreatments ++ ",\"facilityPrescriptions\": " ++ JsonPrescriptions ++ "}",
-        [FacilityId, FacilityName, FacilityAddress, FacilityType]
-    ));
+    JsonTreatments = encode_intern(list_treatments, FacilityTreatments),
+    JsonPrescriptions = encode_intern(list_treatments, FacilityPrescriptions),
+    [
+        {<<"facilityId">>, FacilityId},
+        {<<"facilityName">>, FacilityName},
+        {<<"facilityAddress">>, FacilityAddress},
+        {<<"facilityType">>, FacilityType},
+        {<<"facilityTreatments">>, JsonTreatments},
+        {<<"facilityPrescriptions">>, JsonPrescriptions}
+    ];
 
-encode(patient, Object) ->
+encode_intern(patient, Object) ->
     PatientId = patient:id(Object),
-    PatientName = patient:name(Object),
-    PatientAddress = patient:address(Object),
+    PatientName = list_to_binary(patient:name(Object)),
+    PatientAddress = list_to_binary(patient:address(Object)),
     PatientEvents = patient:events(Object),
     PatientTreatments = patient:treatments(Object),
     PatientPrescriptions = patient:treatments(Object),
-    JsonEvents = encode(list_events, PatientEvents),
-    JsonTreatments = encode(list_treatments, PatientTreatments),
-    JsonPrescriptions = encode(list_treatments, PatientPrescriptions),
-    lists:flatten(io_lib:format(
-        "{\"patientId\": \"~p\",\"patientName\": ~p,\"patientAddress\": ~p,\"patientEvents\": " ++ JsonEvents ++ ",\"patientTreatments\": " ++ JsonTreatments ++ ",\"patientPrescriptions\": " ++ JsonPrescriptions ++ "}",
-        [PatientId, PatientName, PatientAddress]
-    ));
+    JsonEvents = encode_intern(list_events, PatientEvents),
+    JsonTreatments = encode_intern(list_treatments, PatientTreatments),
+    JsonPrescriptions = encode_intern(list_treatments, PatientPrescriptions),
+    [
+        {<<"patientId">>, PatientId},
+        {<<"patientName">>, PatientName},
+        {<<"patientAddress">>, PatientAddress},
+        {<<"patientEvents">>, JsonEvents},
+        {<<"patientTreatments">>, JsonTreatments},
+        {<<"patientPrescriptions">>, JsonPrescriptions}
+    ];
 
-encode(staff, Object) ->
+encode_intern(staff, Object) ->
     StaffId = staff:id(Object),
-    StaffName = staff:name(Object),
-    StaffSpeciality = staff:speciality(Object),
-    StaffAddress = staff:address(Object),
+    StaffName = list_to_binary(staff:name(Object)),
+    StaffSpeciality = list_to_binary(staff:speciality(Object)),
+    StaffAddress = list_to_binary(staff:address(Object)),
     StaffTreatments = staff:treatments(Object),
     StaffPrescriptions = staff:prescriptions(Object),
-    JsonTreatments = encode(list_treatments, StaffTreatments),
-    JsonPrescriptions = encode(list_prescriptions, StaffPrescriptions),
-    lists:flatten(io_lib:format(
-        "{\"staffId\": \"~p\",\"staffName\": ~p,\"staffAddress\": ~p,\"staffSpeciality\": ~p,\"staffTreatments\": " ++ JsonTreatments ++ ",\"staffPrescriptions\": " ++ JsonPrescriptions ++ "}",
-        [StaffId, StaffName, StaffAddress, StaffSpeciality]
-    ));
+    JsonTreatments = encode_intern(list_treatments, StaffTreatments),
+    JsonPrescriptions = encode_intern(list_prescriptions, StaffPrescriptions),
+    [
+        {<<"staffId">>, StaffId},
+        {<<"staffName">>, StaffName},
+        {<<"staffAddress">>, StaffAddress},
+        {<<"staffSpeciality">>, StaffSpeciality},
+        {<<"staffTreatments">>, JsonTreatments},
+        {<<"staffPrescriptions">>, JsonPrescriptions}
+    ];
 
-encode(event, Object) ->
+
+encode_intern(event, Object) ->
     EventId = event:id(Object),
     EventPatientId = event:patient_id(Object),
     EventStaffId = event:staff_id(Object),
-    EventTimestamp = event:timestamp(Object),
-    EventDescription = event:description(Object),
-    lists:flatten(io_lib:format(
-        "{\"eventId\": \"~p\",\"eventPatientId\": \"~p\",\"eventStaffId\": \"~p\",\"eventTimestamp\": ~p,\"eventDescription\": ~p}",
-        [EventId, EventPatientId, EventStaffId, EventTimestamp, EventDescription]
-    ));
+    EventTimestamp = list_to_binary(event:timestamp(Object)),
+    EventDescription = list_to_binary(event:description(Object)),
+    [
+        {<<"eventId">>, EventId},
+        {<<"eventPatientId">>, EventPatientId},
+        {<<"eventStaffId">>, EventStaffId},
+        {<<"eventTimestamp">>, EventTimestamp},
+        {<<"eventDescription">>, EventDescription}
+    ];
 
-encode(prescription, Object) ->
+encode_intern(prescription, Object) ->
     PrescriptionId = prescription:id(Object),
     PrescriptionFacilityId = prescription:facility_id(Object),
     PrescriptionPatientId = prescription:patient_id(Object),
@@ -75,15 +98,22 @@ encode(prescription, Object) ->
     PrescriptionPrescriberId = prescription:prescriber_id(Object),
     PrescriptionDrugs = prescription:drugs(Object),
     PrescriptionIsProcessed = prescription:is_processed(Object),
-    PrescriptionDatePrescribed = prescription:date_prescribed(Object),
-    PrescriptionDateProcessed = prescription:date_processed(Object),
-    JsonDrugs = encode(list_drugs, PrescriptionDrugs),
-    lists:flatten(io_lib:format(
-        "{\"prescriptionId\": \"~p\",\"prescriptionFacilityId\": \"~p\",\"prescriptionPatientId\": \"~p\",\"prescriptionPharmacyId\": \"~p\",\"prescriptionPrescriberId\": \"~p\",\"prescriptionDrugs\": ~p,\"prescriptionIsProcessed\": ~p,\"prescriptionDatePrescribed\": ~p,\"prescriptionDateProcessed\": ~p}",
-        [PrescriptionId, PrescriptionFacilityId, PrescriptionPatientId, PrescriptionPharmacyId, PrescriptionPrescriberId, JsonDrugs, PrescriptionIsProcessed, PrescriptionDatePrescribed, PrescriptionDateProcessed]
-    ));
+    PrescriptionDatePrescribed = list_to_binary(prescription:date_prescribed(Object)),
+    PrescriptionDateProcessed = list_to_binary(prescription:date_processed(Object)),
+    JsonDrugs = encode_intern(list_drugs, PrescriptionDrugs),
+    [
+        {<<"prescriptionId">>, PrescriptionId},
+        {<<"prescriptionFacilityId">>, PrescriptionFacilityId},
+        {<<"prescriptionPatientId">>, PrescriptionPatientId},
+        {<<"prescriptionPharmacyId">>, PrescriptionPharmacyId},
+        {<<"prescriptionPrescriberId">>, PrescriptionPrescriberId},
+        {<<"prescriptionDrugs">>, JsonDrugs},
+        {<<"prescriptionIsProcessed">>, PrescriptionIsProcessed},
+        {<<"prescriptionDatePrescribed">>, PrescriptionDatePrescribed},
+        {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
+    ];
 
-encode(treatment, Object) ->
+encode_intern(treatment, Object) ->
     Id = treatment:id(Object),
     FacilityId = treatment:facility_id(Object),
     PatientId = treatment:patient_id(Object),
@@ -93,41 +123,40 @@ encode(treatment, Object) ->
     HasEnded= treatment:has_ended(Object),
     DatePrescribed = treatment:date_prescribed(Object),
     DateEnded = treatment:date_ended(Object),
-    JsonEvents = encode(list_events, Events),
-    JsonPrescriptions = encode(list_treatments, Prescriptions),
-    lists:flatten(io_lib:format(
-        "{\"treatmentId\": \"~p\",\"treatmentFacilityId\": \"~p\",\"treatmentPatientId\": \"~p\",\"treatmentPrescriberId\": \"~p\"\"treatmentHasEnded\": ~p,\"treatmentEvents\": " ++ JsonEvents ++ ",\"treatmentPrescriptions\": " ++ JsonPrescriptions ++ ",\"treatmentDatePrescribed\": ~p,\"treatmentDateEnded\": ~p}",
-        [Id, FacilityId, PatientId, PrescriberId, HasEnded, DatePrescribed, DateEnded]
-    ));
 
-encode(list_prescriptions, NestedObject) ->
-    case NestedObject of
-        not_found ->
-            "[]";
-        _ListPrescriptions ->
-            "[" ++ [encode(prescription,PrescriptionObject) || {{_PrescriptionKey, antidote_crdt_gmap},PrescriptionObject} <- NestedObject] ++ "]"
-    end;
+    JsonEvents = encode_intern(list_events, Events),
+    JsonPrescriptions = encode_intern(list_treatments, Prescriptions),
+    [
+        {<<"treatmentId">>, Id},
+        {<<"treatmentFacilityId">>, FacilityId},
+        {<<"treatmentPatientId">>, PatientId},
+        {<<"treatmentPrescriberId">>, PrescriberId},
+        {<<"treatmentHasEnded">>, HasEnded},
+        {<<"treatmentEvents">>, JsonEvents},
+        {<<"treatmentPrescriptions">>, JsonPrescriptions},
+        {<<"treatmentDatePrescribed">>, DatePrescribed},
+        {<<"treatmentDateEnded">>, DateEnded}
+    ];
 
-encode(list_drugs, PrescriptionDrugs) ->
-    case PrescriptionDrugs of
-        [] ->
-            "[]";
-        _ListDrugs ->
-            [binary_to_list(X) || X <- PrescriptionDrugs]
-    end;
 
-encode(list_events, NestedObject) ->
-    case NestedObject of
-        not_found ->
-            "[]";
-        _ListEvents ->
-            "[" ++ [encode(treatment,EventObject) || {{_EventKey, antidote_crdt_gmap},EventObject} <- NestedObject] ++ "]"
-    end;
+encode_intern(list_prescriptions, NestedObject) ->
+    encode_list(prescription, NestedObject);
 
-encode(list_treatments, NestedObject) ->
-    case NestedObject of
-        not_found ->
-            "[]";
-        _ListPrescriptions ->
-            "[" ++ [encode(treatment,TreatmentObject) || {{_TreatmentKey, antidote_crdt_gmap},TreatmentObject} <- NestedObject] ++ "]"
-    end.
+encode_intern(list_drugs, NestedObject) ->
+    encode_string_list(NestedObject);
+
+encode_intern(list_events, NestedObject) ->
+    encode_list(event, NestedObject);
+
+encode_intern(list_treatments, NestedObject) ->
+    encode_list(treatment, NestedObject).
+
+
+
+encode_string_list(not_found) -> [];
+encode_string_list(List) -> List.
+
+encode_list(_Type, not_found) ->
+    [];
+encode_list(Type, List) ->
+    [encode_intern(Type, X) || {{_EventKey, antidote_crdt_gmap}, X} <- List].

@@ -19,7 +19,11 @@
     fmknode,
     zipf_size,
     zipf_skew,
-    zipf_bottom
+    zipf_bottom,
+    fmk_server_ip,
+    fmk_server_port,
+    http_connection,
+    created_prescriptions
  }).
 
 %-define(TOURNAMENT_APP, tournament_si_app). Is this needed???
@@ -29,200 +33,411 @@
 %% ====================================================================
 
 new(Id) ->
-    %% Make sure the path is setup such that we can get at all required modules
-    case code:which(fmk_core) of
-        non_existing ->
-            ?FAIL_MSG("Client will not run without access to FMK code in the code path.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(patient) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use patient code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(pharmacy) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use pharmacy code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(facility) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use facility code.\n",[]);
-        _ ->
-            ok
-    end,
-    case code:which(staff) of
-        non_existing ->
-            ?FAIL_MSG("Cannot use staff code.\n",[]);
-        _ ->
-            ok
-    end,
 
-    FmkNode = basho_bench_config:get(fmk_node, 'fmk@127.0.0.1'),
+    %% read relevant configuration from config file
+    IPs = basho_bench_config:get(fmk_server_ips,["127.0.0.1"]),
+    Ports = basho_bench_config:get(fmk_server_ports,[9090]),
     NumPatients = basho_bench_config:get(numpatients, 5000),
     NumPharmacies = basho_bench_config:get(numpharmacies, 300),
     NumFacilities = basho_bench_config:get(numfacilities, 50),
     NumPrescriptions = basho_bench_config:get(numprescriptions, 2000),
     NumStaff = basho_bench_config:get(numstaff,250),
-    %% prepare node for testing
-    MyNodeName = lists:flatten(io_lib:format("client~p@127.0.0.1",[Id])),
-    net_kernel:start([list_to_atom(MyNodeName),longnames]),
-    erlang:set_cookie(node(),antidote),
-
-    %% check if we can connect to the FMK system using distributed erlang.
-    case net_adm:ping('fmk@127.0.0.1') of
-      pang ->
-          ?FAIL_MSG("There is no FMK node online!",[]);
-      pong ->
-          ok
-    end,
 
     ZipfSize = basho_bench_config:get(zipf_size, 5000),
     ZipfSkew = basho_bench_config:get(zipf_skew, 1),
+    ZipfBottom = 1/(lists:foldl(
+        fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,
+        0,lists:seq(1,ZipfSize))
+    ),
+
+    hackney:start(),
+
+    TargetNode = lists:nth((Id rem length(IPs)+1), IPs),
+    io:format("Target FMKe IP address for client ~p is ~p\n",[Id,TargetNode]),
+    TargetPort = lists:nth((Id rem length(IPs)+1), Ports),
+    io:format("Target FMKe port for client ~p is ~p\n",[Id,TargetPort]),
+    Transport = hackney_tcp,
+    Host = list_to_binary(TargetNode),
+    Port = TargetPort,
+    Options = [{pool, default}],
+    {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
+
+    %% Seed random number
+    rand:seed(exsplus, {erlang:phash2([node()]), erlang:monotonic_time(), erlang:unique_integer()}),
+
     {ok,
       #state {
         pid = Id,
-        nodename = MyNodeName,
         numpatients = NumPatients,
         numpharmacies = NumPharmacies,
         numstaff = NumStaff,
         numfacilities = NumFacilities,
         numprescriptions = NumPrescriptions,
-        fmknode = FmkNode,
         zipf_size = ZipfSize,
         zipf_skew = ZipfSkew,
-        zipf_bottom = 1/(lists:foldl(fun(X,Sum) -> Sum+(1/math:pow(X,ZipfSkew)) end,0,lists:seq(1,ZipfSize)))
+        zipf_bottom = ZipfBottom,
+        fmk_server_ip = TargetNode,
+        fmk_server_port = integer_to_list(TargetPort),
+        http_connection = ConnRef,
+        created_prescriptions = []
       }
     }.
 
 run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumPrescriptions = State#state.numprescriptions,
-  NumPharmacies = State#state.numpharmacies,
-  NumStaff = State#state.numstaff,
-  NumPatients = State#state.numpatients,
-  NumFacilities = State#state.numfacilities,
-  %% to avoid conflicting prescription ids
-  MinimumId = 1000000+NumPrescriptions,
-  PrescriptionId = rand:uniform(MinimumId),
-  PatientId = rand:uniform(NumPatients),
-  PrescriberId = rand:uniform(NumStaff),
-  PharmacyId = rand:uniform(NumPharmacies),
-  FacilityId = rand:uniform(NumFacilities),
-  DatePrescribed = "1/1/2016",
-  Drugs = ["Adderall","Amitriptyline"],
-  %% call create_prescription
-  Result = run_op(FmkNode,create_prescription,[
-    PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
-  ]),
+    NumPrescriptions = State#state.numprescriptions,
+    NumPharmacies = State#state.numpharmacies,
+    NumStaff = State#state.numstaff,
+    NumPatients = State#state.numpatients,
+    NumFacilities = State#state.numfacilities,
 
-  case Result of
-    ok -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    %% to avoid conflicting prescription ids
+    %%TODO store created prescriptions in a list inside client state.
+    MinimumId = 10000000,
+    PrescriptionId = rand:uniform(MinimumId)+NumPrescriptions,
+    PatientId = rand:uniform(NumPatients),
+    PrescriberId = rand:uniform(NumStaff),
+    PharmacyId = rand:uniform(NumPharmacies),
+    FacilityId = rand:uniform(NumFacilities),
+    DatePrescribed = "1/1/2016",
+    Drugs = gen_prescription_drugs(),
+
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = post,
+    Path = "prescriptions",
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+
+    Payload = jsx:encode([
+        {id,PrescriptionId},
+        {facility_id,FacilityId},
+        {patient_id,PatientId},
+        {pharmacy_id,PharmacyId},
+        {prescriber_id,PrescriberId},
+        {drugs,Drugs},
+        {date_prescribed,DatePrescribed}
+    ]),
+
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            JsonResponse = decode_json(Body),
+            case proplists:get_value(<<"success">>, JsonResponse) of
+                true ->
+                      {ok,
+                          #state {
+                              pid = State#state.pid,
+                              numpatients = State#state.numpatients,
+                              numpharmacies = State#state.numpharmacies,
+                              numstaff = State#state.numstaff,
+                              numfacilities = State#state.numfacilities,
+                              numprescriptions = State#state.numprescriptions,
+                              zipf_size = State#state.zipf_size,
+                              zipf_skew = State#state.zipf_skew,
+                              zipf_bottom = State#state.zipf_bottom,
+                              fmk_server_ip = State#state.fmk_server_ip,
+                              fmk_server_port = State#state.fmk_server_port,
+                              http_connection = State#state.http_connection,
+                              created_prescriptions = State#state.created_prescriptions ++ [PrescriptionId]
+                      }};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, JsonResponse),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  NumPharmacies = State#state.numpharmacies,
-  PharmacyId = rand:uniform(NumPharmacies),
-  FmkNode = State#state.fmknode,
+    NumPharmacies = State#state.numpharmacies,
+    PharmacyId = rand:uniform(NumPharmacies),
 
-  Result = run_op(FmkNode,get_pharmacy_prescriptions,[PharmacyId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "pharmacies/" ++ integer_to_list(PharmacyId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
 
-  Prescription = run_op(FmkNode,get_prescription_medication,[PrescriptionId]),
-  case Prescription of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumStaff = State#state.numstaff,
-  StaffId = rand:uniform(NumStaff),
-  Result = run_op(FmkNode,get_staff_prescriptions,[StaffId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumStaff = State#state.numstaff,
+    StaffId = rand:uniform(NumStaff),
+
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "staff/" ++ integer_to_list(StaffId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
-  FmkNode = State#state.fmknode,
-  NumPharmacies = State#state.numpharmacies,
-  PharmacyId = rand:uniform(NumPharmacies),
-  Result = run_op(FmkNode,get_processed_pharmacy_prescriptions,[PharmacyId]),
-  case Result of
-    [] -> {ok,State};
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumPharmacies = State#state.numpharmacies,
+    PharmacyId = rand:uniform(NumPharmacies),
+
+    %%TODO this is fetching all prescriptions, there is no endpoint to fetch processed prescriptions
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "pharmacies/" ++ integer_to_list(PharmacyId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
-  NumPatients = State#state.numpatients,
-  PatientId = rand:uniform(NumPatients),
-  FmkNode = State#state.fmknode,
+    NumPatients = State#state.numpatients,
+    PatientId = rand:uniform(NumPatients),
 
-  Patient = run_op(FmkNode,get_patient_by_id,[PatientId]),
-  case Patient of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "patients/" ++ integer_to_list(PatientId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
-  %% the following operation is idempotent
-  Result = run_op(FmkNode,process_prescription,[PrescriptionId]),
-  case Result of
-    ok -> {ok, State};
-    {error,prescription_already_processed} -> {ok, State}; % not an operation related error
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId =
+      case State#state.created_prescriptions of
+          [] -> rand:uniform(NumPrescriptions);
+          [H] -> H;
+          [H|_T] -> H
+      end,
+    NewCreatedPrescriptions =
+      case State#state.created_prescriptions of
+          [] -> [];
+          [_H2] -> [];
+          [_H2|T2] -> T2
+      end,
+
+    DateProcessed = get_random_date(),
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = put,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = jsx:encode([{date_processed,DateProcessed}]),
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                    {ok,
+                        #state {
+                            pid = State#state.pid,
+                            numpatients = State#state.numpatients,
+                            numpharmacies = State#state.numpharmacies,
+                            numstaff = State#state.numstaff,
+                            numfacilities = State#state.numfacilities,
+                            numprescriptions = State#state.numprescriptions,
+                            zipf_size = State#state.zipf_size,
+                            zipf_skew = State#state.zipf_skew,
+                            zipf_bottom = State#state.zipf_bottom,
+                            fmk_server_ip = State#state.fmk_server_ip,
+                            fmk_server_port = State#state.fmk_server_port,
+                            http_connection = State#state.http_connection,
+                            created_prescriptions = NewCreatedPrescriptions
+                    }};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
-  Drugs = ["Amoxicillin","Ativan","Atorvastatin"],
-  Result = run_op(FmkNode,update_prescription_medication,[PrescriptionId,add_drugs,Drugs]),
-  case Result of
-    ok -> {ok, State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end;
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
+    Drugs = gen_prescription_drugs(),
+
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = put,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = jsx:encode([{drugs,Drugs}]),
+    Req = {Method, URL, Headers, Payload},
+
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end;
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
-  NumPrescriptions = State#state.numprescriptions,
-  PrescriptionId = rand:uniform(NumPrescriptions),
-  FmkNode = State#state.fmknode,
+    NumPrescriptions = State#state.numprescriptions,
+    PrescriptionId = rand:uniform(NumPrescriptions),
 
-  Prescription = run_op(FmkNode,get_prescription_by_id,[PrescriptionId]),
-  case Prescription of
-    [_H|_T] -> {ok,State};
-    {badrpc,{'EXIT',{{badmatch,{error,{aborted,_Txn}}},_Trace}}} -> {error, txn_aborted, State};
-    Error -> {error, Error, State}
-  end.
+    FmkServerAddress = State#state.fmk_server_ip,
+    FmkServerPort = State#state.fmk_server_port,
+    HttpConn = State#state.http_connection,
+    Method = get,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
+    Headers = [{<<"Connection">>, <<"keep-alive">>}],
+    Payload = <<>>,
+    Req = {Method, URL, Headers, Payload},
 
+    case hackney:send_request(HttpConn,Req) of
+        {ok, _Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                true ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
+        {error, Reason} ->
+            {error, Reason, State}
+    end.
 
-run_op(FmkNode,Op,Params) ->
-  rpc:call(FmkNode,fmk_core,Op,Params).
+decode_json(Body) ->
+    try
+        jsx:decode(Body)
+    catch
+        error:Err ->
+            io:format("JSON error ~p~nfor JSON:~n~p~n~p~n~n~n", [Err, Body, erlang:get_stacktrace()]),
+            []
+    end.
+
+generate_url(Address,Port,Path) ->
+    % for debugging:
+    true = io_lib:printable_unicode_list(Address),
+    true = io_lib:printable_unicode_list(Port),
+    true = io_lib:printable_unicode_list(Path),
+  list_to_binary("http://" ++ Address ++ ":" ++ Port ++ "/" ++ Path).
+
+gen_prescription_drugs() ->
+    case rand:uniform(3) of
+        1 -> get_random_drug();
+        2 -> get_random_drug() ++ "," ++ get_random_drug();
+        3 -> get_random_drug() ++ "," ++ get_random_drug() ++ "," ++ get_random_drug();
+        _ -> get_random_drug()
+    end.
+
+get_random_drug() ->
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(16))). % 16 characters
+
+get_random_date() ->
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(8))). % 8 character "date"
