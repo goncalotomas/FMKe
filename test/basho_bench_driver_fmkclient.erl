@@ -84,24 +84,32 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumStaff = State#state.numstaff,
     NumPatients = State#state.numpatients,
     NumFacilities = State#state.numfacilities,
-    %% to avoid conflicting prescription ids
-    MinimumId = 1000000+NumPrescriptions,
-    _PrescriptionId = rand:uniform(MinimumId),
-    _PatientId = rand:uniform(NumPatients),
-    _PrescriberId = rand:uniform(NumStaff),
-    _PharmacyId = rand:uniform(NumPharmacies),
-    _FacilityId = rand:uniform(NumFacilities),
-    _DatePrescribed = "1/1/2016",
-    _Drugs = gen_prescription_drugs(),
 
-    %%TODO use right address, port and endpoint
+    %% to avoid conflicting prescription ids
+    %%TODO store created prescriptions in a list inside client state.
+    MinimumId = 10000000+NumPrescriptions,
+    PrescriptionId = rand:uniform(MinimumId),
+    PatientId = rand:uniform(NumPatients),
+    PrescriberId = rand:uniform(NumStaff),
+    PharmacyId = rand:uniform(NumPharmacies),
+    FacilityId = rand:uniform(NumFacilities),
+    DatePrescribed = "1/1/2016",
+    Drugs = gen_prescription_drugs(),
+
     FmkServerAddress = State#state.fmk_server_ip,
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
-    Method = get,
-    URL = list_to_binary("http://" ++ FmkServerAddress ++ ":" ++ FmkServerPort ++ "/patients/1"),
+    Method = post,
+    Path = "prescriptions",
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
-    Payload = <<>>,
+
+    Json = lists:flatten(io_lib:format(
+        "{\"id\": \"~p\",\"facility_id\": \"~p\",\"patient_id\": \"~p\",\"pharmacy_id\": \"~p\",\"prescriber_id\": \"~p\",\"drugs\": ~p,\"date_prescribed\": ~p}",
+        [PrescriptionId, FacilityId, PatientId, PharmacyId, PrescriberId, Drugs, DatePrescribed]
+    )),
+
+    Payload = list_to_binary(Json),
     Req = {Method, URL, Headers, Payload},
 
     case hackney:send_request(HttpConn,Req) of
@@ -128,8 +136,15 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
 
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, _Body} = hackney:body(HttpConn),
-            {ok,State};
+            {ok, Body} = hackney:body(HttpConn),
+            Json = jsx:decode(Body),
+            case proplists:get_value(<<"success">>, Json) of
+                <<"true">> ->
+                      {ok,State};
+                _ ->
+                  Reason = proplists:get_value(<<"result">>, Json),
+                  {error, Reason, State}
+            end;
         {error, Reason} ->
             {error, Reason, State}
     end;
@@ -208,7 +223,8 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = generate_url(FmkServerAddress,FmkServerPort,"patients/" ++ PatientId),
+    Path = "patients/" ++ PatientId,
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -281,7 +297,8 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    URL = generate_url(FmkServerAddress,FmkServerPort,"prescriptions/" ++ PrescriptionId),
+    Path = "prescriptions/" ++ PrescriptionId,
+    URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
@@ -306,10 +323,10 @@ generate_url(Address,Port,Path) ->
 
 gen_prescription_drugs() ->
     case rand:uniform(3) of
-        1 -> [get_random_drug()];
-        2 -> [get_random_drug(), get_random_drug()];
-        3 -> [get_random_drug(), get_random_drug(), get_random_drug()];
-        _ -> [get_random_drug()]
+        1 -> get_random_drug();
+        2 -> get_random_drug() ++ "," ++ get_random_drug();
+        3 -> get_random_drug() ++ "," ++ get_random_drug() ++ "," ++ get_random_drug();
+        _ -> get_random_drug()
     end.
 
 get_random_drug() ->
