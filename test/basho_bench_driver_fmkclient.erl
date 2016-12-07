@@ -62,6 +62,9 @@ new(Id) ->
     Options = [{pool, default}],
     {ok, ConnRef} = hackney:connect(Transport, Host, Port, Options),
 
+    %% Seed random number
+    rand:seed(exsplus, {erlang:phash2([node()]), erlang:monotonic_time(), erlang:unique_integer()}),
+
     {ok,
       #state {
         pid = Id,
@@ -120,12 +123,12 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
-            case proplists:get_value(<<"success">>, Json) of
+            JsonResponse = decode_json(Body),
+            case proplists:get_value(<<"success">>, JsonResponse) of
                 <<"true">> ->
                       {ok,State};
                 _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
+                  Reason = proplists:get_value(<<"result">>, JsonResponse),
                   {error, Reason, State}
             end;
         {error, Reason} ->
@@ -149,7 +152,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -169,7 +172,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "prescriptions/" ++ PrescriptionId,
+    Path = "prescriptions/" ++ integer_to_list(PrescriptionId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -178,7 +181,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -198,7 +201,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "staff/" ++ StaffId,
+    Path = "staff/" ++ integer_to_list(StaffId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -207,7 +210,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -265,7 +268,7 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -354,7 +357,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     case hackney:send_request(HttpConn,Req) of
         {ok, _Status, _RespHeaders, HttpConn} ->
             {ok, Body} = hackney:body(HttpConn),
-            Json = jsx:decode(Body),
+            Json = decode_json(Body),
             case proplists:get_value(<<"success">>, Json) of
                 <<"true">> ->
                       {ok,State};
@@ -366,7 +369,20 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
             {error, Reason, State}
     end.
 
+decode_json(Body) ->
+    try
+        jsx:decode(Body)
+    catch
+        error:Err ->
+            io:format("JSON error ~p~nfor JSON:~n~p~n~p~n~n~n", [Err, Body, erlang:get_stacktrace()]),
+            []
+    end.
+
 generate_url(Address,Port,Path) ->
+    % for debugging:
+    true = io_lib:printable_unicode_list(Address),
+    true = io_lib:printable_unicode_list(Port),
+    true = io_lib:printable_unicode_list(Path),
   list_to_binary("http://" ++ Address ++ ":" ++ Port ++ "/" ++ Path).
 
 gen_prescription_drugs() ->
