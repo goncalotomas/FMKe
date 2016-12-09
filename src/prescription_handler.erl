@@ -104,7 +104,7 @@ get_prescription(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										jsx:encode([{success,Success},{result,crdt_json_encoder:encode(prescription,ServerResponse)}]);
+										jsx:encode([{success,Success},{result,crdt_json_encoder:encode_object(prescription,ServerResponse)}]);
 								false ->
 										jsx:encode([{success,Success},{result,ServerResponse}])
 						end,
