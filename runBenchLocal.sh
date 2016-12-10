@@ -65,6 +65,9 @@ _build/default/rel/fmk/bin/env start
 echo "Waiting for FMK to start"
 sleep 2
 
+# Start Antidote read servers (see bug #266)
+echo "rpc:call('antidote@127.0.0.1', inter_dc_manager, start_bg_processes, [stable])." | erl -name 'debug@127.0.0.1' -setcookie antidote || true
+
 # Fill database with testdata:
 echo "Filling Antidote with testdata"
 ./test/fmk_setup_script.erl 1 'fmk@127.0.0.1' || true
