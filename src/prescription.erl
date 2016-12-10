@@ -6,8 +6,8 @@
 
 -export ([
     id/1,
-    new/6,
     new/7,
+    new/8,
     facility_id/1,
     patient_id/1,
     pharmacy_id/1,
@@ -26,8 +26,8 @@
 %% as well as a date when the treatment was prescribed.
 %% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
 %% be supplied in binary
--spec new(id(),id(),id(),id(),string(),[crdt()]) -> [term()].
-new(Id,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
+-spec new(id(),id(),id(),id(),id(),string(),[crdt()]) -> [term()].
+new(Id,PatientId,PrescriberId,PharmacyId,_FacilityId,DatePrescribed,Drugs) ->
   IdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,Id),
   PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
   PharmacyOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
@@ -39,10 +39,10 @@ new(Id,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
 
 %% Same as new/7, but includes a date that symbolizes when the prescription was processed.
 %% Indentically to new/5, DateEnded should be binary
--spec new(id(),id(),id(),id(),string(),string(),[crdt()]) -> [term()].
-new(Id,PatientId,PrescriberId,PharmacyId,DatePrescribed,DateProcessed,Drugs) ->
+-spec new(id(),id(),id(),id(),id(),string(),string(),[crdt()]) -> [term()].
+new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
   [IdOp,PatientOp,PharmacyOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
-    new(Id,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+    new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% trying to keep DRY code by calling new/7 and discarding unnecessary ops
   DateProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DateProcessed),
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
