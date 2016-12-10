@@ -26,16 +26,13 @@ encode_object(facility, Object) ->
     FacilityAddress = list_to_binary(facility:address(Object)),
     FacilityType = list_to_binary(facility:type(Object)),
     FacilityTreatments = facility:treatments(Object),
-    FacilityPrescriptions = facility:treatments(Object),
     JsonTreatments = encode_object(list_treatments, FacilityTreatments),
-    JsonPrescriptions = encode_object(list_treatments, FacilityPrescriptions),
     [
         {<<"facilityId">>, FacilityId},
         {<<"facilityName">>, FacilityName},
         {<<"facilityAddress">>, FacilityAddress},
         {<<"facilityType">>, FacilityType},
-        {<<"facilityTreatments">>, JsonTreatments},
-        {<<"facilityPrescriptions">>, JsonPrescriptions}
+        {<<"facilityTreatments">>, JsonTreatments}
     ];
 
 encode_object(patient, Object) ->
