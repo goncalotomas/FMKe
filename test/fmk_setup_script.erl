@@ -20,17 +20,17 @@ main([ClientId, FmkNodeRef]) ->
       %% check if fmk is running
       case net_adm:ping(FmkNode) of
         pang ->
-            io:format("cannot connect to fmk.\n", []);
+            io:format("cannot connect to fmk. Are you sure it's started?\n", []);
         pong ->
-            ok
-      end,
-      io:format("populating antidote...\n", []),
-      add_patients(FmkNode, ?NUM_PATIENTS),
-      add_pharmacies(FmkNode, ?NUM_PHARMACIES),
-      add_facilities(FmkNode, ?NUM_FACILITIES),
-      add_staff(FmkNode, ?NUM_STAFF),
-      add_prescription(FmkNode, ?NUM_PRESCRIPTIONS),
-      io:format("finished populating antidote.\n", []);
+            io:format("populating antidote...\n", []),
+            add_patients(FmkNode, ?NUM_PATIENTS),
+            add_pharmacies(FmkNode, ?NUM_PHARMACIES),
+            add_facilities(FmkNode, ?NUM_FACILITIES),
+            add_staff(FmkNode, ?NUM_STAFF),
+            add_prescription(FmkNode, ?NUM_PRESCRIPTIONS),
+            io:format("finished populating antidote.\n", [])
+      end;
+
 main(_) ->
     usage().
 
