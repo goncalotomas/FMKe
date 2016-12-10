@@ -35,8 +35,8 @@ elif [ $1 = "github" ]; then
         git clone https://github.com/SyncFree/antidote $ANTIDOTE_FOLDER
         cd $ANTIDOTE_FOLDER
     fi
-    # use fixed version
-    git checkout 170ab6a57161b56c4d7724b702e8b6c6008aa69b
+    # use fixed branch
+    git checkout crdt-lib-map_rr
     cd $SCRIPTPATH
 else
     # use provided path to antidote
@@ -86,3 +86,17 @@ if [ -n "$ANTIDOTE_FOLDER" ]; then
     cd $SCRIPTPATH
 fi
 
+# Display the summary
+cat tests/current/summary.csv
+ERRORS=`awk -F "\"*, \"*" '{print $5}' tests/current/summary.csv | sed '2q;d'`
+SUCCESS=`awk -F "\"*, \"*" '{print $4}' tests/current/summary.csv | sed '2q;d'`
+echo "in the first 10 seconds $SUCCESS successful requests were done and $ERRORS failed."
+if [ "$ERRORS" -gt 100 ]; then
+    echo "too many errors"
+    exit 1
+fi
+
+if [ "$SUCCESS" -lt 500 ]; then
+    echo "not enough successful requests"
+    exit 1
+fi
