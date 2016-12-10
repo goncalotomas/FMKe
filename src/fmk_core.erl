@@ -364,7 +364,7 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
           PharmacyKey = binary_pharmacy_key(PharmacyId),
           PrescriberKey = binary_staff_key(PrescriberId),
           %% build top level update for the prescription
-          TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+          TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
           %% build nested updates for patients, pharmacies, facilities and the prescriber
           PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
           PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
