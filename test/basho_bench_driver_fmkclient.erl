@@ -355,9 +355,17 @@ fmk_request(HttpConn, Req, State, Handler) ->
             Json = decode_json(Body),
             Handler(Json, State);
         {ok, Status, _RespHeaders, HttpConn} ->
-            {error, {request_failed, Status, hackney:body(HttpConn)}, State};
+            {ok, Body} = hackney:body(HttpConn),
+            {error, {request_failed, Status, split_lines(binary_to_list(Body))}, State};
         {error, Reason} ->
             {error, Reason, State}
+    end.
+
+split_lines([]) -> [];
+split_lines(S) ->
+    case lists:splitwith(fun(C) -> C /= 10 end, S) of
+        {Start, []} -> [Start];
+        {Start, [10|End]} -> [Start|split_lines(End)]
     end.
 
 simple_response_handler(Json, State) ->

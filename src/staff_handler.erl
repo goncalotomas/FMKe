@@ -11,7 +11,7 @@ init(Req0, Opts) ->
 		{ok, Req, Opts}
 	catch
 		Err:Reason ->
-			Req2 = cowboy_req:reply(500, #{}, io_lib:format("Error ~p:~n~p~n", [Err, Reason]), Req0),
+			Req2 = cowboy_req:reply(500, #{}, io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]), Req0),
 			{ok, Req2, Opts}
 	end.
 
