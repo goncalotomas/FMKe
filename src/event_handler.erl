@@ -4,18 +4,24 @@
 -export([init/2]).
 
 init(Req0, Opts) ->
-	Method = cowboy_req:method(Req0),
-	HasBody = cowboy_req:has_body(Req0),
-	Req = handle_req(Method, HasBody, Req0),
-	{ok, Req, Opts}.
+	try
+		Method = cowboy_req:method(Req0),
+		HasBody = cowboy_req:has_body(Req0),
+		Req = handle_req(Method, HasBody, Req0),
+		{ok, Req, Opts}
+	catch
+		Err:Reason ->
+			Req2 = cowboy_req:reply(500, #{}, io_lib:format("Error ~p:~n~p~n", [Err, Reason]), Req0),
+			{ok, Req2, Opts}
+	end.
 
 handle_req(<<"POST">>, true, Req) ->
 		create_event(Req);
 handle_req(<<"POST">>, false, Req) ->
-		cowboy_req:reply(400, [], ?ERR_MISSING_BODY, Req);
+		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
 
 handle_req(<<"GET">>, true, Req) ->
-		cowboy_req:reply(400, [], ?ERR_BODY_IN_A_GET_REQUEST, Req);
+		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
 handle_req(<<"GET">>, false, Req) ->
 		get_event(Req).
 
@@ -29,7 +35,7 @@ create_event(Req) ->
 		IntegerId = binary_to_integer(EventId),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_EVENT_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_EVENT_ID, Req);
 				false ->
 						IntegerTreatmentId = binary_to_integer(TreatmentId),
 						IntegerStaffId = binary_to_integer(StaffMemberId),
@@ -51,7 +57,7 @@ get_event(Req) ->
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_EVENT_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_EVENT_ID, Req);
 				false ->
 						ServerResponse = fmk_core:get_event_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},

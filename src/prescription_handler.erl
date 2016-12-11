@@ -4,23 +4,29 @@
 -export([init/2]).
 
 init(Req0, Opts) ->
-	Method = cowboy_req:method(Req0),
-	HasBody = cowboy_req:has_body(Req0),
-	Req = handle_req(Method, HasBody, Req0),
-	{ok, Req, Opts}.
+	try
+		Method = cowboy_req:method(Req0),
+		HasBody = cowboy_req:has_body(Req0),
+		Req = handle_req(Method, HasBody, Req0),
+		{ok, Req, Opts}
+	catch
+		Err:Reason ->
+			Req2 = cowboy_req:reply(500, #{}, io_lib:format("Error ~p:~n~p~n", [Err, Reason]), Req0),
+			{ok, Req2, Opts}
+	end.
 
 handle_req(<<"POST">>, true, Req) ->
 		create_prescription(Req);
 handle_req(<<"POST">>, false, Req) ->
-		cowboy_req:reply(400, [], ?ERR_MISSING_BODY, Req);
+		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
 
 handle_req(<<"PUT">>, true, Req) ->
 		update_prescription(Req);
 handle_req(<<"PUT">>, false, Req) ->
-		cowboy_req:reply(400, [], ?ERR_MISSING_BODY, Req);
+		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
 
 handle_req(<<"GET">>, true, Req) ->
-		cowboy_req:reply(400, [], ?ERR_BODY_IN_A_GET_REQUEST, Req);
+		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
 handle_req(<<"GET">>, false, Req) ->
 		get_prescription(Req).
 
@@ -41,7 +47,7 @@ create_prescription(Req) ->
 			end,
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						ListDrugs = parse_line(CsvDrugs),
 						ServerResponse = fmk_core:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,ListDrugs),
@@ -65,7 +71,7 @@ update_prescription(Req) ->
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						JsonReply = case DateProcessed of
 								undefined ->
@@ -98,7 +104,7 @@ get_prescription(Req) ->
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						ServerResponse = fmk_core:get_prescription_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
