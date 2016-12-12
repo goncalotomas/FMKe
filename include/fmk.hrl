@@ -13,6 +13,7 @@
 -define (LWWREG, antidote_crdt_lwwreg).
 -define (MAP, antidote_crdt_gmap).
 -define (NESTED_MAP, antidote_crdt_gmap).
+-define (NESTED_RMAP, antidote_crdt_map_rr).
 -define (MVREG, antidote_crdt_mvreg).
 -define (ORSET, antidote_crdt_orset).
 -define (RGA, antidote_crdt_rga).

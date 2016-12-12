@@ -82,16 +82,16 @@ add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,D
   %% now to insert the nested operations inside the prescriptions map
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level staff member update that contains the prescriptions map update
-  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,ListOps),
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_RMAP,StaffPrescriptionsKey,ListOps),
   [StaffPrescriptionsOp].
 
 -spec process_prescription(id(), string()) -> [term()].
-process_prescription(PrescriptionId, CurrentDate) ->
-  PrescriptionUpdate = prescription:process(CurrentDate),
-  %% now to insert the nested operations inside the prescriptions map
+process_prescription(PrescriptionId, _CurrentDate) ->
+  %% remove the prescription from the prescriptions map
+  PrescriptionRemove = antidote_lib:map_remove_elements([PrescriptionId]),
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,StaffPrescriptionsKey,PrescriptionUpdate),
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_RMAP,StaffPrescriptionsKey,[PrescriptionRemove]),
   [StaffPrescriptionsOp].
 
 -spec add_prescription_drugs(id(), [string()]) -> [term()].
@@ -100,7 +100,7 @@ add_prescription_drugs(PrescriptionId, Drugs) ->
   %% now to insert the nested operations inside the prescriptions map
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_MAP,
+  StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_RMAP,
   StaffPrescriptionsKey,PrescriptionUpdate),
   [StaffPrescriptionsOp].
 

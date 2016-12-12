@@ -44,7 +44,8 @@
   counter_decrement/1,
   lwwreg_assign/1,
   set_add_elements/1,
-  set_remove_elements/1
+  set_remove_elements/1,
+  map_remove_elements/1
   ]).
 
 
@@ -224,6 +225,11 @@ set_add_elements(List) ->
 %% Returns an Antidote-compliant operation for removing a list of items from a CRDT set.
 -spec set_remove_elements([term()]) -> crdt_op().
 set_remove_elements(List) ->
+  {remove, build_binary_element_list(List)}.
+
+%% Returns an Antidote-compliant operation for removing a list of entries from a CRDT map.
+-spec map_remove_elements([term()]) -> crdt_op().
+map_remove_elements(List) ->
   {remove, build_binary_element_list(List)}.
 
 -spec build_binary_element_list([term()]) -> [binary()].
