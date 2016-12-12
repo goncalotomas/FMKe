@@ -27,27 +27,26 @@
 %% All Ids must be of type pos_integer() prescription date (DatePrescribed) should
 %% be supplied in binary
 -spec new(id(),id(),id(),id(),id(),string(),[crdt()]) -> [term()].
-new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
+new(Id,PatientId,PrescriberId,PharmacyId,_FacilityId,DatePrescribed,Drugs) ->
   IdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,Id),
   PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
   PharmacyOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
-  FacilityOp = build_id_op(?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT,FacilityId),
   PrescriberOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
   DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DatePrescribed),
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_NOT_PROCESSED),
   [DrugsOp] = add_drugs(Drugs),
-  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
+  [IdOp,PatientOp,PharmacyOp,PrescriberOp,DatePrescribedOp,IsProcessedOp,DrugsOp].
 
 %% Same as new/7, but includes a date that symbolizes when the prescription was processed.
 %% Indentically to new/5, DateEnded should be binary
 -spec new(id(),id(),id(),id(),id(),string(),string(),[crdt()]) -> [term()].
 new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed,Drugs) ->
-  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
+  [IdOp,PatientOp,PharmacyOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,_OldIsProcessedOp,DrugsOp] =
     new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% trying to keep DRY code by calling new/7 and discarding unnecessary ops
   DateProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT,DateProcessed),
   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT,?PRESCRIPTION_PROCESSED),
-  [IdOp,PatientOp,PharmacyOp,FacilityOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
+  [IdOp,PatientOp,PharmacyOp,PrescriberOp,DatePrescribedOp,DateProcessedOp,IsProcessedOp,DrugsOp].
 
 %% Returns the facility ID from an already existant prescription object.
 -spec facility_id(crdt()) -> id().
