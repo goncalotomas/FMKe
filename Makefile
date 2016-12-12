@@ -28,3 +28,7 @@ bench: compile
 
 console: rel
 	./_build/default/rel/fmk/bin/env console
+
+dialyzer:
+	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
+	${REBAR} dialyzer
