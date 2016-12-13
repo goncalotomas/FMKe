@@ -100,7 +100,7 @@ drugs(Prescription) ->
   antidote_lib:find_key(Prescription,?PRESCRIPTION_DRUGS,?PRESCRIPTION_DRUGS_CRDT).
 
 %% Returns the prescription state (if it is processed) from an already existant prescription object.
--spec is_processed(crdt()) -> binary().
+-spec is_processed(crdt()) -> string().
 is_processed(Prescription) ->
   IsProcessed = antidote_lib:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED,?PRESCRIPTION_IS_PROCESSED_CRDT),
   case IsProcessed of

@@ -17,10 +17,8 @@
 start(_StartType, _StartArgs) ->
     Result = case fmk_sup:start_link() of
         {ok, Pid} ->
-              case open_antidote_socket() of
-                ok -> {ok, Pid};
-                _ -> {error, cannot_open_protobuff_socket}
-              end;
+              ok = open_antidote_socket(),
+              {ok, Pid};
         {error, Reason} ->
               {error, Reason}
     end,

@@ -118,7 +118,7 @@ get_event_by_id(Id) ->
   process_get_request(binary_event_key(Id),?MAP).
 
 %% Alternative to get_event_by_id/1, which includes a transactional context.
--spec get_event_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_event_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_event_by_id(Id,Txn) ->
   process_get_request(binary_event_key(Id),?MAP,Txn).
 
@@ -129,7 +129,7 @@ get_facility_by_id(Id) ->
   process_get_request(binary_facility_key(Id),?MAP).
 
 %% Alternative to get_facility_by_id/1, which includes a transactional context.
--spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_facility_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id,Txn) ->
   process_get_request(binary_facility_key(Id),?MAP,Txn).
 
@@ -147,7 +147,7 @@ get_pharmacy_by_id(Id) ->
   process_get_request(binary_pharmacy_key(Id),?MAP).
 
 %% Alternative to get_pharmacy_by_id/1, which includes a transactional context.
--spec get_pharmacy_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_pharmacy_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_id(Id,Txn) ->
   process_get_request(binary_pharmacy_key(Id),?MAP,Txn).
 
@@ -157,7 +157,7 @@ get_patient_by_id(Id) ->
   process_get_request(binary_patient_key(Id),?MAP).
 
 %% Alternative to get_patient_by_id/1, which includes a transactional context.
--spec get_patient_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_patient_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id,Txn) ->
   process_get_request(binary_patient_key(Id),?MAP,Txn).
 
@@ -196,7 +196,7 @@ get_prescription_medication(Id) ->
   end.
 
 %% Alternative to get_prescription_by_id/1, which includes a transactional context.
--spec get_prescription_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_prescription_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id,Txn) ->
   process_get_request(binary_prescription_key(Id),?MAP,Txn).
 
@@ -206,7 +206,7 @@ get_staff_by_id(Id) ->
   process_get_request(binary_staff_key(Id),?MAP).
 
 %% Alternative to get_staff_by_id/1, which includes a transactional context.
--spec get_staff_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_staff_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id,Txn) ->
   process_get_request(binary_staff_key(Id),?MAP,Txn).
 
@@ -347,9 +347,7 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
       taken = check_staff_id(PrescriberId,Txn),
       taken = check_pharmacy_id(PharmacyId,Txn),
       taken = check_facility_id(FacilityId,Txn),
-      ok
-  of
-      ok -> true
+      true
   catch
       error:{badmatch,taken} -> {error, prescription_id_taken};
       error:{badmatch,free} -> {error, one_or_more_ids_is_not_assigned};
@@ -379,7 +377,7 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
           antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
           ok;
       Error ->
-          io:format("~p~n",Error),
+          io:format("~p~n", [Error]),
           Error
   end,
   ok = antidote_lib:txn_commit(Txn),
