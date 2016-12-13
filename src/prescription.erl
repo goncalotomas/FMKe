@@ -51,37 +51,36 @@ new(Id,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,DateProcessed
 %% Returns the facility ID from an already existant prescription object.
 -spec facility_id(crdt()) -> id().
 facility_id(Prescription) ->
-  R = antidote_lib:find_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT),
-  binary_to_integer(R).
+  antidote_lib:find_int_key(Prescription,?PRESCRIPTION_FACILITY_ID,?PRESCRIPTION_FACILITY_ID_CRDT).
 
 %% Returns the pharmacy ID from an already existant prescription object.
 -spec pharmacy_id(crdt()) -> id().
 pharmacy_id(Prescription) ->
-  R = antidote_lib:find_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT),
-    binary_to_integer(R).
+  antidote_lib:find_int_key(Prescription,?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT).
 
 %% Returns the prescriber ID from an already existant prescription object.
 -spec prescriber_id(crdt()) -> id().
 prescriber_id(Prescription) ->
-  R = antidote_lib:find_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT),
-  binary_to_integer(R).
+  antidote_lib:find_int_key(Prescription,?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT).
 
 %% Returns the prescription ID from an already existant prescription object.
 -spec id(crdt()) -> id().
 id(Prescription) ->
-  R = antidote_lib:find_key(Prescription,?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT),
-  binary_to_integer(R).
+  antidote_lib:find_int_key(Prescription,?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT).
 
 %% Returns the patient ID from an already existant prescription object.
 -spec patient_id(crdt()) -> id().
 patient_id(Prescription) ->
-  R = antidote_lib:find_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT),
-  binary_to_integer(R).
+  antidote_lib:find_int_key(Prescription,?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT).
 
 %% Returns the prescription date from an already existant prescription object.
 -spec date_prescribed(crdt()) -> string().
 date_prescribed(Prescription) ->
-  binary_to_list(antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT)).
+  case antidote_lib:find_key(Prescription,?PRESCRIPTION_DATE_PRESCRIBED,?PRESCRIPTION_DATE_PRESCRIBED_CRDT) of
+    not_found -> "not_found";
+    X -> binary_to_list(X)
+  end.
+
 
 %% Returns the processing date from an already existant prescription object.
 -spec date_processed(crdt()) -> string().
