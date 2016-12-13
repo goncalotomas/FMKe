@@ -318,16 +318,10 @@ update_prescription_medication(Id,add_drugs,Drugs) ->
       PrescriberKey = binary_staff_key(PrescriberId),
       %% build nested updates for patients, pharmacies, facilities and the prescriber
       PatientUpdate = patient:add_prescription_drugs(Id,Drugs),
-      PharmacyUpdate = pharmacy:add_prescription_drugs(Id,Drugs),
-      PrescriberUpdate = staff:add_prescription_drugs(Id,Drugs),
       %% update top level prescription
       antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,Txn),
       %% add to patient prescriptions
       antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-      %% add to pharmacy prescriptions
-      antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
-      %% add to the prescriber's prescriptions
-      antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
       ok
   end,
   ok = antidote_lib:txn_commit(Txn),

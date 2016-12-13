@@ -332,12 +332,7 @@ generate_url(Address,Port,Path) ->
   list_to_binary("http://" ++ Address ++ ":" ++ Port ++ "/" ++ Path).
 
 gen_prescription_drugs() ->
-    case rand:uniform(3) of
-        1 -> get_random_drug();
-        2 -> get_random_drug() ++ "," ++ get_random_drug();
-        3 -> get_random_drug() ++ "," ++ get_random_drug() ++ "," ++ get_random_drug();
-        _ -> get_random_drug()
-    end.
+    integer_to_list(rand:uniform(10)).
 
 get_random_drug() ->
     binary_to_list(base64:encode(crypto:strong_rand_bytes(16))). % 16 characters
