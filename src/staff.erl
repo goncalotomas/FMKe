@@ -84,7 +84,6 @@ add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,D
   %% return a top level staff member update that contains the prescriptions map update
 
   StaffPrescriptionsOp = {{?STAFF_PRESCRIPTIONS, ?NESTED_RMAP}, {update,{{StaffPrescriptionsKey,?NESTED_RMAP}, {update, ListOps}}}},
-  io:format("staff prescription update: ~p~n", [StaffPrescriptionsOp]),
 
   %StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_RMAP,StaffPrescriptionsKey,ListOps),
   [StaffPrescriptionsOp].

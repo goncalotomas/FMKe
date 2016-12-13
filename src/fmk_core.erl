@@ -511,37 +511,37 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
 
 %% Builds the patient key inside Antidote given the patient ID.
 -spec binary_patient_key(id()) -> binary().
-binary_patient_key(Id) ->
+binary_patient_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(patient,Id)).
 
 %% Builds the pharmacy key inside Antidote given the pharmacy ID.
 -spec binary_pharmacy_key(id()) -> binary().
-binary_pharmacy_key(Id) ->
+binary_pharmacy_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(pharmacy,Id)).
 
 %% Builds the facility key inside Antidote given the facility ID.
 -spec binary_facility_key(id()) -> binary().
-binary_facility_key(Id) ->
+binary_facility_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(facility,Id)).
 
 %% Builds the staff member key inside Antidote given the staff member ID.
 -spec binary_staff_key(id()) -> binary().
-binary_staff_key(Id) ->
+binary_staff_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(staff,Id)).
 
 %% Builds the prescription key inside Antidote given the prescription ID.
 -spec binary_prescription_key(id()) -> binary().
-binary_prescription_key(Id) ->
+binary_prescription_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(prescription,Id)).
 
 %% Builds the treatment key inside Antidote given the treatment ID.
 -spec binary_treatment_key(id()) -> binary().
-binary_treatment_key(Id) ->
+binary_treatment_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(treatment,Id)).
 
 %% Builds the event key inside Antidote given the event ID.
 -spec binary_event_key(id()) -> binary().
-binary_event_key(Id) ->
+binary_event_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(event,Id)).
 
 process_prescription(Id,Date) ->
