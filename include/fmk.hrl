@@ -44,21 +44,21 @@
 
 %% Prescription macros
 -define (PRESCRIPTION_ID, <<"prescription_id">>).
--define (PRESCRIPTION_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PATIENT_ID, <<"prescription_patient_id">>).
--define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PRESCRIBER_ID, <<"prescription_prescriber_id">>).
--define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PHARMACY_ID, <<"prescription_pharmacy_id">>).
--define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_FACILITY_ID, <<"prescription_facility_id">>).
--define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DATE_PRESCRIBED, <<"prescription_date_prescribed">>).
--define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_IS_PROCESSED, <<"prescription_is_processed">>).
--define (PRESCRIPTION_IS_PROCESSED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_IS_PROCESSED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DATE_PROCESSED, <<"prescription_date_processed">>).
--define (PRESCRIPTION_DATE_PROCESSED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_DATE_PROCESSED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, antidote_crdt_orset).
 -define (PRESCRIPTION_NOT_PROCESSED, "prescription_not_processed").
@@ -96,7 +96,7 @@
 -define (STAFF_SPECIALITY, <<"staff_speciality">>).
 -define (STAFF_SPECIALITY_CRDT, antidote_crdt_lwwreg).
 -define (STAFF_PRESCRIPTIONS, <<"staff_prescriptions">>).
--define (STAFF_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+-define (STAFF_PRESCRIPTIONS_CRDT, antidote_crdt_map_rr).
 -define (STAFF_TREATMENTS, <<"staff_treatments">>).
 -define (STAFF_TREATMENTS_CRDT, antidote_crdt_gmap).
 

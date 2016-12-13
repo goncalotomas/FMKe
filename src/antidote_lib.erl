@@ -45,7 +45,7 @@
   lwwreg_assign/1,
   set_add_elements/1,
   set_remove_elements/1,
-  map_remove_elements/1
+  build_binary_element_list/1
   ]).
 
 
@@ -141,8 +141,13 @@ txn_update_map(Object,Op,ListOps,TxnDetails,Actor)->
 find_key(Map, Key, KeyType) ->
   case lists:keyfind({Key,KeyType},1,Map) of
     false -> not_found;
-    {{Key,KeyType},Value} -> Value
+    {{Key,KeyType},Value} ->
+        case KeyType of
+          antidote_crdt_mvreg -> hd(Value);
+          _ -> Value
+        end
   end.
+
 
 %% ------------------------------------------------------------------------------------------------
 %% Simple API - Recommended way to interact with Antidote
@@ -227,10 +232,6 @@ set_add_elements(List) ->
 set_remove_elements(List) ->
   {remove, build_binary_element_list(List)}.
 
-%% Returns an Antidote-compliant operation for removing a list of entries from a CRDT map.
--spec map_remove_elements([term()]) -> crdt_op().
-map_remove_elements(List) ->
-  {remove, build_binary_element_list(List)}.
 
 -spec build_binary_element_list([term()]) -> [binary()].
 build_binary_element_list(NormalList) ->
