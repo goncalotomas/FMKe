@@ -7,8 +7,6 @@
 
 -define (TIMEOUT, 5000).
 
--define (MAX_ACTIVE_PRESCRIPTIONS, 1000).
-
 -record(state,
   {
     pid,
@@ -81,7 +79,7 @@ new(Id) ->
         fmk_server_ip = TargetNode,
         fmk_server_port = integer_to_list(TargetPort),
         http_connection = ConnRef,
-        created_prescriptions = queue:new()
+        created_prescriptions = []
       }
     }.
 
@@ -129,8 +127,20 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
             case proplists:get_value(<<"success">>, JsonResponse) of
                 true ->
                     {ok,
-                        State#state {
-                            created_prescriptions = queue:in(PrescriptionId, State#state.created_prescriptions)
+                        #state {
+                            pid = State#state.pid,
+                            numpatients = State#state.numpatients,
+                            numpharmacies = State#state.numpharmacies,
+                            numstaff = State#state.numstaff,
+                            numfacilities = State#state.numfacilities,
+                            numprescriptions = State#state.numprescriptions,
+                            zipf_size = State#state.zipf_size,
+                            zipf_skew = State#state.zipf_skew,
+                            zipf_bottom = State#state.zipf_bottom,
+                            fmk_server_ip = State#state.fmk_server_ip,
+                            fmk_server_port = State#state.fmk_server_port,
+                            http_connection = State#state.http_connection,
+                            created_prescriptions = State#state.created_prescriptions ++ [PrescriptionId]
                         }};
                 _ ->
                     Reason = proplists:get_value(<<"result">>, JsonResponse),
@@ -147,7 +157,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "pharmacies/" ++ integer_to_list(PharmacyId) ++ "/prescriptions",
+    Path = "pharmacies/" ++ integer_to_list(PharmacyId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -179,7 +189,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "staff/" ++ integer_to_list(StaffId) ++ "/prescriptions",
+    Path = "staff/" ++ integer_to_list(StaffId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -196,7 +206,7 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     FmkServerPort = State#state.fmk_server_port,
     HttpConn = State#state.http_connection,
     Method = get,
-    Path = "pharmacies/" ++ integer_to_list(PharmacyId) ++ "/processed_prescriptions",
+    Path = "pharmacies/" ++ integer_to_list(PharmacyId),
     URL = generate_url(FmkServerAddress,FmkServerPort,Path),
     Headers = [{<<"Connection">>, <<"keep-alive">>}],
     Payload = <<>>,
@@ -222,12 +232,18 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
-    {OldestCreatedPrescription, NewCreatedPrescriptions} = queue:out(State#state.created_prescriptions),
     PrescriptionId =
-        case OldestCreatedPrescription of
-            {value, Id} -> Id;
-            empty -> rand:uniform(NumPrescriptions)
-        end,
+      case State#state.created_prescriptions of
+          [] -> rand:uniform(NumPrescriptions);
+          [H] -> H;
+          [H|_T] -> H
+      end,
+    NewCreatedPrescriptions =
+      case State#state.created_prescriptions of
+          [] -> [];
+          [_H2] -> [];
+          [_H2|T2] -> T2
+      end,
 
     DateProcessed = get_random_date(),
     FmkServerAddress = State#state.fmk_server_ip,
@@ -240,31 +256,31 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Payload = jsx:encode([{date_processed,DateProcessed}]),
     Req = {Method, URL, Headers, Payload},
 
-    Res = fmk_request(HttpConn, Req, State,
+    fmk_request(HttpConn, Req, State,
         fun(Json, State) ->
             case proplists:get_value(<<"success">>, Json) of
                 true ->
                     {ok,
-                        State#state {
+                        #state {
+                            pid = State#state.pid,
+                            numpatients = State#state.numpatients,
+                            numpharmacies = State#state.numpharmacies,
+                            numstaff = State#state.numstaff,
+                            numfacilities = State#state.numfacilities,
+                            numprescriptions = State#state.numprescriptions,
+                            zipf_size = State#state.zipf_size,
+                            zipf_skew = State#state.zipf_skew,
+                            zipf_bottom = State#state.zipf_bottom,
+                            fmk_server_ip = State#state.fmk_server_ip,
+                            fmk_server_port = State#state.fmk_server_port,
+                            http_connection = State#state.http_connection,
                             created_prescriptions = NewCreatedPrescriptions
                         }};
                 _ ->
                     Reason = proplists:get_value(<<"result">>, Json),
                     {error, Reason, State}
             end
-        end),
-    case Res of
-        {ok, NewState} ->
-            case queue:len(NewCreatedPrescriptions) > ?MAX_ACTIVE_PRESCRIPTIONS of
-                true ->
-                    % remove more prescriptions
-                    run(update_prescription, 0, 0, NewState);
-                false ->
-                    Res
-            end;
-        _ ->
-            Res
-    end;
+        end);
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
@@ -332,8 +348,6 @@ get_random_date() ->
 fmk_request(HttpConn, Req, State) ->
     fmk_request(HttpConn, Req, State, fun simple_response_handler/2).
 
-
-
 fmk_request(_HttpConn, Req, State, Handler) ->
     {Method, URL, Headers, Payload} = Req,
     Options = [],
@@ -348,20 +362,6 @@ fmk_request(_HttpConn, Req, State, Handler) ->
         {error, Reason} ->
             {error, {send_request_failed, Reason, Req}, State}
     end.
-
-
-%%fmk_request(HttpConn, Req, State, Handler) ->
-%%    case hackney:send_request(HttpConn,Req) of
-%%        {ok, 200, _RespHeaders, Ref} ->
-%%            {ok, Body} = hackney:body(Ref),
-%%            Json = decode_json(Body),
-%%            Handler(Json, State);
-%%        {ok, Status, _RespHeaders, Ref} ->
-%%            {ok, Body} = hackney:body(Ref),
-%%            {error, {request_failed, Status, split_lines(binary_to_list(Body))}, State};
-%%        {error, Reason} ->
-%%            {error, {send_request_failed, Reason, Req}, State}
-%%    end.
 
 split_lines([]) -> [];
 split_lines(S) ->

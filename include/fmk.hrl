@@ -40,7 +40,7 @@
 -define (PHARMACY_ADDRESS, <<"patient_address">>).
 -define (PHARMACY_ADDRESS_CRDT, antidote_crdt_lwwreg).
 -define (PHARMACY_PRESCRIPTIONS, <<"pharmacy_prescriptions">>).
--define (PHARMACY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+-define (PHARMACY_PRESCRIPTIONS_CRDT, antidote_crdt_map_rr).
 
 %% Prescription macros
 -define (PRESCRIPTION_ID, <<"prescription_id">>).
@@ -109,8 +109,8 @@
 -define (FACILITY_ADDRESS_CRDT, antidote_crdt_lwwreg).
 -define (FACILITY_TYPE, <<"facility_type">>).
 -define (FACILITY_TYPE_CRDT, antidote_crdt_lwwreg).
--define (FACILITY_PRESCRIPTIONS, <<"facility_prescriptions">>).
--define (FACILITY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+%-define (FACILITY_PRESCRIPTIONS, <<"facility_prescriptions">>).
+%-define (FACILITY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
 -define (FACILITY_TREATMENTS, <<"facility_treatments">>).
 -define (FACILITY_TREATMENTS_CRDT, antidote_crdt_gmap).
 

@@ -91,10 +91,8 @@ add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,D
 -spec process_prescription(id(), string()) -> [term()].
 process_prescription(PrescriptionId, _CurrentDate) ->
   %% remove the prescription from the prescriptions map
-  %PrescriptionRemove = antidote_lib:map_remove_elements([PrescriptionId],?NESTED_RMAP),
   StaffPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
   %% return a top level patient update that contains the prescriptions map update
-
   StaffPrescriptionsOp = {{?STAFF_PRESCRIPTIONS, ?NESTED_RMAP}, {remove,{StaffPrescriptionsKey,?NESTED_RMAP}}},
 
   %% StaffPrescriptionsOp = antidote_lib:build_nested_map_op(?STAFF_PRESCRIPTIONS,?NESTED_RMAP,StaffPrescriptionsKey,[PrescriptionRemove]),
