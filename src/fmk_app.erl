@@ -17,8 +17,10 @@
 start(_StartType, _StartArgs) ->
     Result = case fmk_sup:start_link() of
         {ok, Pid} ->
-              ok = open_antidote_socket(),
-              {ok, Pid};
+              case open_antidote_socket() of
+                {ok,_} -> {ok, Pid};
+                Err -> {error, {cannot_open_protobuff_socket, Err}}
+              end;
         {error, Reason} ->
               {error, Reason}
     end,
@@ -28,10 +30,13 @@ start(_StartType, _StartArgs) ->
         {"/prescriptions/[:id]", prescription_handler, []},
         {"/patients/[:id]", patient_handler, []},
         {"/pharmacies/[:id]", pharmacy_handler, []},
+        {"/pharmacies/[:id]/prescriptions", pharmacy_handler, prescriptions},
+        {"/pharmacies/[:id]/processed_prescriptions", pharmacy_handler, processed_prescriptions},
         {"/facilities/[:id]", facility_handler, []},
         {"/treatments/[:id]", treatment_handler, []},
         {"/events/[:id]", event_handler, []},
-        {"/staff/[:id]", staff_handler, []}
+        {"/staff/[:id]", staff_handler, []},
+        {"/staff/[:id]/prescriptions", staff_handler, prescriptions}
       ]}
     ]),
     HttpPort = list_to_integer(fmk_config:get(http_port,9090)),
@@ -61,8 +66,7 @@ open_antidote_socket() ->
     set_application_variable(antidote_port,"ANTIDOTE_PB_PORT",?DEFAULT_ANTIDOTE_PORT),
     AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
     AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
-    {ok, _} =antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]),
-    ok.
+    antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]).
 
 close_antidote_socket() ->
     AntidotePbPid = fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined),

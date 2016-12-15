@@ -50,7 +50,9 @@
 
 
 
+-export_type([update/0]).
 
+-type update() :: {{binary(), atom(), binary()}, atom(), any()}. % {bound_object(), op_name(), op_param()}
 
 
 
@@ -83,6 +85,7 @@ txn_read_object(Object, {Pid, TxnDetails}) ->
 
 %% A wrapper for Antidote's read_objects function
 -spec txn_read_objects(Objects :: [bound_object()], TxnDetails :: txid()) -> [term()].
+txn_read_objects([], _) -> [];
 txn_read_objects(Objects, {Pid, TxnDetails}) ->
   {ok, Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
   Values.
@@ -93,7 +96,8 @@ txn_update_object(ObjectUpdate, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, [ObjectUpdate], TxnDetails).
 
 %% A wrapper for Antidote's update_objects function
--spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid()) -> ok.
+-spec txn_update_objects([update()], txid()) -> ok.
+txn_update_objects([], _) -> ok;
 txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 

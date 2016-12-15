@@ -32,7 +32,8 @@
   update_pharmacy_details/3,
   update_facility_details/4,
   update_staff_details/4,
-  update_prescription_medication/3
+  update_prescription_medication/3,
+  error_to_binary/1
   ]).
 
 %% Exports needed for other modules
@@ -341,26 +342,21 @@ update_prescription_medication(_Id,_action,_Drugs) -> {error,undefined}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
-  ChecksOk = try
-      free = check_prescription_id(PrescriptionId,Txn),
-      taken = check_patient_id(PatientId,Txn),
-      taken = check_staff_id(PrescriberId,Txn),
-      taken = check_pharmacy_id(PharmacyId,Txn),
-      taken = check_facility_id(FacilityId,Txn),
-      true
-  catch
-      error:{badmatch,taken} -> {error, prescription_id_taken};
-      error:{badmatch,free} -> {error, one_or_more_ids_is_not_assigned};
-      _Other -> {error, unknown}
-  end,
+  PrescriptionKey = binary_prescription_key(PrescriptionId),
+  PatientKey = binary_patient_key(PatientId),
+  PharmacyKey = binary_pharmacy_key(PharmacyId),
+  PrescriberKey = binary_staff_key(PrescriberId),
+  FacilityKey = binary_facility_key(FacilityId),
+  ChecksOk = check_refs([
+    {free, PrescriptionKey},
+    {taken, PatientKey},
+    {taken, PrescriberKey},
+    {taken, PharmacyKey},
+    {taken, FacilityKey}
+  ], Txn),
 
   Result = case ChecksOk of
       true ->
-          %% gather required antidote keys
-          PrescriptionKey = binary_prescription_key(PrescriptionId),
-          PatientKey = binary_patient_key(PatientId),
-          PharmacyKey = binary_pharmacy_key(PharmacyId),
-          PrescriberKey = binary_staff_key(PrescriberId),
           %% build top level update for the prescription
           TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
           %% build nested updates for patients, pharmacies, facilities and the prescriber
@@ -664,3 +660,27 @@ process_get_request(Key,Type,Txn) ->
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->
   [Prescription || {_PrescriptionHeader,Prescription} <- PharmacyPrescriptions, prescription:is_processed(Prescription)==?PRESCRIPTION_PROCESSED].
+
+check_refs(Checks, Txn) ->
+  Keys = [antidote_lib:create_bucket(Key, antidote_crdt_gmap) || {_, Key} <- Checks],
+  Objects = antidote_lib:txn_read_objects(Keys, Txn),
+  try
+    [case {Exp, Obj} of
+       {taken, []} ->
+         error({key_does_not_exist, Key});
+       {taken, _} ->
+         ok;
+       {free, []} ->
+         ok;
+       {free, _} ->
+         error({key_not_free, Key})
+     end
+      || {{_Crdt, Obj}, {Exp, Key}} <- lists:zip(Objects, Checks)],
+    true
+  catch
+    error:Reason -> {error, Reason}
+  end.
+
+
+error_to_binary(Reason) ->
+  list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).

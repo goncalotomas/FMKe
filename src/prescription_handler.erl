@@ -11,7 +11,9 @@ init(Req0, Opts) ->
 		{ok, Req, Opts}
 	catch
 		Err:Reason ->
-			Req2 = cowboy_req:reply(500, #{}, io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]), Req0),
+			ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
+			io:format(ErrorMessage),
+			Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
 			{ok, Req2, Opts}
 	end.
 
@@ -54,7 +56,7 @@ create_prescription(Req) ->
 						Success = ServerResponse =:= ok,
 						Result = case ServerResponse of
 								ok -> ServerResponse;
-								{error, Reason} -> Reason
+          {error, Reason} -> fmk_core:error_to_binary(Reason)
 						end,
 						JsonReply =	jsx:encode([{success,Success},{result,Result}]),
 						cowboy_req:reply(200, #{
@@ -83,13 +85,18 @@ update_prescription(Req) ->
 														DrugsList = parse_line(CsvDrugs),
 														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,DrugsList),
 														Success = ServerResponse =:= ok,
-														jsx:encode([{success,Success},{result,ServerResponse}])
+														Result =
+														  case ServerResponse of
+														    {error, Reason} -> fmk_core:error_to_binary(Reason);
+														    ok -> ServerResponse
+														  end,
+														jsx:encode([{success, Success}, {result, Result}])
 										end;
 								_Date ->
 										ServerResponse = fmk_core:process_prescription(IntegerId,DateProcessed),
 										Success = ServerResponse =:= ok,
 										Result = case ServerResponse of
-											{error, Reason} -> Reason;
+											{error, Reason} -> fmk_core:error_to_binary(Reason);
 											ok -> ServerResponse
 										end,
 										jsx:encode([{success,Success},{result,Result}])
@@ -112,7 +119,7 @@ get_prescription(Req) ->
 								true ->
 										jsx:encode([{success,Success},{result,crdt_json_encoder:encode_object(prescription,ServerResponse)}]);
 								false ->
-										jsx:encode([{success,Success},{result,ServerResponse}])
+										jsx:encode([{success,Success},{result,fmk_core:error_to_binary(ServerResponse)}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
