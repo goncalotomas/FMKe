@@ -121,35 +121,33 @@ run(create_prescription, _GeneratedKey, _GeneratedValue, State) ->
 
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            JsonResponse = decode_json(Body),
+
+    fmk_request(HttpConn, Req, State,
+        fun(JsonResponse, State) ->
             case proplists:get_value(<<"success">>, JsonResponse) of
                 true ->
-                      {ok,
-                          #state {
-                              pid = State#state.pid,
-                              numpatients = State#state.numpatients,
-                              numpharmacies = State#state.numpharmacies,
-                              numstaff = State#state.numstaff,
-                              numfacilities = State#state.numfacilities,
-                              numprescriptions = State#state.numprescriptions,
-                              zipf_size = State#state.zipf_size,
-                              zipf_skew = State#state.zipf_skew,
-                              zipf_bottom = State#state.zipf_bottom,
-                              fmk_server_ip = State#state.fmk_server_ip,
-                              fmk_server_port = State#state.fmk_server_port,
-                              http_connection = State#state.http_connection,
-                              created_prescriptions = State#state.created_prescriptions ++ [PrescriptionId]
-                      }};
+                    {ok,
+                        #state {
+                            pid = State#state.pid,
+                            numpatients = State#state.numpatients,
+                            numpharmacies = State#state.numpharmacies,
+                            numstaff = State#state.numstaff,
+                            numfacilities = State#state.numfacilities,
+                            numprescriptions = State#state.numprescriptions,
+                            zipf_size = State#state.zipf_size,
+                            zipf_skew = State#state.zipf_skew,
+                            zipf_bottom = State#state.zipf_bottom,
+                            fmk_server_ip = State#state.fmk_server_ip,
+                            fmk_server_port = State#state.fmk_server_port,
+                            http_connection = State#state.http_connection,
+                            created_prescriptions = State#state.created_prescriptions ++ [PrescriptionId]
+                        }};
                 _ ->
-                  Reason = proplists:get_value(<<"result">>, JsonResponse),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+                    Reason = proplists:get_value(<<"result">>, JsonResponse),
+                    {error, Reason, State}
+            end
+        end
+        );
 
 run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     NumPharmacies = State#state.numpharmacies,
@@ -165,20 +163,7 @@ run(get_pharmacy_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
@@ -194,20 +179,7 @@ run(get_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     NumStaff = State#state.numstaff,
@@ -223,20 +195,7 @@ run(get_staff_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     NumPharmacies = State#state.numpharmacies,
@@ -253,20 +212,7 @@ run(get_processed_prescriptions, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     NumPatients = State#state.numpatients,
@@ -282,20 +228,7 @@ run(get_patient, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
@@ -323,10 +256,8 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Payload = jsx:encode([{date_processed,DateProcessed}]),
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
+    fmk_request(HttpConn, Req, State,
+        fun(Json, State) ->
             case proplists:get_value(<<"success">>, Json) of
                 true ->
                     {ok,
@@ -344,14 +275,12 @@ run(update_prescription, _GeneratedKey, _GeneratedValue, State) ->
                             fmk_server_port = State#state.fmk_server_port,
                             http_connection = State#state.http_connection,
                             created_prescriptions = NewCreatedPrescriptions
-                    }};
+                        }};
                 _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+                    Reason = proplists:get_value(<<"result">>, Json),
+                    {error, Reason, State}
+            end
+        end);
 
 run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
@@ -368,20 +297,7 @@ run(update_prescription_medication, _GeneratedKey, _GeneratedValue, State) ->
     Payload = jsx:encode([{drugs,Drugs}]),
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end;
+    fmk_request(HttpConn, Req, State);
 
 run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     NumPrescriptions = State#state.numprescriptions,
@@ -397,20 +313,7 @@ run(get_prescription, _GeneratedKey, _GeneratedValue, State) ->
     Payload = <<>>,
     Req = {Method, URL, Headers, Payload},
 
-    case hackney:send_request(HttpConn,Req) of
-        {ok, _Status, _RespHeaders, HttpConn} ->
-            {ok, Body} = hackney:body(HttpConn),
-            Json = decode_json(Body),
-            case proplists:get_value(<<"success">>, Json) of
-                true ->
-                      {ok,State};
-                _ ->
-                  Reason = proplists:get_value(<<"result">>, Json),
-                  {error, Reason, State}
-            end;
-        {error, Reason} ->
-            {error, Reason, State}
-    end.
+    fmk_request(HttpConn, Req, State).
 
 decode_json(Body) ->
     try
@@ -437,7 +340,40 @@ gen_prescription_drugs() ->
     end.
 
 get_random_drug() ->
-    binary_to_list(base64:encode(crypto:strong_rand_bytes(16))). % 16 characters
+    integer_to_list(rand:uniform(10)).
 
 get_random_date() ->
     binary_to_list(base64:encode(crypto:strong_rand_bytes(8))). % 8 character "date"
+
+fmk_request(HttpConn, Req, State) ->
+    fmk_request(HttpConn, Req, State, fun simple_response_handler/2).
+
+fmk_request(_HttpConn, Req, State, Handler) ->
+    {Method, URL, Headers, Payload} = Req,
+    Options = [],
+    case hackney:request(Method, URL,Headers, Payload, Options) of
+        {ok, 200, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            Json = decode_json(Body),
+            Handler(Json, State);
+        {ok, Status, _RespHeaders, HttpConn} ->
+            {ok, Body} = hackney:body(HttpConn),
+            {error, {request_failed, Status, split_lines(binary_to_list(Body))}, State};
+        {error, Reason} ->
+            {error, {send_request_failed, Reason, Req}, State}
+    end.
+
+split_lines([]) -> [];
+split_lines(S) ->
+    case lists:splitwith(fun(C) -> C /= 10 end, S) of
+        {Start, []} -> [Start];
+        {Start, [10|End]} -> [Start|split_lines(End)]
+    end.
+
+simple_response_handler(Json, State) ->
+    case proplists:get_value(<<"success">>, Json) of
+        true ->
+            {ok, State};
+        _ ->
+            {error, Json, State}
+    end.

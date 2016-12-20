@@ -11,6 +11,10 @@ compile:
 	cp ${BENCH}/include/basho_bench.hrl ./include/
 	erlc test/${CLIENT}.erl
 	mv ${CLIENT}.beam ${EBIN}/
+	rm -rf ${BENCH}/_build/default/lib/antidote_pb
+	cp -r _build/default/lib/antidote_pb ${BENCH}/_build/default/lib/antidote_pb
+	rm -rf ${BENCH}/_build/default/lib/riak_pb
+	cp -r _build/default/lib/riak_pb ${BENCH}/_build/default/lib/riak_pb
 
 rel:
 	rm -rf _build/default/rel/
@@ -28,3 +32,7 @@ bench: compile
 
 console: rel
 	./_build/default/rel/fmk/bin/env console
+
+dialyzer:
+	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
+	${REBAR} dialyzer
