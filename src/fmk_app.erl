@@ -93,7 +93,7 @@ close_antidote_socket() ->
 parse_list_from_env_var(String) ->
   io:format("RECEIVED: ~p\n",[String]),
     try
-        string:tokens(String,",") %% CSV style
+        [list_to_atom(X) || X <- string:tokens(String,",")] %% CSV style
     catch
         _:_  ->
             bad_input_format
