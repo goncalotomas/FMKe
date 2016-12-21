@@ -55,7 +55,7 @@ stop(_State) ->
 set_application_variable(antidote_address, "ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS) ->
   %% try to load value from environment variable
   Default = os:getenv("ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS),
-  ListAddresses = parse_list_from_env_var(Default),
+  ListAddresses = [list_to_atom(X) || X <- parse_list_from_env_var(Default)],
   Value = application:get_env(?APP,antidote_address,ListAddresses),
   fmk_config:set(antidote_address,Value),
   Value;
@@ -93,7 +93,7 @@ close_antidote_socket() ->
 parse_list_from_env_var(String) ->
   io:format("RECEIVED: ~p\n",[String]),
     try
-        [list_to_atom(X) || X <- string:tokens(String,",")] %% CSV style
+        string:tokens(String,",") %% CSV style
     catch
         _:_  ->
             bad_input_format
