@@ -40,22 +40,26 @@ with_connection(Fun) ->
 %%%===================================================================
 
 init(_Options) ->
-  AntidotePort = list_to_integer(fmk_config:get(antidote_port, "8087")),
-  AntidoteAddress = fmk_config:get(antidote_address,'127.0.0.1'),
+  ListAntidotePorts = fmk_config:get(antidote_port, ["8087"]),
+  ListAntidoteAddresses = fmk_config:get(antidote_address,["127.0.0.1"]),
   PoolArgs = [
     {name, {local, antidote_connection_pool}},
     {worker_module, ?MODULE},
     {size, 30},
     {max_overflow, 0}
   ],
-  WorkerArgs = [AntidoteAddress, AntidotePort],
+  WorkerArgs = [ListAntidoteAddresses, ListAntidotePorts],
   PoolSpec = poolboy:child_spec(antidote_connection_pool, PoolArgs, WorkerArgs),
   {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
 
 
 
-start_link([Hostname, Port]) ->
+start_link([ListHostnames, ListPorts]) ->
+  true = length(ListHostnames) =:= length(ListPorts),
+  Index = rand:uniform(length(ListHostnames)),
+  Hostname = lists:nth(Index,ListHostnames),
+  Port = list_to_integer(lists:nth(Index,ListPorts)),
   io:format("Connecting to ~p:~p~n", [Hostname, Port]),
   {ok, Pid} = antidotec_pb_socket:start_link(Hostname, Port),
   io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),
