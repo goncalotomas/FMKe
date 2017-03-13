@@ -26,13 +26,19 @@
 -export([
   init/1,
   get_key/3, %% Returns status {({ok, object}| {error, reason}), context}
-  get_list_of_keys/3, %% Returns status {({ok, list(object)} | {error, reason}), context}
-  put/4, %% Return status {(ok | error), context}
+  %get_list_of_keys/3, %% Returns status {({ok, list(object)} | {error, reason}), context}
+  %put/4, %% Return status {(ok | error), context}
   start_transaction/1, %% Return status {(ok | error), context}
-  commit_transaction/2, %% Return status {(ok | error), context} <-- TRANSACTION_ID MUST BE REMOVED FROM INTERFACE
-  execute_local_op/3, %% Return {obj}
-  create_obj/2 %% Return {obj}
+  commit_transaction/1 %% Return status {(ok | error), context}
+  %execute_local_op/3, %% Return {obj}
+  %create_obj/2 %% Return {obj}
 ]).
+
+-export([
+    get_counter/2, %{({ok, integer()} | error), context}.
+    inc_counter/3, %{({ok, integer()} | error), context}.
+    dec_counter/3 %{({ok, integer()} | error), context}.
+        ]).
 
 %% Context is a tuple {riak, Pid}.
 %% Key is a tuple {<<"BUCKET">>, <<"KEY">>}.
@@ -54,14 +60,13 @@ adapt_to_riak({Bucket, Key}, Type) ->
     TypeString = lists:flatten(["\"",atom_to_list(Type),"\""]),
     BucketBinary = list_to_binary(Bucket),
     KeyBinary = list_to_binary(Key),
-    TypeBinary = list_to_binary(TypeString),
-    {TypeBinary, BucketBinary, KeyBinary};
+    {{TypeString, BucketBinary}, KeyBinary}.
 
-adapt_to_riak(Bucket, Type) ->
-    TypeString = lists:flatten(["\"",atom_to_list(Type),"\""]),
-    BucketBinary = list_to_binary(Bucket),
-    TypeBinary = list_to_binary(TypeString),
-    {TypeBinary, BucketBinary}.
+%adapt_to_riak(Bucket, Type) ->
+%    TypeString = lists:flatten(["\"",atom_to_list(Type),"\""]),
+%    BucketBinary = list_to_binary(Bucket),
+%    TypeBinary = list_to_binary(TypeString),
+%    {TypeBinary, BucketBinary}.
 
 %%ATTENTION: Does not manage multiple connections
 init({[NodeAddress | _OtherNA] , [Port | _OP], HeadNodeName, HeadNodeCookie}) ->
@@ -73,38 +78,64 @@ init({[NodeAddress | _OtherNA] , [Port | _OP], HeadNodeName, HeadNodeCookie}) ->
         Other -> {error, Other}
     end.
 
-get_key(Key, Type, Context = {riak, Pid}) ->
-    {T, B, K} = adapt_to_riak(Key, Type),
-    case riakc_pb_socket:fetch_type(Pid, {T, B}, K) of
-        {ok, Obj} ->
-            {{ok, Obj}, Context};
-        {error, Reason} -> {{error, Reason}, Context}
-    end.
-
-%Riak does not support this, do we really need it?
-get_list_of_keys(Table, TableType, {riak, Pid} = Context) ->
-    {T, B} = adapt_to_riak(Table, TableType),
-    Result = riakc_pb_socket:list_keys(Pid, {T, B}),
-    {Result, Context}.
-
-put(Key, Type, Object, {riak, Pid} = Context) ->
-    {T, B, K} = adapt_to_riak(Key, Type),
+%NEED TO TEST IF DICTIONARY SUPPORTS THE KEY USED.
+%NEED TO CHECK IF CACHE IS WORKING PROPERLY.
+get_key(Key, Type, Context = {riak_tx, Pid, RiakObjs}) ->
+    {B, K} = RiakKey = adapt_to_riak(Key, Type),
     RiakType = get_type_driver(Type),
-    case riakc_pb_socket:update_type(Pid, {T, B}, K, RiakType:to_op(Object))  of
-        ok -> {ok, Context};
-        {error, Reason} -> {{error, Reason}, Context}
+    case dict:find({RiakType, RiakKey}, RiakObjs) of
+        {ok, CachedObj} -> {{ok, get_value(RiakType, CachedObj)},Context};
+        _ ->
+            FetchedObj = case riakc_pb_socket:fetch_type(Pid, B, K) of
+                             {ok, Obj} -> Obj;
+                             {error, _Reason} -> create_obj(RiakType, [])
+                         end,
+            UpdtRiakObjs = dict:store({RiakType, RiakKey}, FetchedObj, RiakObjs),
+            {{ok, get_value(RiakType, FetchedObj)}, {riak_tx, Pid, UpdtRiakObjs}}
     end.
 
-start_transaction(Context) ->
-    {ok, Context}.
-commit_transaction(Context, _TransactionId) ->
-    {ok,Context}.
+get_counter(Key, Context = {riak_tx, _Pid, _RiakObjs}) ->
+    get_key(Key, counter, Context).
 
-execute_local_op(_Operation = {Type, OpName, Params}, Object, _Context) ->
-    erlang:apply(get_type_driver(Type), OpName, lists:append(Params, [Object])).
+inc_counter(Key, Amount, Context = {riak_tx, _Pid, _RiakObjs}) ->
+   updt_counter(Key, increment, Amount, Context).
 
-create_obj(Type, []) ->
-    erlang:apply(get_type_driver(Type), new, []).
+dec_counter(Key, Amount, Context = {riak_tx, _Pid, _RiakObjs}) ->
+   updt_counter(Key, decrement, Amount, Context).
+
+updt_counter(Key, Operation, Amount, Context0 = {riak_tx, Pid, _RiakObjs0}) ->
+    RiakKey = adapt_to_riak(Key, counter),
+    RiakType = get_type_driver(counter),
+
+    {{ok, _}, {_,_,RiakObjs1}} = get_key(Key, counter, Context0),
+    CachedRiakObj = dict:fetch({RiakType, RiakKey}, RiakObjs1),
+    UpdtObj = execute_local_op({RiakType, Operation, [Amount]}, CachedRiakObj),
+    UpdtRiakObjs = dict:store({RiakType, RiakKey}, UpdtObj, RiakObjs1),
+    {{ok, get_value(RiakType, UpdtObj)}, {riak_tx, Pid, UpdtRiakObjs}}.
+
+start_transaction({riak, Pid} = _Context) ->
+    {ok, {riak_tx, Pid, dict:new()}};
+
+start_transaction({riak_tx, _,_}) ->
+    erlang:error(transaction_already_started);
+
+start_transaction(_Context) ->
+    erlang:error(not_implemented).
+
+commit_transaction(_Context = {riak_tx, Pid, RiakObjs}) ->
+    dict:fold(fun({RiakType, {B, K}}, Object, _) ->
+                         riakc_pb_socket:update_type(Pid, B, K, RiakType:to_op(Object))
+                 end, nil, RiakObjs),
+    {ok, {riak, Pid}}.
+
+execute_local_op(_Operation = {RiakType, OpName, Params}, Object) ->
+    erlang:apply(RiakType, OpName, lists:append(Params, [Object])).
+
+create_obj(RiakType, []) ->
+    erlang:apply(RiakType, new, []).
+
+get_value(RiakType, Obj) ->
+    RiakType:value(Obj).
 
 %% Add more data types if necessary.
 get_type_driver(counter) -> riakc_counter;
