@@ -74,7 +74,7 @@ init({[NodeAddress | _OtherNA] , [Port | _OP], HeadNodeName, HeadNodeCookie}) ->
     case riakc_pb_socket:start_link(NodeAddress, Port) of
         {ok, Pid} ->
             create_buckets(HeadNodeName),
-            {riak, Pid};
+            {ok, {riak, Pid}};
         Other -> {error, Other}
     end.
 
@@ -91,7 +91,7 @@ get_key(Key, Type, Context = {riak_tx, Pid, RiakObjs}) ->
                              {error, _Reason} -> create_obj(RiakType, [])
                          end,
             UpdtRiakObjs = dict:store({RiakType, RiakKey}, FetchedObj, RiakObjs),
-            {{ok, get_value(RiakType, FetchedObj)}, {riak_tx, Pid, UpdtRiakObjs}}
+            {ok, get_value(RiakType, FetchedObj), {riak_tx, Pid, UpdtRiakObjs}}
     end.
 
 get_counter(Key, Context = {riak_tx, _Pid, _RiakObjs}) ->
@@ -111,7 +111,7 @@ updt_counter(Key, Operation, Amount, Context0 = {riak_tx, Pid, _RiakObjs0}) ->
     CachedRiakObj = dict:fetch({RiakType, RiakKey}, RiakObjs1),
     UpdtObj = execute_local_op({RiakType, Operation, [Amount]}, CachedRiakObj),
     UpdtRiakObjs = dict:store({RiakType, RiakKey}, UpdtObj, RiakObjs1),
-    {{ok, get_value(RiakType, UpdtObj)}, {riak_tx, Pid, UpdtRiakObjs}}.
+    {ok, get_value(RiakType, UpdtObj), {riak_tx, Pid, UpdtRiakObjs}}.
 
 start_transaction({riak, Pid} = _Context) ->
     {ok, {riak_tx, Pid, dict:new()}};
@@ -143,4 +143,3 @@ get_type_driver(counter) -> riakc_counter;
 get_type_driver(set) -> riakc_set;
 
 get_type_driver(map) -> riakc_map.
-
