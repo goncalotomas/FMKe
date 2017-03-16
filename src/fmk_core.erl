@@ -50,16 +50,9 @@
 %% will be added to the system and indexed by both Name and ID.
 -spec create_patient(id(),string(),string()) -> ok | {error, reason()}.
 create_patient(Id,Name,Address) ->
-  Txn = antidote_lib:txn_start(),
-  Result = case get_patient_by_id(Id,Txn) of
-    {error,not_found} ->
-      Patient = patient:new(Id,Name,Address),
-      PatientKey = binary_patient_key(Id),
-      ok = antidote_lib:put(PatientKey,?MAP,update,Patient,Txn);
-    _Patient ->
-      {error, patient_id_taken}
-  end,
-  ok = antidote_lib:txn_commit(Txn),
+  {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
+  {Result, DBContext1} = ?DB_DRIVER:create_patient(DBContext,Id,Name,Address),
+  {{ok, _CommitResult}, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1),
   Result.
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
@@ -155,7 +148,10 @@ get_pharmacy_by_id(Id,Txn) ->
 %% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
-  process_get_request(binary_patient_key(Id),?MAP).
+  {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
+  {Result, DBContext1} = ?DB_DRIVER:get_patient_by_id(DBContext,Id),
+  {_CommitResult, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1),
+  Result.
 
 %% Alternative to get_patient_by_id/1, which includes a transactional context.
 -spec get_patient_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
