@@ -1,6 +1,6 @@
 %%-define(ANTIDOTE, 'antidote@127.0.0.1').
--define(DB_DRIVER_MODULE, kv_driver).
--define(KV_IMPLEMENTATION, antidote_db_driver).
+-define(DB_DRIVER, fmke_kv_driver).
+-define(KV_IMPLEMENTATION, antidote_kv_driver).
 -define(DEFAULT_ANTIDOTE_PORT, "[8087]").
 -define(DEFAULT_ANTIDOTE_ADDRESS, "[127.0.0.1]").
 -define (DEFAULT_FMKE_HTTP_PORT, 9090).
@@ -150,6 +150,42 @@
 -type object_bucket() :: {field(), crdt(), term()}.
 -type id() :: non_neg_integer().
 -define (MAP_UPDATE_OP,update).
+
+%% Entity records
+-record(patient, {
+    id :: id(),
+    name :: string(),
+    address :: string(),
+    prescriptions=[] :: list(crdt()),
+    treatments=[] :: list(crdt())
+}).
+
+-record(pharmacy, {
+    id :: id(),
+    name :: string(),
+    address :: string(),
+    prescriptions=[] :: list(crdt())
+}).
+
+-record(facility, {
+    id :: id(),
+    name :: string(),
+    address :: string(),
+    type :: string()
+}).
+
+-record(staff_member, {
+    id :: id(),
+    name :: string(),
+    address :: string(),
+    speciality :: string()
+}).
+
+-record(prescription, {
+    id :: id(),
+    patient_id :: id(),
+    pharmacy_id :: id()
+}).
 
 %% Test macros
 -define(TEST_COUNTER_TYPE, antidote_crdt_pncounter).
