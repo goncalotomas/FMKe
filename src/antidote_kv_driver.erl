@@ -18,8 +18,159 @@
 %%
 %% -------------------------------------------------------------------
 -module(antidote_kv_driver).
--include("fmk.hrl").
+-include("fmk_kv.hrl").
 -author("goncalotomas").
 
-%% API
--export([]).
+-behaviour(gen_kv_driver).
+
+%% gen_kv_driver exports
+-export([
+  init/1,
+  get_key/3,
+  get_map/2,
+  get_list_of_keys/3,
+  put/4,
+  start_transaction/1,
+  commit_transaction/1,
+  update_map/3
+]).
+
+-type txid() :: term().
+-type crdt() :: term().
+-type field() :: term().
+-type object_bucket() :: term().
+
+%% -------------------------------------------------------------------
+%% CRDT Definitions
+%% -------------------------------------------------------------------
+-define (BCOUNTER, antidote_crdt_bcounter).
+-define (counter, antidote_crdt_counter).
+-define (GSET, antidote_crdt_gset).
+-define (LWWREG, antidote_crdt_lwwreg).
+-define (MAP, antidote_crdt_gmap).
+-define (NESTED_MAP, antidote_crdt_gmap).
+-define (MVREG, antidote_crdt_mvreg).
+-define (ORSET, antidote_crdt_orset).
+-define (RGA, antidote_crdt_rga).
+
+%% -------------------------------------------------------------------
+%% Antidote Context Definition
+%% -------------------------------------------------------------------
+-record(antidote_context, {
+    pid :: pid(),
+    txn_id :: txid()
+}).
+
+init(_Anything) ->
+  erlang:error(not_implemented).
+
+get_map(Key,Context) ->
+  get_key(Key,?MAP,Context).
+
+%% Returns status {({ok, object}| {error, reason}), context}
+get_key(Key, KeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+  Object = create_read_bucket(Key,?MAP),
+  {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
+  case Value of
+    {_Something,[]} -> {{error, not_found}, Context};
+    {map, MapObject} -> {{ok, MapObject}, Context};
+    Other -> io:format("~p~n",[Other])
+  end.
+
+%% Returns status {({ok, list(object)} | {error, reason}), context}
+get_list_of_keys(ListKeys, ListKeyTypes, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+  ListObjects = (lists:foldl(
+    fun(Key,KeyType) -> create_read_bucket(Key,KeyType) end,
+    ListKeys,ListKeyTypes)
+  ),
+  {ok, Values} = antidotec_pb:read_values(Pid, ListObjects, TxnId),
+  {{ok, Values}, Context}.
+
+%% Return status {(ok | error), context}
+put(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+  Object = create_write_bucket(Key,KeyType,Value),
+  Result = antidotec_pb:update_objects(Pid, [Object], TxnId),
+  {Result, Context}.
+
+%% Return status {(ok | error), context}
+start_transaction(_OldContext) ->
+  Pid = poolboy:checkout(antidote_connection_pool),
+  {ok, TxnId} = antidotec_pb:start_transaction(Pid, ignore, {}),
+  {ok, #antidote_context{pid=Pid, txn_id = TxnId}}.
+
+%% Return status {(ok | error), context}
+commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
+  {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TransactionId),
+  Result = poolboy:checkin(antidote_connection_pool, Pid),
+  {Result, #antidote_context{pid=Pid}}.
+
+%% Creates an Antidote bucket of a certain type.
+-spec create_write_bucket(field(), crdt(), term()) -> object_bucket().
+create_write_bucket(Key,?MAP,Value) ->
+  Bucket = create_read_bucket(Key,?MAP),
+  {Bucket, update, Value}.
+
+%% Creates an Antidote bucket of a certain type.
+-spec create_read_bucket(field(), crdt()) -> object_bucket().
+create_read_bucket(Key,Type) ->
+  {Key,Type,<<"bucket">>}.
+
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+lwwreg_assign_op(Value) when is_binary(Value) ->
+  {assign, Value};
+lwwreg_assign_op(Value) when is_list(Value) ->
+  {assign, list_to_binary(Value)}.
+
+build_lwwreg_op(Key,Value) ->
+  build_map_op(Key,?LWWREG,lwwreg_assign_op(Value)).
+
+build_add_set_op(Key, Elements) ->
+  build_map_op(Key,?ORSET,add_to_set_op(Elements)).
+
+add_to_set_op(Elements = [H|_T]) when is_list(Elements), is_list(H) ->
+  {add_all, [list_to_binary(X) || X <- Elements]}.
+
+build_map_op(Key,Type,Op) ->
+  {{Key,Type}, Op}.
+
+update_map(Key,ListOps,Context) ->
+  NestedMapUpdateOps = inner_update_map(ListOps),
+  put(Key,?MAP,NestedMapUpdateOps,Context).
+
+inner_update_map([]) ->
+  [];
+inner_update_map([H|T]) ->
+  HeadOp = case H of
+       %% These cases are for direct children of maps
+       {create_register, Key, Value} -> build_lwwreg_op(Key,Value);
+       {create_set, Key, Elements} -> build_add_set_op(Key,Elements);
+       %% When nested fields are necessary
+       {create_map, Key, NestedOps} -> build_update_map_bucket_op(Key,NestedOps);
+       {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key,NestedOps)
+  end,
+  Result = [HeadOp] ++ inner_update_map(T),
+%%  io:format("~p~n",Result),
+  Result.
+
+find_key(Map, Key, KeyType) ->
+  find_key(Map,Key,KeyType,not_found).
+
+find_key(Map, Key, KeyType, FallbackValue) ->
+  case lists:keyfind({Key,KeyType},1,Map) of
+    false -> FallbackValue;
+    {{Key,KeyType},Value} -> Value
+  end.
+
+find_lwwreg_key(Map,Key) ->
+  find_key(Map,Key,?LWWREG).
+
+find_lwwreg_key(Map, Key, FallbackValue) ->
+  find_key(Map,Key,?LWWREG, FallbackValue).
+
+build_map_update_op(NestedOps) ->
+  {update, NestedOps}.
+
+build_update_map_bucket_op(Key, NestedOps) ->
+  {Key, ?MAP, build_map_update_op(NestedOps)}.
