@@ -22,6 +22,7 @@
 
 %% Types TODO: refine type defs
 -type key() :: term().
+-type crdt() :: term().
 -type context() :: term().
 -type reason() :: term().
 
@@ -33,6 +34,22 @@
 -callback commit_transaction(context()) -> {ok, context()}.
 
 %% Types
--callback get_counter(key(), context()) -> {ok, integer(), context()} | {error, reason()}.
--callback inc_counter(key(), integer(), context()) -> {ok, integer(), context()}.
--callback dec_counter(key(), integer(), context()) -> {ok, integer(), context()}.
+%%-callback get_counter(key(), context()) -> {ok, integer(), context()} | {error, reason()}.
+%%-callback inc_counter(key(), integer(), context()) -> {ok, integer(), context()}.
+%%-callback dec_counter(key(), integer(), context()) -> {ok, integer(), context()}.
+
+
+-callback get_map(key(), context()) -> crdt().
+
+%% term() is a list of lists of operations where in each position you store the operations for each level of nesting []
+%% [[{update, [{update,{key,mykey},{value,myvalue}]}, [], []] means that we will perform an operation on the top level map
+%% and none in the lower levels. On the other side,
+%% [[], [], [{other_update_op, something_else}]] means that we will only add
+-callback update_map(key(), term(), context()) -> ok.
+
+%%-callback get_register(key(), context()) -> ok.
+%%-callback set_register(key(), context()) -> ok.
+%%
+%%-callback get_set(key(), context()) -> ok.
+%%-callback add_to_set(key(), term(), context()) -> ok.
+%%-callback remove_from_set(key(), term(), context()) -> ok.
