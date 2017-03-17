@@ -52,7 +52,7 @@
 create_patient(Id,Name,Address) ->
   {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
   {Result, DBContext1} = ?DB_DRIVER:create_patient(DBContext,Id,Name,Address),
-  {{ok, _CommitResult}, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1),
+  {ok, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1), %% assumes TXN commits
   Result.
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet
@@ -149,7 +149,7 @@ get_pharmacy_by_id(Id,Txn) ->
 -spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id) ->
   {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
-  {Result, DBContext1} = ?DB_DRIVER:get_patient_by_id(DBContext,Id),
+  {{ok,Result}, DBContext1} = ?DB_DRIVER:get_patient_by_id(DBContext,Id),
   {_CommitResult, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1),
   Result.
 
