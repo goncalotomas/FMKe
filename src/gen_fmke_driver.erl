@@ -18,9 +18,10 @@
 %%
 %% -------------------------------------------------------------------
 -module(gen_fmke_driver).
--author("goncalotomas").
 
--include("fmk.hrl").
+-type id() :: non_neg_integer().
+-type context() :: term().
+-type crdt() :: term().
 
 %%-----------------------------------------------------------------------------
 %% Transaction Operations
@@ -117,9 +118,6 @@
   {ok | {error, Reason::term()}, Context::context()}.
 
 -callback update_staff_details(Context::context(), Id::id(), Name::string(), Address::string(), Speciality::string()) ->
-  {ok | {error, Reason::term()}, Context::context()}.
-
--callback update_patient_details(Context::context(), Id::id(), Name::string(), Address::string()) ->
   {ok | {error, Reason::term()}, Context::context()}.
 
 -callback update_prescription_medication(Context::context(), Id::id(), Drugs::list(crdt())) ->
