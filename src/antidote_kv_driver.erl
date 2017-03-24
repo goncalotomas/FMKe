@@ -18,7 +18,9 @@
 %%
 %% -------------------------------------------------------------------
 -module(antidote_kv_driver).
+-include("fmk.hrl").
 -include("fmk_kv.hrl").
+-include("fmke_antidote.hrl").
 -author("goncalotomas").
 
 -behaviour(gen_kv_driver).
@@ -26,32 +28,16 @@
 %% gen_kv_driver exports
 -export([
   init/1,
+  stop/1,
   get_key/3,
   get_map/2,
   get_list_of_keys/3,
   put/4,
   start_transaction/1,
   commit_transaction/1,
-  update_map/3
+  update_map/3,
+  find_key/3
 ]).
-
--type txid() :: term().
--type crdt() :: term().
--type field() :: term().
--type object_bucket() :: term().
-
-%% -------------------------------------------------------------------
-%% CRDT Definitions
-%% -------------------------------------------------------------------
--define (BCOUNTER, antidote_crdt_bcounter).
--define (counter, antidote_crdt_counter).
--define (GSET, antidote_crdt_gset).
--define (LWWREG, antidote_crdt_lwwreg).
--define (MAP, antidote_crdt_gmap).
--define (NESTED_MAP, antidote_crdt_gmap).
--define (MVREG, antidote_crdt_mvreg).
--define (ORSET, antidote_crdt_orset).
--define (RGA, antidote_crdt_rga).
 
 %% -------------------------------------------------------------------
 %% Antidote Context Definition
@@ -62,19 +48,31 @@
 }).
 
 init(_Anything) ->
-  erlang:error(not_implemented).
+  Result = case fmk_sup:start_link() of
+             {ok, Pid} ->
+               case open_antidote_socket() of
+                 {ok,_} -> {ok, Pid};
+                 Err -> {error, {cannot_open_protobuff_socket, Err}}
+               end;
+             {error, Reason} ->
+               {error, Reason}
+           end,
+  Result.
+
+stop(_Anything) ->
+  close_antidote_socket().
 
 get_map(Key,Context) ->
   get_key(Key,?MAP,Context).
 
 %% Returns status {({ok, object}| {error, reason}), context}
-get_key(Key, KeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
-  Object = create_read_bucket(Key,?MAP),
+get_key(Key, GeneralKeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+  KeyType = convert_key_type(GeneralKeyType),
+  Object = create_read_bucket(Key,KeyType),
   {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
   case Value of
     {_Something,[]} -> {{error, not_found}, Context};
-    {map, MapObject} -> {{ok, MapObject}, Context};
-    Other -> io:format("~p~n",[Other])
+    {map, MapObject} -> {{ok, MapObject}, Context}
   end.
 
 %% Returns status {({ok, list(object)} | {error, reason}), context}
@@ -89,6 +87,7 @@ get_list_of_keys(ListKeys, ListKeyTypes, Context = #antidote_context{pid = Pid, 
 %% Return status {(ok | error), context}
 put(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
   Object = create_write_bucket(Key,KeyType,Value),
+
   Result = antidotec_pb:update_objects(Pid, [Object], TxnId),
   {Result, Context}.
 
@@ -121,7 +120,9 @@ create_read_bucket(Key,Type) ->
 lwwreg_assign_op(Value) when is_binary(Value) ->
   {assign, Value};
 lwwreg_assign_op(Value) when is_list(Value) ->
-  {assign, list_to_binary(Value)}.
+  {assign, list_to_binary(Value)};
+lwwreg_assign_op(Value) when is_integer(Value) ->
+  {assign, integer_to_binary(Value)}.
 
 build_lwwreg_op(Key,Value) ->
   build_map_op(Key,?LWWREG,lwwreg_assign_op(Value)).
@@ -129,15 +130,14 @@ build_lwwreg_op(Key,Value) ->
 build_add_set_op(Key, Elements) ->
   build_map_op(Key,?ORSET,add_to_set_op(Elements)).
 
-add_to_set_op(Elements = [H|_T]) when is_list(Elements), is_list(H) ->
+add_to_set_op(Elements) when is_list(Elements) ->
   {add_all, [list_to_binary(X) || X <- Elements]}.
 
 build_map_op(Key,Type,Op) ->
   {{Key,Type}, Op}.
 
 update_map(Key,ListOps,Context) ->
-  NestedMapUpdateOps = inner_update_map(ListOps),
-  put(Key,?MAP,NestedMapUpdateOps,Context).
+  put(Key,?MAP,inner_update_map(ListOps),Context).
 
 inner_update_map([]) ->
   [];
@@ -147,14 +147,13 @@ inner_update_map([H|T]) ->
        {create_register, Key, Value} -> build_lwwreg_op(Key,Value);
        {create_set, Key, Elements} -> build_add_set_op(Key,Elements);
        %% When nested fields are necessary
-       {create_map, Key, NestedOps} -> build_update_map_bucket_op(Key,NestedOps);
-       {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key,NestedOps)
+       {create_map, Key, NestedOps} -> build_update_map_bucket_op(Key,inner_update_map(NestedOps));
+       {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key,inner_update_map(NestedOps))
   end,
-  Result = [HeadOp] ++ inner_update_map(T),
-%%  io:format("~p~n",Result),
-  Result.
+  [HeadOp] ++ inner_update_map(T).
 
-find_key(Map, Key, KeyType) ->
+find_key(Map, Key, GeneralKeyType) ->
+  KeyType = convert_key_type(GeneralKeyType),
   find_key(Map,Key,KeyType,not_found).
 
 find_key(Map, Key, KeyType, FallbackValue) ->
@@ -163,14 +162,53 @@ find_key(Map, Key, KeyType, FallbackValue) ->
     {{Key,KeyType},Value} -> Value
   end.
 
-find_lwwreg_key(Map,Key) ->
-  find_key(Map,Key,?LWWREG).
-
-find_lwwreg_key(Map, Key, FallbackValue) ->
-  find_key(Map,Key,?LWWREG, FallbackValue).
-
 build_map_update_op(NestedOps) ->
   {update, NestedOps}.
 
 build_update_map_bucket_op(Key, NestedOps) ->
-  {Key, ?MAP, build_map_update_op(NestedOps)}.
+  build_map_op(Key,?MAP,build_map_update_op(NestedOps)).
+
+open_antidote_socket() ->
+  set_application_variable(antidote_address,"ANTIDOTE_ADDRESS",?DEFAULT_ANTIDOTE_ADDRESS),
+  set_application_variable(antidote_port,"ANTIDOTE_PB_PORT",?DEFAULT_ANTIDOTE_PORT),
+  AntidoteNodeAddress = fmk_config:get_env(?VAR_ANTIDOTE_PB_ADDRESS,?DEFAULT_ANTIDOTE_ADDRESS),
+  AntidoteNodePort = fmk_config:get_env(?VAR_ANTIDOTE_PB_PORT,?DEFAULT_ANTIDOTE_PORT),
+  antidote_pool:start([{hostname, AntidoteNodeAddress}, {port, AntidoteNodePort}]).
+
+set_application_variable(antidote_address, "ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS) ->
+  %% try to load value from environment variable
+  Default = os:getenv("ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS),
+  ListAddresses = [list_to_atom(X) || X <- parse_list_from_env_var(Default)],
+  Value = application:get_env(?APP,antidote_address,ListAddresses),
+  fmk_config:set(antidote_address,Value),
+  Value;
+set_application_variable(antidote_port, "ANTIDOTE_PB_PORT", ?DEFAULT_ANTIDOTE_PORT) ->
+  %% try to load value from environment variable
+  Default = os:getenv("ANTIDOTE_PB_PORT", ?DEFAULT_ANTIDOTE_PORT),
+  ListPorts = parse_list_from_env_var(Default),
+  Value = application:get_env(?APP,antidote_port,ListPorts),
+  fmk_config:set(antidote_port,Value),
+  Value.
+
+close_antidote_socket() ->
+  AntidotePbPid = fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined),
+  case AntidotePbPid of
+    undefined ->
+      {error, error_closing_pb_socket};
+    _SomethingElse ->
+      ok
+  end.
+
+parse_list_from_env_var(String) ->
+  io:format("RECEIVED: ~p\n",[String]),
+  try
+    string:tokens(String,",") %% CSV style
+  catch
+    _:_  ->
+      bad_input_format
+  end.
+
+convert_key_type(register) ->
+  ?LWWREG;
+convert_key_type(map) ->
+  ?MAP.
