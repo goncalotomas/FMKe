@@ -19,7 +19,7 @@
 %% Pharmacy macros
 -define (PHARMACY_ID_KEY, <<"pharmacy_id">>).
 -define (PHARMACY_NAME_KEY, <<"pharmacy_name">>).
--define (PHARMACY_ADDRESS_KEY, <<"patient_address">>).
+-define (PHARMACY_ADDRESS_KEY, <<"pharmacy_address">>).
 -define (PHARMACY_PRESCRIPTIONS_KEY, <<"pharmacy_prescriptions">>).
 
 %% Prescription macros
@@ -32,8 +32,8 @@
 -define (PRESCRIPTION_IS_PROCESSED_KEY, <<"prescription_is_processed">>).
 -define (PRESCRIPTION_DATE_PROCESSED_KEY, <<"prescription_date_processed">>).
 -define (PRESCRIPTION_DRUGS_KEY, <<"prescription_drugs">>).
--define (PRESCRIPTION_NOT_PROCESSED_KEY, "prescription_not_processed").
--define (PRESCRIPTION_PROCESSED_KEY, "prescription_processed").
+-define (PRESCRIPTION_NOT_PROCESSED_VALUE, <<"prescription_not_processed">>).
+-define (PRESCRIPTION_PROCESSED_VALUE, <<"prescription_processed">>).
 
 %% Treatment macros
 -define (TREATMENT_ID_KEY, <<"treatment_id">>).
