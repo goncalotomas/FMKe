@@ -23,6 +23,9 @@
 -type context() :: term().
 -type crdt() :: term().
 
+-callback init(State::term()) -> {ok, Context::context()}.
+-callback stop(State::term()) -> {ok, Something::context()}.
+
 %%-----------------------------------------------------------------------------
 %% Transaction Operations
 %%-----------------------------------------------------------------------------
@@ -120,5 +123,5 @@
 -callback update_staff_details(Context::context(), Id::id(), Name::string(), Address::string(), Speciality::string()) ->
   {ok | {error, Reason::term()}, Context::context()}.
 
--callback update_prescription_medication(Context::context(), Id::id(), Drugs::list(crdt())) ->
+-callback update_prescription_medication(Context::context(), Id::id(), Operation::atom(), Drugs::list(crdt())) ->
   {ok | {error, Reason::term()}, Context::context()}.

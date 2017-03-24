@@ -28,6 +28,7 @@
 
 %% callbacks
 -callback init(term()) -> {ok, context()}. %TODO: precise typespec
+-callback stop(term()) -> term().
 
 %% Transactions
 -callback start_transaction(context()) -> {ok, context()}.
