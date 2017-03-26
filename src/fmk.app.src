@@ -15,7 +15,8 @@
     poolboy,
     cowboy,
     hackney,
-    jsx
+    jsx,
+	riakc
    ]},
 
   {modules, []},
