@@ -15,7 +15,15 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-    Result = ?DB_DRIVER:init([]),
+
+    %HACK: Short-circuit over DB_DRIVER.
+    %TODO: Pass configurable parameters.
+    Args = case ?KV_IMPLEMENTATION of
+               antidote_kv_driver -> [];
+               riak_kv_driver -> {["127.0.0.1"],[8087], 'riak@127.0.0.1', riak}
+           end,
+
+    Result = ?DB_DRIVER:init(Args),
     Dispatch = cowboy_router:compile([
       {'_', [
         {"/", fmk_handler, []},
