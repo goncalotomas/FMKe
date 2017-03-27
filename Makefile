@@ -28,3 +28,6 @@ console: rel
 dialyzer:
 	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
 	${REBAR} dialyzer
+
+kv_driver_test:
+	 ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
