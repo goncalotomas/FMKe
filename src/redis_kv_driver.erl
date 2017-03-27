@@ -31,17 +31,20 @@
          stop/1
         ]).
 
-init([Host, Port]) ->
-    {ok, Connection} = eredis:start_link(Host, Port),
-    {ok, {connection, Connection}}.
+-record(redis_context, {}).
 
-stop({connection, C}) ->
-  eredis:stop(C).
+init([Host, Port]) ->
+    eredis_cluster:start(),
+    eredis_cluster:connect([{Host, Port}]),
+    {ok, #redis_context{}}.
+
+stop(_Context) ->
+  eredis_cluster:stop().
 
 %% Transactions %% Dummy transactions; Redis doesnot support transactions in a
 %% cluster setup
-start_transaction({connection, Connection}) ->
-    {ok, {connection, Connection}}.
+start_transaction(Context) ->
+    {ok, Context}.
 
 commit_transaction(Context) ->
     {ok, Context}.
@@ -50,69 +53,69 @@ commit_transaction(Context) ->
 %% Redis does not support map that holds keys of different types,
 %% So just return a dummy object and use find_key to get specific key-value pairs.
 get_map(Key, Context) ->
-    {ok, {map, Key, Context}, Context}.
+    {ok, {map, Key}, Context}.
 
-find_key({map, Map}, Key, register, Context = {connection, C}) ->
+find_key({map, Map}, Key, register, Context) ->
     Query = ["HGET", Map, Key],
-    case execute_get(C, Query) of
+    case execute_get(Context, Query) of
       {ok, Res} -> {ok, Res, Context};
       {error, Reason} -> {error, Reason, Context}
     end;
 find_key({map, Map}, Key, map, Context) ->
     InnerKey = inner_map_key(Map, Key),
     {ok, {map, InnerKey}, Context};
-find_key({map, Map}, Key, set, Context = {connection, C}) ->
+find_key({map, Map}, Key, set, Context) ->
     InnerKey = inner_map_key(Map, Key),
     Query = ["SMEMBERS", InnerKey],
-    case execute_get(C, Query) of
+    case execute_get(Context, Query) of
         {ok, Res} -> {ok, Res, Context};
         {error, Reason} -> {error, Reason, Context}
     end.
 
 %% Updates
-update_map(Key, ListOfOps, Context = {connection, C}) ->
-  try  lists:foreach(fun(Op) ->
-                        case update_nested_object(Key, Op, C) of
-                            ok -> ok;
-                            {error, Reason} -> throw(erlang:error(Reason))
-                        end
-                     end, ListOfOps) of
+update_map(Key, ListOfOps, Context) ->
+    try  update_nested_objects(Key, ListOfOps, Context) of
         ok -> {ok, Context}
-  catch
-    _:Reason -> {error, Reason, Context}
-  end.
+    catch
+      _:Reason -> {error, Reason, Context}
+    end.
 
+update_nested_objects(Key, ListOfOps, Context) ->
+    lists:foreach(fun(Op) ->
+                          case update_nested_object(Key, Op, Context) of
+                              ok -> ok;
+                              {error, Reason} -> throw(erlang:error(Reason))
+                          end
+                       end, ListOfOps).
 
-update_nested_object(Map, {create_register, Key, Value}, Connection) ->
+update_nested_object(Map, {create_register, Key, Value}, Context) ->
     Op = ["HSET", Map, Key, Value],
-    execute_op(Connection, Op);
+    execute_op(Context, Op);
 
-update_nested_object(Map, {create_set, Key, Elements}, Connection) ->
+update_nested_object(Map, {create_set, Key, Elements}, Context) ->
     InnerKey = inner_map_key(Map, Key),
     Op = ["SADD", InnerKey] ++ Elements,
-    execute_op(Connection, Op);
+    execute_op(Context, Op);
 
-update_nested_object(Map, {create_map, Key, NestedOps}, Connection) ->
+update_nested_object(Map, {create_map, Key, NestedOps}, Context) ->
     InnerKey = inner_map_key(Map, Key),
-    update_nested_object(InnerKey, NestedOps, Connection);
+    update_nested_objects(InnerKey, NestedOps, Context);
 
-update_nested_object(Map, {update_map, Key, NestedOps}, Connection) ->
+update_nested_object(Map, {update_map, Key, NestedOps}, Context) ->
    InnerKey = inner_map_key(Map, Key),
-   update_nested_object(InnerKey, NestedOps, Connection).
+   update_nested_objects(InnerKey, NestedOps, Context).
 
 inner_map_key(Map, Key) ->
     list_to_binary(binary_to_list(Map) ++ binary_to_list(Key)).
 
-execute_op(Connection, Op) ->
-    case eredis:q(Connection, Op) of
+execute_op(_Context, Op) ->
+    case eredis_cluster:q(Op) of
       {ok, _} -> ok;
-      {error, Reason} -> {error, Reason};
-      Other -> {error, Other}
+      {error, Reason} -> {error, Reason}
     end.
 
-execute_get(Connection, Op) ->
-   case eredis:q(Connection, Op) of
+execute_get(_Context, Op) ->
+   case eredis_cluster:q(Op) of
        {ok, Res} -> {ok, Res};
-       {error, Reason} -> {error, Reason};
-       Other -> {error, Other}
+       {error, Reason} -> {error, Reason}
    end.
