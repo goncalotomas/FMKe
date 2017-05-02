@@ -25,7 +25,7 @@ handle_req(<<"GET">>, false, Req) ->
 		get_prescription(Req).
 
 create_prescription(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		{ok, Data, _Req} = cowboy_req:read_body(Req),
 		Json = jsx:decode(Data),
 		PrescriptionId = proplists:get_value(<<"id">>, Json),
 		PatientId = proplists:get_value(<<"patient_id">>, Json),
@@ -33,34 +33,34 @@ create_prescription(Req) ->
 		PharmacyId = proplists:get_value(<<"pharmacy_id">>, Json),
 		FacilityId = proplists:get_value(<<"facility_id">>, Json),
 		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
-		Drugs = proplists:get_value(<<"drugs">>, Json),
-		IntegerId = binary_to_integer(PrescriptionId),
+		CsvDrugs = proplists:get_value(<<"drugs">>, Json),
+		IntegerId =
+			if
+				is_binary(PrescriptionId) -> list_to_integer(binary_to_list(PrescriptionId));
+				true -> PrescriptionId
+			end,
 		case IntegerId =< ?MIN_ID of
 				true ->
 						cowboy_req:reply(400, [], ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						IntPatientId = binary_to_integer(PatientId),
-						IntPrescriberId = binary_to_integer(PrescriberId),
-						IntPharmacyId = binary_to_integer(PharmacyId),
-						IntFacilityId = binary_to_integer(FacilityId),
-						StrDatePrescribed = binary_to_list(DatePrescribed),
-						StrDrugs = parse_line(binary_to_list(Drugs)),
-						ServerResponse = fmk_core:create_prescription(IntegerId,IntPatientId,IntPrescriberId,IntPharmacyId,IntFacilityId,StrDatePrescribed,StrDrugs),
+						ListDrugs = parse_line(CsvDrugs),
+						ServerResponse = fmk_core:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,ListDrugs),
 						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
+						Result = case ServerResponse of
+								ok -> ServerResponse;
+								{error, Reason} -> Reason
+						end,
+						JsonReply =	jsx:encode([{success,Success},{result,Result}]),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
 
 update_prescription(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		{ok, Data, _Req} = cowboy_req:read_body(Req),
 		Json = jsx:decode(Data),
 		DateProcessed = proplists:get_value(<<"date_processed">>, Json),
-		Drugs = proplists:get_value(<<"drugs">>, Json),
+		CsvDrugs = proplists:get_value(<<"drugs">>, Json),
 		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
@@ -70,26 +70,23 @@ update_prescription(Req) ->
 						JsonReply = case DateProcessed of
 								undefined ->
 										%% Assuming that in this case we only want to update the prescription medication
-										case Drugs of
+										case CsvDrugs of
 												undefined ->
-														nothing_to_update;
+														jsx:encode([{success,false},{result,nothing_to_update}]);
 												_ListDrugs ->
-														StrDrugs = parse_line(binary_to_list(Drugs)),
-														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,StrDrugs),
+														DrugsList = parse_line(CsvDrugs),
+														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,DrugsList),
 														Success = ServerResponse =:= ok,
-														lists:flatten(io_lib:format(
-																"{\"success\": \"~p\", \"result\": \"~p\"}",
-																[Success,ServerResponse]
-														))
+														jsx:encode([{success,Success},{result,ServerResponse}])
 										end;
 								_Date ->
-										StrDate = binary_to_list(DateProcessed),
-										ServerResponse = fmk_core:process_prescription(IntegerId,StrDate),
+										ServerResponse = fmk_core:process_prescription(IntegerId,DateProcessed),
 										Success = ServerResponse =:= ok,
-										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"~p\"}",
-												[Success,ServerResponse]
-										))
+										Result = case ServerResponse of
+											{error, Reason} -> Reason;
+											ok -> ServerResponse
+										end,
+										jsx:encode([{success,Success},{result,Result}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
@@ -107,15 +104,9 @@ get_prescription(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(prescription,ServerResponse) ++ "}"),
-												[Success]
-										));
+										jsx:encode([{success,Success},{result,crdt_json_encoder:encode(prescription,ServerResponse)}]);
 								false ->
-										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"~p\"}",
-												[Success,ServerResponse]
-										))
+										jsx:encode([{success,Success},{result,ServerResponse}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>

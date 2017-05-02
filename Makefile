@@ -19,6 +19,9 @@ rel:
 relclean:
 	rm -rf _build/default/rel
 
+populate: compile
+	./test/fmk_setup_script.erl 1 fmk@127.0.0.1
+
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config
 	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current

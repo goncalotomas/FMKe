@@ -20,10 +20,10 @@ if [ -z "$ANTIDOTE_ADDRESS" ]; then
   export ANTIDOTE_ADDRESS="127.0.0.1"
 fi
 
-  # Receive the host name from the parameters
-  if [ -z "$INSTANCE_NAME" ]; then
-      export INSTANCE_NAME=fmk
-      fi
+# Receive the host name from the parameters
+if [ -z "$INSTANCE_NAME" ]; then
+    export INSTANCE_NAME=fmk
+fi
 
   # Choose the hostname for the epmd long name if the hostname exists
   # and if it resolves through the resolver; using a resolvable name
@@ -68,6 +68,12 @@ if [ -z "$COOKIE" ]; then
 fi
 
 export RELX_REPLACE_OS_VARS=true
+
+echo "PORT0: ${PORT0}"
+echo "PORT1: ${PORT1}"
+echo "PORT2: ${PORT2}"
+echo "PORT3: ${PORT3}"
+echo "PORT4: ${PORT4}"
 
 
 echo "NODE_NAME: ${NODE_NAME}"

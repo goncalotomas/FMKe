@@ -355,36 +355,52 @@ update_prescription_medication(_Id,_action,_Drugs) -> {error,undefined}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
-  free = check_prescription_id(PrescriptionId,Txn),
-  taken = check_patient_id(PatientId,Txn),
-  taken = check_staff_id(PrescriberId,Txn),
-  taken = check_pharmacy_id(PharmacyId,Txn),
-  taken = check_facility_id(FacilityId,Txn),
-  %% gather required antidote keys
-  PrescriptionKey = binary_prescription_key(PrescriptionId),
-  PatientKey = binary_patient_key(PatientId),
-  PharmacyKey = binary_pharmacy_key(PharmacyId),
-  FacilityKey = binary_facility_key(FacilityId),
-  PrescriberKey = binary_staff_key(PrescriberId),
-  %% build top level update for the prescription
-  TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-  %% build nested updates for patients, pharmacies, facilities and the prescriber
-  PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
-  PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
-  PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-  %% add top level prescription
-  antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
-  %% add to pharmaciy prescriptions
-  antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
-  %% add to the prescriber's prescriptions
-  antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
-  %% add to patient prescriptions
-  antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-  %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
+  ChecksOk = try
+      free = check_prescription_id(PrescriptionId,Txn),
+      taken = check_patient_id(PatientId,Txn),
+      taken = check_staff_id(PrescriberId,Txn),
+      taken = check_pharmacy_id(PharmacyId,Txn),
+      taken = check_facility_id(FacilityId,Txn),
+      ok
+  of
+      ok -> true
+  catch
+      error:{badmatch,taken} -> {error, prescription_id_taken};
+      error:{badmatch,free} -> {error, one_or_more_ids_is_not_assigned};
+      _Other -> {error, unknown}
+  end,
+
+  Result = case ChecksOk of
+      true ->
+          %% gather required antidote keys
+          PrescriptionKey = binary_prescription_key(PrescriptionId),
+          PatientKey = binary_patient_key(PatientId),
+          PharmacyKey = binary_pharmacy_key(PharmacyId),
+          FacilityKey = binary_facility_key(FacilityId),
+          PrescriberKey = binary_staff_key(PrescriberId),
+          %% build top level update for the prescription
+          TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+          %% build nested updates for patients, pharmacies, facilities and the prescriber
+          PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+          FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
+          PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
+          PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
+          %% add top level prescription
+          antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
+          %% add to pharmaciy prescriptions
+          antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
+          %% add to the prescriber's prescriptions
+          antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
+          %% add to patient prescriptions
+          antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
+          %% add to hospital prescriptions
+          antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
+          ok;
+      Error ->
+          Error
+  end,
   ok = antidote_lib:txn_commit(Txn),
-  ok.
+  Result.
 
 %% Same as create_prescription/7, but includes a reference to the treatment to which the
 %% prescription is associated with.
