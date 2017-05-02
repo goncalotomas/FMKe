@@ -28,12 +28,13 @@ handle_req(<<"GET">>, false, Req) ->
 		get_event(Req).
 
 create_event(Req) ->
-		{ok, [{<<"id">>, EventId},
-		{<<"treatment_id">>, TreatmentId},
-		{<<"staff_id">>, StaffMemberId},
-		{<<"timestamp">>, Timestamp},
-		{<<"description">>, Description}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		EventId = proplists:get_value(<<"id">>, Json),
+		TreatmentId = proplists:get_value(<<"treatment_id">>, Json),
+		StaffMemberId = proplists:get_value(<<"staff_id">>, Json),
+		Timestamp = proplists:get_value(<<"timestamp">>, Json),
+		Description = proplists:get_value(<<"description">>, Json),
 		IntegerId = binary_to_integer(EventId),
 		case IntegerId =< ?MIN_ID of
 				true ->

@@ -33,19 +33,20 @@ handle_req(<<"GET">>, false, Req) ->
 		get_facility(Req).
 
 create_facility(Req) ->
-		{ok, [{<<"id">>, FacilityId},
-		{<<"name">>, FacilityName},
-		{<<"address">>, FacilityAddress},
-		{<<"type">>, FacilityType}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		IntegerId = binary_to_integer(FacilityId),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Id = proplists:get_value(<<"id">>, Json),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		Type = proplists:get_value(<<"type">>, Json),
+		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
 				false ->
-						StringName = binary_to_list(FacilityName),
-						StringAddress = binary_to_list(FacilityAddress),
-						StringType = binary_to_list(FacilityType),
+						StringName = binary_to_list(Name),
+						StringAddress = binary_to_list(Address),
+						StringType = binary_to_list(Type),
 						ServerResponse = fmk_core:create_facility(IntegerId,StringName,StringAddress,StringType),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
@@ -58,10 +59,11 @@ create_facility(Req) ->
 		end.
 
 update_facility(Req) ->
-		{ok, [{<<"name">>, Name},
-		{<<"address">>, Address},
-    {<<"type">>, Type}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		Type = proplists:get_value(<<"type">>, Json),
 		Id = cowboy_req:binding(?BINDING_FACILITY_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
