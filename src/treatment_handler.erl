@@ -28,12 +28,13 @@ handle_req(<<"GET">>, false, Req) ->
 		get_treatment(Req).
 
 create_treatment(Req) ->
-		{ok, [{<<"id">>, Id},
-		{<<"patient_id">>, PatientId},
-		{<<"prescriber_id">>, PrescriberId},
-    {<<"facility_id">>, FacilityId},
-    {<<"date_prescribed">>, DatePrescribed}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Id = proplists:get_value(<<"id">>, Json),
+		PatientId = proplists:get_value(<<"patient_id">>, Json),
+		PrescriberId = proplists:get_value(<<"prescriber_id">>, Json),
+		FacilityId = proplists:get_value(<<"facility_id">>, Json),
+		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->

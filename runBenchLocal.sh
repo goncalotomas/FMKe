@@ -85,4 +85,3 @@ if [ -n "$ANTIDOTE_FOLDER" ]; then
     _build/default/rel/antidote/bin/env stop
     cd $SCRIPTPATH
 fi
-
