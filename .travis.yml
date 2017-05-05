@@ -6,7 +6,6 @@ services:
 install:
   - make all
 script:
-  - sed -i 's/{duration,.*}/{duration, 1}/g' test/fmkclient.config
-  - ./runBenchLocal.sh docker
+  - ./travis.sh bench antidote
 sudo: required
 dist: trusty
