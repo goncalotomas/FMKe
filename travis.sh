@@ -60,6 +60,13 @@ elif [ $1 = "bench" ]; then
         # Start benchmark
         echo "starting benchmark..."
         _build/default/lib/basho_bench/_build/default/bin/basho_bench test/fmke_travis.config
+
+        if [ $? -ne 0 ]; then
+            # start existing docker container:
+            echo "fatal: benchmark exited with code $?"
+            exit 3
+        fi
+
         echo "benchmark complete."
 
         # Stop FMK
