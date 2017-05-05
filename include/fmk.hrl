@@ -13,6 +13,7 @@
 -define (LWWREG, antidote_crdt_lwwreg).
 -define (MAP, antidote_crdt_gmap).
 -define (NESTED_MAP, antidote_crdt_gmap).
+-define (NESTED_RMAP, antidote_crdt_map_rr).
 -define (MVREG, antidote_crdt_mvreg).
 -define (ORSET, antidote_crdt_orset).
 -define (RGA, antidote_crdt_rga).
@@ -39,25 +40,25 @@
 -define (PHARMACY_ADDRESS, <<"patient_address">>).
 -define (PHARMACY_ADDRESS_CRDT, antidote_crdt_lwwreg).
 -define (PHARMACY_PRESCRIPTIONS, <<"pharmacy_prescriptions">>).
--define (PHARMACY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+-define (PHARMACY_PRESCRIPTIONS_CRDT, antidote_crdt_map_rr).
 
 %% Prescription macros
 -define (PRESCRIPTION_ID, <<"prescription_id">>).
--define (PRESCRIPTION_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PATIENT_ID, <<"prescription_patient_id">>).
--define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PATIENT_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PRESCRIBER_ID, <<"prescription_prescriber_id">>).
--define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PRESCRIBER_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_PHARMACY_ID, <<"prescription_pharmacy_id">>).
--define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_PHARMACY_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_FACILITY_ID, <<"prescription_facility_id">>).
--define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_FACILITY_ID_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DATE_PRESCRIBED, <<"prescription_date_prescribed">>).
--define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_DATE_PRESCRIBED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_IS_PROCESSED, <<"prescription_is_processed">>).
--define (PRESCRIPTION_IS_PROCESSED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_IS_PROCESSED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DATE_PROCESSED, <<"prescription_date_processed">>).
--define (PRESCRIPTION_DATE_PROCESSED_CRDT, antidote_crdt_lwwreg).
+-define (PRESCRIPTION_DATE_PROCESSED_CRDT, antidote_crdt_mvreg).
 -define (PRESCRIPTION_DRUGS, <<"prescription_drugs">>).
 -define (PRESCRIPTION_DRUGS_CRDT, antidote_crdt_orset).
 -define (PRESCRIPTION_NOT_PROCESSED, "prescription_not_processed").
@@ -95,7 +96,7 @@
 -define (STAFF_SPECIALITY, <<"staff_speciality">>).
 -define (STAFF_SPECIALITY_CRDT, antidote_crdt_lwwreg).
 -define (STAFF_PRESCRIPTIONS, <<"staff_prescriptions">>).
--define (STAFF_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+-define (STAFF_PRESCRIPTIONS_CRDT, antidote_crdt_map_rr).
 -define (STAFF_TREATMENTS, <<"staff_treatments">>).
 -define (STAFF_TREATMENTS_CRDT, antidote_crdt_gmap).
 
@@ -108,8 +109,8 @@
 -define (FACILITY_ADDRESS_CRDT, antidote_crdt_lwwreg).
 -define (FACILITY_TYPE, <<"facility_type">>).
 -define (FACILITY_TYPE_CRDT, antidote_crdt_lwwreg).
--define (FACILITY_PRESCRIPTIONS, <<"facility_prescriptions">>).
--define (FACILITY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
+%-define (FACILITY_PRESCRIPTIONS, <<"facility_prescriptions">>).
+%-define (FACILITY_PRESCRIPTIONS_CRDT, antidote_crdt_gmap).
 -define (FACILITY_TREATMENTS, <<"facility_treatments">>).
 -define (FACILITY_TREATMENTS_CRDT, antidote_crdt_gmap).
 
@@ -140,7 +141,7 @@
 -type op_param() :: antidote:op_param().
 -type crdt() :: term().
 -type crdt_op() :: any().
--type field() :: term().
+-type field() :: binary().
 -type map_field_op() ::  {remove, field()}.
 -type map_field_update() :: {update, field(), crdt_op()}.
 -type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.

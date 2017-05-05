@@ -662,25 +662,25 @@ filter_processed_prescriptions(PharmacyPrescriptions) ->
   [Prescription || {_PrescriptionHeader,Prescription} <- PharmacyPrescriptions, prescription:is_processed(Prescription)==?PRESCRIPTION_PROCESSED].
 
 check_refs(Checks, Txn) ->
-    Keys = [antidote_lib:create_bucket(Key, antidote_crdt_gmap) || {_, Key} <- Checks],
-    Objects = antidote_lib:txn_read_objects(Keys, Txn),
-    try
-        [case {Exp, Obj} of
-           {taken, []} ->
-              error({key_does_not_exist, Key});
-           {taken, _} ->
-              ok;
-           {free, []} ->
-              ok;
-           {free, _} ->
-              error({key_not_free, Key})
-         end
-        || {{_Crdt, Obj}, {Exp, Key}} <- lists:zip(Objects, Checks)],
-      true
-    catch
-        error:Reason -> {error, Reason}
-    end.
+  Keys = [antidote_lib:create_bucket(Key, antidote_crdt_gmap) || {_, Key} <- Checks],
+  Objects = antidote_lib:txn_read_objects(Keys, Txn),
+  try
+    [case {Exp, Obj} of
+       {taken, []} ->
+         error({key_does_not_exist, Key});
+       {taken, _} ->
+         ok;
+       {free, []} ->
+         ok;
+       {free, _} ->
+         error({key_not_free, Key})
+     end
+      || {{_Crdt, Obj}, {Exp, Key}} <- lists:zip(Objects, Checks)],
+    true
+  catch
+    error:Reason -> {error, Reason}
+  end.
 
 
 error_to_binary(Reason) ->
-    list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
+  list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).

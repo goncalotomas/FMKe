@@ -10,7 +10,7 @@
 
 %% These exports supply managed transactions, to make it easier to work with Antidote. Use these
 %% if you don't need fine grained control over transactions.
--export ([
+-export([
   create_bucket/2,
   get/2,
   get/3,
@@ -18,7 +18,7 @@
   put/5,
   put_map/5,
   put_map/6
-  ]).
+  , find_int_key/3]).
 
 %% This export is internally used by the put and get functions. These functions are exported in order
 %% to provide finer-grained transactional support.
@@ -45,12 +45,15 @@
   counter_decrement/1,
   lwwreg_assign/1,
   set_add_elements/1,
-  set_remove_elements/1
+  set_remove_elements/1,
+  build_binary_element_list/1
   ]).
 
 
 
+-export_type([update/0]).
 
+-type update() :: {{binary(), atom(), binary()}, atom(), any()}. % {bound_object(), op_name(), op_param()}
 
 
 
@@ -83,6 +86,7 @@ txn_read_object(Object, {Pid, TxnDetails}) ->
 
 %% A wrapper for Antidote's read_objects function
 -spec txn_read_objects(Objects :: [bound_object()], TxnDetails :: txid()) -> [term()].
+txn_read_objects([], _) -> [];
 txn_read_objects(Objects, {Pid, TxnDetails}) ->
   {ok, Values} = antidotec_pb:read_values(Pid, Objects, TxnDetails),
   Values.
@@ -93,7 +97,8 @@ txn_update_object(ObjectUpdate, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, [ObjectUpdate], TxnDetails).
 
 %% A wrapper for Antidote's update_objects function
--spec txn_update_objects([{bound_object(), op_name(), op_param()}], txid()) -> ok.
+-spec txn_update_objects([update()], txid()) -> ok.
+txn_update_objects([], _) -> ok;
 txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
   ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
@@ -141,7 +146,11 @@ txn_update_map(Object,Op,ListOps,TxnDetails,Actor)->
 find_key(Map, Key, KeyType) ->
   case lists:keyfind({Key,KeyType},1,Map) of
     false -> not_found;
-    {{Key,KeyType},Value} -> Value
+    {{Key,KeyType},Value} ->
+        case KeyType of
+          antidote_crdt_mvreg -> hd(Value);
+          _ -> Value
+        end
   end.
 
 find_int_key(Map, Key, KeyType) ->
@@ -154,6 +163,7 @@ find_int_key(Map, Key, KeyType) ->
           _ when is_integer(Value) -> Value
         end
   end.
+
 
 %% ------------------------------------------------------------------------------------------------
 %% Simple API - Recommended way to interact with Antidote
@@ -237,6 +247,7 @@ set_add_elements(List) ->
 -spec set_remove_elements([term()]) -> crdt_op().
 set_remove_elements(List) ->
   {remove, build_binary_element_list(List)}.
+
 
 -spec build_binary_element_list([term()]) -> [binary()].
 build_binary_element_list(NormalList) ->
