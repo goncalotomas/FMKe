@@ -61,9 +61,9 @@ elif [ $1 = "bench" ]; then
         echo "starting benchmark..."
         _build/default/lib/basho_bench/_build/default/bin/basho_bench test/fmke_travis.config
 
-        if [ $? -ne 0 ]; then
+        if [ -s tests/current/error.log ]; then
             # start existing docker container:
-            echo "fatal: benchmark exited with code $?"
+            echo "fatal: benchmark exited prematurely with errors"
             exit 3
         fi
 
