@@ -5,6 +5,7 @@ all: compile rel
 
 compile:
 	${REBAR} compile
+	cd _build/default/lib/basho_bench; make all; cd -
 
 rel:
 	rm -rf _build/default/rel/
