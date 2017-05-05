@@ -71,7 +71,7 @@ elif [ $1 = "bench" ]; then
 
         # Stop FMK
         echo "stopping FMKe..."
-        _build/default/rel/fmk/bin/env stop
+        _build/default/rel/fmk/bin/env stop > /dev/null
 
         echo "shutting down antidote..."
         docker stop antidote > /dev/null
