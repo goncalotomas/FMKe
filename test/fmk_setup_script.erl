@@ -2,11 +2,6 @@
 %% -*- erlang -*-
 %%! -smp enable -name setup@127.0.0.1 -cookie antidote -mnesia debug verbose
 -mode(compile).
-%%-define(NUM_PATIENTS, 50000).
-%%-define(NUM_PHARMACIES, 300).
-%%-define(NUM_FACILITIES, 50).
-%%-define(NUM_STAFF, 250).
-%%-define(NUM_PRESCRIPTIONS, 1000).
 -define(ZIPF_SKEW, 1).
 -define(NUMTHREADS, 10).
 
@@ -34,6 +29,12 @@ main([ClientId, FmkNodeRef]) ->
   FmkNode = list_to_atom(FmkNodeRef),
   io:format("client node is ~p.\n", [MyNodeName]),
   io:format("fmk node target set as ~p.\n", [FmkNode]),
+  io:format("this script is going to create:~n",[]),
+  io:format("-~p patients~n",[FmkConfig#fmkconfig.numpatients]),
+  io:format("-~p pharmacies~n",[FmkConfig#fmkconfig.numpharmacies]),
+  io:format("-~p hospitals~n",[FmkConfig#fmkconfig.numfacilities]),
+  io:format("-~p doctors~n",[FmkConfig#fmkconfig.numstaff]),
+  io:format("-~p prescriptions~n",[FmkConfig#fmkconfig.numprescriptions]),
   net_kernel:start([MyNodeName, longnames]),
   erlang:set_cookie(node(), antidote),
   %% check if fmk is running
