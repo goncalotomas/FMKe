@@ -25,33 +25,20 @@ if [ -z "$INSTANCE_NAME" ]; then
     export INSTANCE_NAME=fmk
 fi
 
-  # Choose the hostname for the epmd long name if the hostname exists
-  # and if it resolves through the resolver; using a resolvable name
-  # that's only resolvable with resolv.conf won't work for long names.
-  if [ ! -z "$HOSTNAME" ]; then
-    if /usr/bin/dig ${HOSTNAME} | grep -q 'NXDOMAIN'
-      export NODE_NAME=${INSTANCE_NAME}@${HOSTNAME}
-    then
-      export NODE_NAME=${INSTANCE_NAME}@${IP}
-    fi
-  fi
-  # Else, default to IP.
-  if [ -z "$NODE_NAME" ]; then
+# Choose the hostname for the epmd long name if the hostname exists
+# and if it resolves through the resolver; using a resolvable name
+# that's only resolvable with resolv.conf won't work for long names.
+if [ ! -z "$HOSTNAME" ]; then
+  if /usr/bin/dig ${HOSTNAME} | grep -q 'NXDOMAIN'
+    export NODE_NAME=${INSTANCE_NAME}@${HOSTNAME}
+  then
     export NODE_NAME=${INSTANCE_NAME}@${IP}
   fi
-#
-#  # Handoff port.
-#  export HANDOFF_PORT=${PORT1}
-#
-#  # Protocol buffer port.
-#  export PB_PORT=${PORT2}
-#
-#  # Pub/sub port.
-#  export PUBSUB_PORT=${PORT3}
-#
-#  # Logeader port.
-#  export LOGREADER_PORT=${PORT4}
-#fi
+fi
+# Else, default to IP.
+if [ -z "$NODE_NAME" ]; then
+  export NODE_NAME=${INSTANCE_NAME}@${IP}
+fi
 
 # Assume 127.0.0.1 as bind host.
 if [ -z "$IP" ]; then
@@ -68,13 +55,6 @@ if [ -z "$COOKIE" ]; then
 fi
 
 export RELX_REPLACE_OS_VARS=true
-
-echo "PORT0: ${PORT0}"
-echo "PORT1: ${PORT1}"
-echo "PORT2: ${PORT2}"
-echo "PORT3: ${PORT3}"
-echo "PORT4: ${PORT4}"
-
 
 echo "NODE_NAME: ${NODE_NAME}"
 echo "COOKIE: ${COOKIE}"
