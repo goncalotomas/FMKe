@@ -1,16 +1,12 @@
 REBAR = $(shell pwd)/rebar3
 BENCH=_build/default/lib/basho_bench
-EBIN=_build/default/lib/fmk/ebin
-CLIENT=basho_bench_driver_fmkclient
 
 all: compile rel
 
 compile:
 	${REBAR} compile
-	cd ${BENCH}; make all; cd -
-	cp ${BENCH}/include/basho_bench.hrl ./include/
-	erlc test/${CLIENT}.erl
-	mv ${CLIENT}.beam ${EBIN}/
+	cp test/basho_bench_driver_fmkclient.erl _build/default/lib/basho_bench/src
+	cd _build/default/lib/basho_bench; make all; cd -
 
 rel:
 	rm -rf _build/default/rel/
@@ -28,3 +24,7 @@ bench: compile
 
 console: rel
 	./_build/default/rel/fmk/bin/env console
+
+dialyzer:
+	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
+	${REBAR} dialyzer

@@ -16,7 +16,6 @@
   create_treatment/6,
   get_event_by_id/1,
   get_facility_by_id/1,
-  get_facility_prescriptions/1,
   get_facility_treatments/1,
   get_patient_by_id/1,
   get_pharmacy_by_id/1,
@@ -33,7 +32,8 @@
   update_pharmacy_details/3,
   update_facility_details/4,
   update_staff_details/4,
-  update_prescription_medication/3
+  update_prescription_medication/3,
+  error_to_binary/1
   ]).
 
 %% Exports needed for other modules
@@ -119,7 +119,7 @@ get_event_by_id(Id) ->
   process_get_request(binary_event_key(Id),?MAP).
 
 %% Alternative to get_event_by_id/1, which includes a transactional context.
--spec get_event_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_event_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_event_by_id(Id,Txn) ->
   process_get_request(binary_event_key(Id),?MAP,Txn).
 
@@ -130,17 +130,9 @@ get_facility_by_id(Id) ->
   process_get_request(binary_facility_key(Id),?MAP).
 
 %% Alternative to get_facility_by_id/1, which includes a transactional context.
--spec get_facility_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_facility_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_facility_by_id(Id,Txn) ->
   process_get_request(binary_facility_key(Id),?MAP,Txn).
-
-%% Fetches the list of facility prescriptions given a certain facility ID.
--spec get_facility_prescriptions(id()) -> [crdt()] | {error, reason()}.
-get_facility_prescriptions(FacilityId) ->
-  case get_facility_by_id(FacilityId) of
-    {error,not_found} -> {error,no_such_facility};
-    Facility -> facility:prescriptions(Facility)
-  end.
 
 %% Fetches the list of facility treatments given a certain facility ID.
 -spec get_facility_treatments(id()) -> [crdt()] | {error, reason()}.
@@ -156,7 +148,7 @@ get_pharmacy_by_id(Id) ->
   process_get_request(binary_pharmacy_key(Id),?MAP).
 
 %% Alternative to get_pharmacy_by_id/1, which includes a transactional context.
--spec get_pharmacy_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_pharmacy_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_pharmacy_by_id(Id,Txn) ->
   process_get_request(binary_pharmacy_key(Id),?MAP,Txn).
 
@@ -166,7 +158,7 @@ get_patient_by_id(Id) ->
   process_get_request(binary_patient_key(Id),?MAP).
 
 %% Alternative to get_patient_by_id/1, which includes a transactional context.
--spec get_patient_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_patient_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_patient_by_id(Id,Txn) ->
   process_get_request(binary_patient_key(Id),?MAP,Txn).
 
@@ -205,7 +197,7 @@ get_prescription_medication(Id) ->
   end.
 
 %% Alternative to get_prescription_by_id/1, which includes a transactional context.
--spec get_prescription_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_prescription_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id,Txn) ->
   process_get_request(binary_prescription_key(Id),?MAP,Txn).
 
@@ -215,7 +207,7 @@ get_staff_by_id(Id) ->
   process_get_request(binary_staff_key(Id),?MAP).
 
 %% Alternative to get_staff_by_id/1, which includes a transactional context.
--spec get_staff_by_id(id(),id()) -> [crdt()] | {error, reason()}.
+-spec get_staff_by_id(id(),txid()) -> [crdt()] | {error, reason()}.
 get_staff_by_id(Id,Txn) ->
   process_get_request(binary_staff_key(Id),?MAP,Txn).
 
@@ -319,25 +311,20 @@ update_prescription_medication(Id,add_drugs,Drugs) ->
       UpdateOperation = prescription:add_drugs(Drugs),
       PatientId = prescription:patient_id(Prescription),
       PharmacyId = prescription:pharmacy_id(Prescription),
-      FacilityId = prescription:facility_id(Prescription),
       PrescriberId = prescription:prescriber_id(Prescription),
       %% gather required antidote keys
       PrescriptionKey = binary_prescription_key(Id),
       PatientKey = binary_patient_key(PatientId),
       PharmacyKey = binary_pharmacy_key(PharmacyId),
-      FacilityKey = binary_facility_key(FacilityId),
       PrescriberKey = binary_staff_key(PrescriberId),
       %% build nested updates for patients, pharmacies, facilities and the prescriber
       PatientUpdate = patient:add_prescription_drugs(Id,Drugs),
-      FacilityUpdate = facility:add_prescription_drugs(Id,Drugs),
       PharmacyUpdate = pharmacy:add_prescription_drugs(Id,Drugs),
       PrescriberUpdate = staff:add_prescription_drugs(Id,Drugs),
       %% update top level prescription
       antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,Txn),
       %% add to patient prescriptions
       antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-      %% add to hospital prescriptions
-      antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
       %% add to pharmacy prescriptions
       antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
       %% add to the prescriber's prescriptions
@@ -355,34 +342,25 @@ update_prescription_medication(_Id,_action,_Drugs) -> {error,undefined}.
 create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
   %% check required pre-conditions
   Txn = antidote_lib:txn_start(),
-  ChecksOk = try
-      free = check_prescription_id(PrescriptionId,Txn),
-      taken = check_patient_id(PatientId,Txn),
-      taken = check_staff_id(PrescriberId,Txn),
-      taken = check_pharmacy_id(PharmacyId,Txn),
-      taken = check_facility_id(FacilityId,Txn),
-      ok
-  of
-      ok -> true
-  catch
-      error:{badmatch,taken} -> {error, prescription_id_taken};
-      error:{badmatch,free} -> {error, one_or_more_ids_is_not_assigned};
-      _Other -> {error, unknown}
-  end,
+  PrescriptionKey = binary_prescription_key(PrescriptionId),
+  PatientKey = binary_patient_key(PatientId),
+  PharmacyKey = binary_pharmacy_key(PharmacyId),
+  PrescriberKey = binary_staff_key(PrescriberId),
+  FacilityKey = binary_facility_key(FacilityId),
+  ChecksOk = check_refs([
+    {free, PrescriptionKey},
+    {taken, PatientKey},
+    {taken, PrescriberKey},
+    {taken, PharmacyKey},
+    {taken, FacilityKey}
+  ], Txn),
 
   Result = case ChecksOk of
       true ->
-          %% gather required antidote keys
-          PrescriptionKey = binary_prescription_key(PrescriptionId),
-          PatientKey = binary_patient_key(PatientId),
-          PharmacyKey = binary_pharmacy_key(PharmacyId),
-          FacilityKey = binary_facility_key(FacilityId),
-          PrescriberKey = binary_staff_key(PrescriberId),
           %% build top level update for the prescription
           TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
           %% build nested updates for patients, pharmacies, facilities and the prescriber
           PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-          FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
           PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
           PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
           %% add top level prescription
@@ -393,10 +371,9 @@ create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,
           antidote_lib:put(PrescriberKey,?MAP,update,PrescriberUpdate,Txn),
           %% add to patient prescriptions
           antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-          %% add to hospital prescriptions
-          antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
           ok;
       Error ->
+          io:format("~p~n", [Error]),
           Error
   end,
   ok = antidote_lib:txn_commit(Txn),
@@ -417,14 +394,12 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   PrescriptionKey = binary_prescription_key(PrescriptionId),
   PatientKey = binary_patient_key(PatientId),
   PharmacyKey = binary_pharmacy_key(PharmacyId),
-  FacilityKey = binary_facility_key(FacilityId),
   PrescriberKey = binary_staff_key(PrescriberId),
   TreatmentKey = binary_treatment_key(TreatmentId),
   %% build top level update for the prescription
   TopLevelPrescription = prescription:new(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   %% build nested updates for patients, pharmacies, facilities and the prescriber
   PatientUpdate = patient:add_prescription(PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
-  FacilityUpdate = facility:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs),
   PharmacyUpdate = pharmacy:add_prescription(PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs),
   PrescriberUpdate = staff:add_prescription(PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs),
   TreatmentUpdate = treatment:add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs),
@@ -432,8 +407,6 @@ create_prescription(PrescriptionId,TreatmentId,PatientId,PrescriberId,PharmacyId
   antidote_lib:put(PrescriptionKey,?MAP,update,TopLevelPrescription,Txn),
   %% add to patient prescriptions
   antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-  %% add to hospital prescriptions
-  antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
   %% add to pharmaciy prescriptions
   antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
   %% add to the prescriber's prescriptions
@@ -532,37 +505,37 @@ create_treatment(TreatmentId,PatientId,StaffId,FacilityId,DateStarted,DateEnded)
 
 %% Builds the patient key inside Antidote given the patient ID.
 -spec binary_patient_key(id()) -> binary().
-binary_patient_key(Id) ->
+binary_patient_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(patient,Id)).
 
 %% Builds the pharmacy key inside Antidote given the pharmacy ID.
 -spec binary_pharmacy_key(id()) -> binary().
-binary_pharmacy_key(Id) ->
+binary_pharmacy_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(pharmacy,Id)).
 
 %% Builds the facility key inside Antidote given the facility ID.
 -spec binary_facility_key(id()) -> binary().
-binary_facility_key(Id) ->
+binary_facility_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(facility,Id)).
 
 %% Builds the staff member key inside Antidote given the staff member ID.
 -spec binary_staff_key(id()) -> binary().
-binary_staff_key(Id) ->
+binary_staff_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(staff,Id)).
 
 %% Builds the prescription key inside Antidote given the prescription ID.
 -spec binary_prescription_key(id()) -> binary().
-binary_prescription_key(Id) ->
+binary_prescription_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(prescription,Id)).
 
 %% Builds the treatment key inside Antidote given the treatment ID.
 -spec binary_treatment_key(id()) -> binary().
-binary_treatment_key(Id) ->
+binary_treatment_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(treatment,Id)).
 
 %% Builds the event key inside Antidote given the event ID.
 -spec binary_event_key(id()) -> binary().
-binary_event_key(Id) ->
+binary_event_key(Id) when is_integer(Id) ->
   list_to_binary(concatenate_id(event,Id)).
 
 process_prescription(Id,Date) ->
@@ -578,25 +551,20 @@ process_prescription(Id,Date) ->
           UpdateOperation = prescription:process(Date),
           PatientId = prescription:patient_id(Prescription),
           PharmacyId = prescription:pharmacy_id(Prescription),
-          FacilityId = prescription:facility_id(Prescription),
           PrescriberId = prescription:prescriber_id(Prescription),
           %% gather required antidote keys
           PrescriptionKey = binary_prescription_key(Id),
           PatientKey = binary_patient_key(PatientId),
           PharmacyKey = binary_pharmacy_key(PharmacyId),
-          FacilityKey = binary_facility_key(FacilityId),
           PrescriberKey = binary_staff_key(PrescriberId),
           %% build nested updates for patients, pharmacies, facilities and the prescriber
           PatientUpdate = patient:process_prescription(Id,Date),
-          FacilityUpdate = facility:process_prescription(Id,Date),
           PharmacyUpdate = pharmacy:process_prescription(Id,Date),
           PrescriberUpdate = staff:process_prescription(Id,Date),
           %% update top level prescription
           antidote_lib:put(PrescriptionKey,?MAP,update,UpdateOperation,Txn),
           %% add to patient prescriptions
           antidote_lib:put(PatientKey,?MAP,update,PatientUpdate,Txn),
-          %% add to hospital prescriptions
-          antidote_lib:put(FacilityKey,?MAP,update,FacilityUpdate,Txn),
           %% add to pharmacy prescriptions
           antidote_lib:put(PharmacyKey,?MAP,update,PharmacyUpdate,Txn),
           %% add to the prescriber's prescriptions
@@ -692,3 +660,27 @@ process_get_request(Key,Type,Txn) ->
 
 filter_processed_prescriptions(PharmacyPrescriptions) ->
   [Prescription || {_PrescriptionHeader,Prescription} <- PharmacyPrescriptions, prescription:is_processed(Prescription)==?PRESCRIPTION_PROCESSED].
+
+check_refs(Checks, Txn) ->
+    Keys = [antidote_lib:create_bucket(Key, antidote_crdt_gmap) || {_, Key} <- Checks],
+    Objects = antidote_lib:txn_read_objects(Keys, Txn),
+    try
+        [case {Exp, Obj} of
+           {taken, []} ->
+              error({key_does_not_exist, Key});
+           {taken, _} ->
+              ok;
+           {free, []} ->
+              ok;
+           {free, _} ->
+              error({key_not_free, Key})
+         end
+        || {{_Crdt, Obj}, {Exp, Key}} <- lists:zip(Objects, Checks)],
+      true
+    catch
+        error:Reason -> {error, Reason}
+    end.
+
+
+error_to_binary(Reason) ->
+    list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).

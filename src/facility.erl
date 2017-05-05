@@ -1,5 +1,5 @@
 %% This module represents the faclity entity in the FMK system.
-%% Facilities are associated with prescriptions and treatments.
+%% Facilities are associated with treatments.
 -module(facility).
 -include("fmk.hrl").
 
@@ -11,14 +11,10 @@
   id/1,
   address/1,
   type/1,
-  prescriptions/1,
   treatments/1,
-  add_prescription/6,
   add_event/5,
   add_treatment/4,
-  add_treatment/5,
-  process_prescription/2,
-  add_prescription_drugs/2
+  add_treatment/5
   ]).
 
 %% Returns a list of operations ready to be inserted into antidote.
@@ -60,11 +56,6 @@ id(Facility) ->
 address(Facility) ->
   binary_to_list(antidote_lib:find_key(Facility,?FACILITY_ADDRESS,?FACILITY_ADDRESS_CRDT)).
 
-%% Returns the facility prescriptions from a facility object
--spec prescriptions(crdt()) -> term().
-prescriptions(Facility) ->
-  antidote_lib:find_key(Facility,?FACILITY_PRESCRIPTIONS,?FACILITY_PRESCRIPTIONS_CRDT).
-
 %% Returns the facility treatments from a facility object
 -spec treatments(crdt()) -> term().
 treatments(Facility) ->
@@ -101,42 +92,6 @@ add_treatment(TreatmentId, PatientId, PrescriberId, DateStarted, DateEnded) ->
   FacilityTreatmentsOp = antidote_lib:build_nested_map_op(?FACILITY_TREATMENTS,?NESTED_MAP,FacilityTreatmentKey,ListOps),
   [FacilityTreatmentsOp].
 
-%% Returns an update operation for adding a prescription to a specific patient.
--spec add_prescription(id(), id(), id(), id(), string(), [crdt()]) -> [term()].
-add_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
-  %% nested prescription operations
-  PrescriptionIdOp = build_id_op(?PRESCRIPTION_ID,?PRESCRIPTION_ID_CRDT,PrescriptionId),
-  PatientIdOp = build_id_op(?PRESCRIPTION_PATIENT_ID,?PRESCRIPTION_PATIENT_ID_CRDT,PatientId),
-  PrescriberIdOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID,?PRESCRIPTION_PRESCRIBER_ID_CRDT,PrescriberId),
-  PharmacyIdOp = build_id_op(?PRESCRIPTION_PHARMACY_ID,?PRESCRIPTION_PHARMACY_ID_CRDT,PharmacyId),
-  DateStartedOp = build_lwwreg_op(?TREATMENT_DATE_PRESCRIBED,?TREATMENT_DATE_PRESCRIBED_CRDT,DatePrescribed),
-  [DrugsOp] = prescription:add_drugs(Drugs),
-  ListOps = [PrescriptionIdOp,PatientIdOp,PrescriberIdOp,PharmacyIdOp,DateStartedOp,DrugsOp],
-  %% now to insert the nested operations inside the prescriptions map
-  PatientPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  %% return a top level facility update that contains the prescriptions map update
-  PatientPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,PatientPrescriptionsKey,ListOps),
-  [PatientPrescriptionsOp].
-
--spec process_prescription(id(), string()) -> [term()].
-process_prescription(PrescriptionId, CurrentDate) ->
-  PrescriptionUpdate = prescription:process(CurrentDate),
-  %% now to insert the nested operations inside the prescriptions map
-  FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  %% return a top level patient update that contains the prescriptions map update
-  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,?NESTED_MAP,
-  FacilityPrescriptionsKey,PrescriptionUpdate),
-  [FacilityPrescriptionsOp].
-
--spec add_prescription_drugs(id(), [string()]) -> [term()].
-add_prescription_drugs(PrescriptionId, Drugs) ->
-  PrescriptionUpdate = prescription:add_drugs(Drugs),
-  %% now to insert the nested operations inside the prescriptions map
-  FacilityPrescriptionsKey = fmk_core:binary_prescription_key(PrescriptionId),
-  %% return a top level patient update that contains the prescriptions map update
-  FacilityPrescriptionsOp = antidote_lib:build_nested_map_op(?FACILITY_PRESCRIPTIONS,
-  ?NESTED_MAP,FacilityPrescriptionsKey,PrescriptionUpdate),
-  [FacilityPrescriptionsOp].
 
 %% Returns an update operation for adding an event to a specific facility treatment.
 -spec add_event(id(), id(), id(), string(), string()) -> [term()].

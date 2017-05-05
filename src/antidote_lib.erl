@@ -40,6 +40,7 @@
   build_map_op/3,
   build_nested_map_op/4,
   find_key/3,
+  find_int_key/3,
   counter_increment/1,
   counter_decrement/1,
   lwwreg_assign/1,
@@ -141,6 +142,17 @@ find_key(Map, Key, KeyType) ->
   case lists:keyfind({Key,KeyType},1,Map) of
     false -> not_found;
     {{Key,KeyType},Value} -> Value
+  end.
+
+find_int_key(Map, Key, KeyType) ->
+  case lists:keyfind({Key,KeyType},1,Map) of
+    false -> not_found;
+    {{Key,KeyType},Value} ->
+        case KeyType of
+          antidote_crdt_mvreg -> binary_to_integer(hd(Value));
+          _ when is_binary(Value) -> binary_to_integer(Value);
+          _ when is_integer(Value) -> Value
+        end
   end.
 
 %% ------------------------------------------------------------------------------------------------
