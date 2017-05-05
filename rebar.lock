@@ -9,7 +9,7 @@
   0},
  {<<"basho_bench">>,
   {git,"https://github.com/SyncFree/basho_bench",
-       {ref,"0a7ea79e0d6293f636d6b81d22ec18d0d948b230"}},
+       {ref,"b1ab6477201a3a0803605cc3bb3d2231bcfc3487"}},
   0},
  {<<"bear">>,
   {git,"git://github.com/boundary/bear.git",
@@ -48,10 +48,6 @@
   {git,"https://github.com/benoitc/hackney.git",
        {ref,"06168f227c8ea9e73227cd164f07e0cb3f789673"}},
   0},
- {<<"ibrowse">>,
-  {git,"git://github.com/cmullaparthi/ibrowse.git",
-       {ref,"302c824a8ade766bcb99f83015ba4ee96b9be156"}},
-  1},
  {<<"idna">>,{pkg,<<"idna">>,<<"4.0.0">>},1},
  {<<"jsx">>,
   {git,"https://github.com/talentdeficit/jsx.git",
@@ -107,11 +103,7 @@
   {git,"https://github.com/rpt/snappy.git",
        {ref,"95ce8e8074ca4a514ba8396d7f14e5ec572a8e45"}},
   2},
- {<<"ssl_verify_fun">>,{pkg,<<"ssl_verify_fun">>,<<"1.1.1">>},1},
- {<<"time_compat">>,
-  {git,"https://github.com/lasp-lang/time_compat.git",
-       {ref,"6007f68892104ebb6fa2366cebf9d928d8856273"}},
-  1}]}.
+ {<<"ssl_verify_fun">>,{pkg,<<"ssl_verify_fun">>,<<"1.1.1">>},1}]}.
 [
 {pkg_hash,[
  {<<"certifi">>, <<"C9B71A547016C2528A590CCFC28DE786C7EDB74AAFA17446B84F54E04EFC00EE">>},
