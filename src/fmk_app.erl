@@ -17,12 +17,12 @@
 start(_StartType, _StartArgs) ->
     Result = case fmk_sup:start_link() of
         {ok, Pid} ->
-              case open_antidote_socket() of
-                {ok,_} -> {ok, Pid};
-                Err -> {error, {cannot_open_protobuff_socket, Err}}
-              end;
+            case open_antidote_socket() of
+              {ok,_} -> {ok, Pid};
+              Err -> {error, {cannot_open_protobuff_socket, Err}}
+            end;
         {error, Reason} ->
-              {error, Reason}
+            {error, Reason}
     end,
     Dispatch = cowboy_router:compile([
       {'_', [
@@ -52,7 +52,20 @@ stop(_State) ->
 %%====================================================================
 %% Internal functions
 %%====================================================================
-
+set_application_variable(antidote_address, "ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS) ->
+  %% try to load value from environment variable
+  Default = os:getenv("ANTIDOTE_ADDRESS", ?DEFAULT_ANTIDOTE_ADDRESS),
+  ListAddresses = [list_to_atom(X) || X <- parse_list_from_env_var(Default)],
+  Value = application:get_env(?APP,antidote_address,ListAddresses),
+  fmk_config:set(antidote_address,Value),
+  Value;
+set_application_variable(antidote_port, "ANTIDOTE_PB_PORT", ?DEFAULT_ANTIDOTE_PORT) ->
+  %% try to load value from environment variable
+  Default = os:getenv("ANTIDOTE_PB_PORT", ?DEFAULT_ANTIDOTE_PORT),
+  ListPorts = parse_list_from_env_var(Default),
+  Value = application:get_env(?APP,antidote_port,ListPorts),
+  fmk_config:set(antidote_port,Value),
+  Value;
 set_application_variable(ApplicationVariable, EnvironmentVariable, EnvironmentDefault) ->
   %% try to load value from environment variable
   Default = os:getenv(EnvironmentVariable, EnvironmentDefault),
@@ -75,4 +88,13 @@ close_antidote_socket() ->
             {error, error_closing_pb_socket};
         _SomethingElse ->
             ok
+    end.
+
+parse_list_from_env_var(String) ->
+  io:format("RECEIVED: ~p\n",[String]),
+    try
+        string:tokens(String,",") %% CSV style
+    catch
+        _:_  ->
+            bad_input_format
     end.

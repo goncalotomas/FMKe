@@ -38,7 +38,7 @@ create_patient(Req) ->
 		Id = proplists:get_value(<<"id">>, Json),
 		Name = proplists:get_value(<<"name">>, Json),
 		Address = proplists:get_value(<<"address">>, Json),
-		IntegerId = 
+		IntegerId =
 			if
 				is_binary(Id) -> list_to_integer(binary_to_list(Id));
 				true -> Id
@@ -58,9 +58,10 @@ create_patient(Req) ->
 		end.
 
 update_patient(Req) ->
-		{ok, [{<<"name">>, Name},
-		{<<"address">>, Address}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
 		Id = cowboy_req:binding(?BINDING_PATIENT_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of

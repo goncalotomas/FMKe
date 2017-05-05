@@ -40,6 +40,7 @@
   build_map_op/3,
   build_nested_map_op/4,
   find_key/3,
+  find_int_key/3,
   counter_increment/1,
   counter_decrement/1,
   lwwreg_assign/1,

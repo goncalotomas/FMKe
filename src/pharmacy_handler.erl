@@ -33,17 +33,18 @@ handle_req(<<"GET">>, false, Req) ->
 		get_pharmacy(Req).
 
 create_pharmacy(Req) ->
-		{ok, [{<<"id">>, PharmacyId},
-		{<<"name">>, PharmacyName},
-		{<<"address">>, PharmacyAddress}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
-		IntegerId = binary_to_integer(PharmacyId),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Id = proplists:get_value(<<"id">>, Json),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
+		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
 				false ->
-						StringName = binary_to_list(PharmacyName),
-						StringAddress = binary_to_list(PharmacyAddress),
+						StringName = binary_to_list(Name),
+						StringAddress = binary_to_list(Address),
 						ServerResponse = fmk_core:create_pharmacy(IntegerId,StringName,StringAddress),
 						Success = ServerResponse =:= ok,
 						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
@@ -53,9 +54,10 @@ create_pharmacy(Req) ->
 		end.
 
 update_pharmacy(Req) ->
-		{ok, [{<<"name">>, Name},
-		{<<"address">>, Address}
-		], _Req0} = cowboy_req:read_urlencoded_body(Req),
+		{ok, Data, _Req2} = cowboy_req:read_body(Req),
+		Json = jsx:decode(Data),
+		Name = proplists:get_value(<<"name">>, Json),
+		Address = proplists:get_value(<<"address">>, Json),
 		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of

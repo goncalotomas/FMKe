@@ -332,8 +332,6 @@ get_random_date() ->
 fmk_request(HttpConn, Req, State) ->
     fmk_request(HttpConn, Req, State, fun simple_response_handler/2).
 
-
-
 fmk_request(_HttpConn, Req, State, Handler) ->
     {Method, URL, Headers, Payload} = Req,
     Options = [],

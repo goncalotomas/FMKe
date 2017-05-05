@@ -3,7 +3,7 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie antidote -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 10).
+-define(NUMTHREADS, 1).
 
 
 -record(fmkconfig, {
@@ -16,7 +16,7 @@
 
 main([ClientId, FmkNodeRef]) ->
   DirName = filename:dirname(escript:script_name()),
-  {ok, FmkConfigProps} = file:consult(DirName ++ "/fmkclient.config"),
+  {ok, FmkConfigProps} = file:consult(DirName ++ "/fmke_travis.config"),
   FmkConfig = #fmkconfig{
     numpatients = proplists:get_value(numpatients, FmkConfigProps),
     numpharmacies = proplists:get_value(numpharmacies, FmkConfigProps),
@@ -27,7 +27,7 @@ main([ClientId, FmkNodeRef]) ->
 
   MyNodeName = lists:flatten(io_lib:format('client~p@127.0.0.1', [list_to_integer(ClientId)])),
   FmkNode = list_to_atom(FmkNodeRef),
-  io:format("client node is ~p.\n", [MyNodeName]),
+  io:format("client node identifier is ~p.\n", [MyNodeName]),
   io:format("fmk node target set as ~p.\n", [FmkNode]),
   io:format("this script is going to create:~n",[]),
   io:format("-~p patients~n",[FmkConfig#fmkconfig.numpatients]),
@@ -172,7 +172,7 @@ run_op(FmkNode, create_prescription, Params) ->
   run_rpc_op(FmkNode, create_prescription, Params).
 
 run_rpc_op(FmkNode, Op, Params) ->
-  ok = case rpc:call(FmkNode, fmk_core, Op, Params) of
+  ok = case rpc:block_call(FmkNode, fmk_core, Op, Params) of
          {error, Reason} ->
            io:format("Error in ~p with params ~p\n", [Op, Params]),
            {error, Reason};
