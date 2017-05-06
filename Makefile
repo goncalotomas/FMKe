@@ -5,8 +5,7 @@ all: compile rel
 
 compile:
 	${REBAR} compile
-	cp test/basho_bench_driver_fmkclient.erl _build/default/lib/basho_bench/src
-	cd _build/default/lib/basho_bench; make all; cd -
+	scripts/copy_bench_driver.sh
 
 rel:
 	rm -rf _build/default/rel/
