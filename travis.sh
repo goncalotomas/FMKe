@@ -14,7 +14,7 @@ if [ $1 = "test" ]; then
         # TODO add some unit tests...
         # TODO maybe run dialyzer...
         echo "done"
-    elif [ $2 = "antidote"]; then
+    elif [ $2 = "antidote" ]; then
         echo "running FMKe unit tests with antidote back end..."
         ./scripts/start_data_store.sh antidote
         ./scripts/start_fmke.sh
@@ -40,7 +40,7 @@ elif [ $1 = "bench" ]; then
 
         # Start benchmark
         echo "starting benchmark..."
-        _build/default/lib/basho_bench/_build/default/bin/basho_bench test/fmke_travis.config
+        _build/default/lib/basho_bench/_build/default/bin/basho_bench config/fmke_travis.config
 
         if [ -s tests/current/error.log ]; then
             # start existing docker container:
