@@ -5,6 +5,7 @@ all: compile rel
 
 compile:
 	${REBAR} compile
+	./scripts/compile_basho_bench.sh
 
 rel:
 	rm -rf _build/default/rel/
