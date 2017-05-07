@@ -59,7 +59,7 @@ run_patient_operations(FmkeNode) ->
         },
         get_static_patient(FmkeNode))
     %% update patient fields
-    ,?_assertEqual(ok,update_static_patient(FmkeNode)
+    ,?_assertEqual(ok,update_static_patient(FmkeNode))
     %% get record after update
     ,?_assertEqual(
         #patient{
