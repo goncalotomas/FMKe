@@ -9,7 +9,7 @@
     create_pharmacy/3,
     create_facility/4,
     create_staff/4,
-    create_prescription/7,
+    create_prescription/6,
     get_facility_by_id/1,
     get_patient_by_id/1,
     get_pharmacy_by_id/1,
@@ -69,10 +69,10 @@ create_staff(Id,Name,Address,Speciality) ->
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy. The prescription also includes the prescription date and the list of drugs that should be administered.
--spec create_prescription(id(), id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
-create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
+-spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
+create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
   execute_op_no_txn_context(create_prescription,[
-    PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs
+    PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs
   ]).
 
 %%-----------------------------------------------------------------------------

@@ -22,7 +22,7 @@
     create_pharmacy/4,
     create_facility/5,
     create_staff/5,
-    create_prescription/8,
+    create_prescription/7,
     get_event_by_id/2,
     get_facility_by_id/2,
     get_patient_by_id/2,
@@ -62,31 +62,29 @@ create_facility(Context, Id, Name, Address, Type) ->
 create_staff(Context,Id,Name,Address,Speciality) ->
     handle_get_result_for_create_op(staff,[Id,Name,Address,Speciality],get_staff_by_id(Context,Id)).
 
-create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs) ->
+create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
     PatientKey = gen_patient_key(PatientId),
     PharmacyKey = gen_pharmacy_key(PharmacyId),
     PrescriberKey = gen_staff_key(PrescriberId),
-    FacilityKey = gen_facility_key(FacilityId),
 
     %% Check if multiple keys are taken
     [
-      {taken,PatientKey},
-      {taken,PharmacyKey},
-      {taken,PrescriberKey},
-      {taken,FacilityKey}
-    ] = check_keys(Context,[PatientKey,PharmacyKey,PrescriberKey,FacilityKey]),
+      {taken,{PatientKey,patient}},
+      {taken,{PharmacyKey,pharmacy}},
+      {taken,{PrescriberKey,staff}}
+    ] = check_keys(Context,[{PatientKey,patient},{PharmacyKey,pharmacy},{PrescriberKey,staff}]),
 
     %% Create top level prescription if key does not exist.
-    PrescriptionFields = [PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs],
+    PrescriptionFields = [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs],
     HandleCreateOpResult = handle_get_result_for_create_op(prescription,PrescriptionFields,
       get_prescription_by_id(Context,PrescriptionId)),
 
     case HandleCreateOpResult of
         {ok, Context1} ->
             %% creating top level prescription was successful, create nested objects
-            PrescFieldsPatient = [PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs],
-            PrescFieldsPharmacy = [PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs],
-            PrescFieldsStaff = [PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs],
+            PrescFieldsPatient = [PrescriptionId,PrescriberId,PharmacyId,DatePrescribed,Drugs],
+            PrescFieldsPharmacy = [PrescriptionId,PatientId,PrescriberId,DatePrescribed,Drugs],
+            PrescFieldsStaff = [PrescriptionId,PatientId,PharmacyId,DatePrescribed,Drugs],
             PatientUpdate = [gen_nested_entity_update(patient_prescription,PrescFieldsPatient)],
             PharmacyUpdate = [gen_nested_entity_update(pharmacy_prescription,PrescFieldsPharmacy)],
             PrescriberUpdate = [gen_nested_entity_update(staff_prescription,PrescFieldsStaff)],
@@ -98,16 +96,16 @@ create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,Fac
     end.
 
 get_event_by_id(Context,Id) ->
-    execute_get_op(Context,gen_event_key(Id)).
+    execute_get_op(Context,event,gen_event_key(Id)).
 
 get_facility_by_id(Context,Id) ->
-    execute_get_op(Context,gen_facility_key(Id)).
+    execute_get_op(Context,facility,gen_facility_key(Id)).
 
 get_patient_by_id(Context, Id) ->
-    execute_get_op(Context,gen_patient_key(Id)).
+    execute_get_op(Context,patient,gen_patient_key(Id)).
 
 get_pharmacy_by_id(Context, Id) ->
-    execute_get_op(Context,gen_pharmacy_key(Id)).
+    execute_get_op(Context,pharmacy,gen_pharmacy_key(Id)).
 
 get_processed_pharmacy_prescriptions(Context,Id) ->
     case get_pharmacy_prescriptions(Context,Id) of
@@ -127,7 +125,7 @@ get_pharmacy_prescriptions(Context,Id) ->
     end.
 
 get_prescription_by_id(Context,Id) ->
-  execute_get_op(Context,gen_prescription_key(Id)).
+  execute_get_op(Context,prescription,gen_prescription_key(Id)).
 
 get_prescription_medication(Context,Id) ->
   case get_prescription_by_id(Context,Id) of
@@ -137,7 +135,7 @@ get_prescription_medication(Context,Id) ->
   end.
 
 get_staff_by_id(Context,Id) ->
-  execute_get_op(Context,gen_staff_key(Id)).
+  execute_get_op(Context,staff,gen_staff_key(Id)).
 
 get_staff_prescriptions(Context,Id) ->
     case get_staff_by_id(Context,Id) of
@@ -147,11 +145,12 @@ get_staff_prescriptions(Context,Id) ->
     end.
 
 process_prescription(Context,PrescriptionId,DateProcessed) ->
-    PrescriptionKey = gen_key(prescription,PrescriptionId),
-    case ?KV_IMPLEMENTATION:get_key(PrescriptionKey,?MAP,Context) of
+    case get_prescription_by_id(Context,PrescriptionId) of
         {{error,not_found},Context1} ->
             {{error,not_found},Context1};
         {{ok,PrescriptionObject},Context2} ->
+            %% TODO check if prescription is already processed
+            PrescriptionKey = gen_key(prescription,PrescriptionId),
             PatientId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PATIENT_ID_KEY,?REGISTER)),
             PrescriberId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PRESCRIBER_ID_KEY,?REGISTER)),
             PharmacyId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PHARMACY_ID_KEY,?REGISTER)),
@@ -196,17 +195,15 @@ update_staff_details(Context,Id,Name,Address,Speciality) ->
     execute_create_op(Context,StaffKey,StaffUpdate).
 
 update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
-    PrescriptionKey = gen_key(prescription,PrescriptionId),
-    case ?KV_IMPLEMENTATION:get_key(PrescriptionKey,?MAP,Context) of
+    case get_prescription_by_id(Context,PrescriptionId) of
         {{error,not_found},Context1} ->
             {{error,not_found},Context1};
         {{ok,PrescriptionObject},Context2} ->
+            %% TODO check if prescription is already processed and fail if true
+            PrescriptionKey = gen_key(prescription,PrescriptionId),
             PatientId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PATIENT_ID_KEY,?REGISTER)),
-            io:format("PatientID=~p~n",[PatientId]),
             PrescriberId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PRESCRIBER_ID_KEY,?REGISTER)),
-            io:format("PrescriberID=~p~n",[PrescriberId]),
             PharmacyId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PHARMACY_ID_KEY,?REGISTER)),
-            io:format("PharmacyID=~p~n",[PharmacyId]),
             PatientKey = gen_key(patient,PatientId),
             PrescriberKey = gen_key(staff,PrescriberId),
             PharmacyKey = gen_key(pharmacy,PharmacyId),
@@ -232,8 +229,10 @@ update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
 execute_create_op(Context,Key,Operation) ->
     {ok, _Context2} = ?KV_IMPLEMENTATION:update_map(Key,Operation,Context).
 
-execute_get_op(Context,Key) ->
-    ?KV_IMPLEMENTATION:get_key(Key,?MAP,Context).
+execute_get_op(Context,{Key,RecordType}) ->
+      execute_get_op(Context,RecordType,Key).
+execute_get_op(Context,RecordType,Key) ->
+    ?KV_IMPLEMENTATION:get_application_record(Key,RecordType,Context).
 
 gen_entity_update(pharmacy,EntityFields) ->
     [Id,Name,Address] = EntityFields,
@@ -322,7 +321,7 @@ handle_get_result_for_create_op(Entity,EntityFields,{{error,not_found},Context})
 
 handle_get_result_for_create_op(Entity,EntityFields,{{ok, _Object}, Context})
         when is_atom(Entity), is_list(EntityFields) ->
-    {{error, lists:flatten(io_lib:format("~p_id_taken",[Entity]))}, Context}.
+    {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Context}.
 
 check_keys(_Context,[]) ->
     [];

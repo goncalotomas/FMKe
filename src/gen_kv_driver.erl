@@ -19,11 +19,11 @@
 %% -------------------------------------------------------------------
 
 -module(gen_kv_driver).
+-include ("fmk.hrl").
 
 %% Types TODO: refine type defs
 -type key() :: term().
 -type context() :: term(). %% specific to each driver
--type reason() :: term().
 -type map_update() :: [nested_object_update()].
 -type nested_object_update() :: nested_register_update() | nested_set_update() | nested_map_update().
 -type nested_register_update() :: {creat_register, key(), term()}.
@@ -31,9 +31,11 @@
 -type nested_map_update() :: {create_map, key(), map_update()} | {update_map, key(), map_update()}.
 -type map_object() :: term(). %% specific to each driver
 -type nested_key_type() :: register | set | map.
+-type entity() :: patient | pharmacy | facility | staff | prescription | treatment | event.
+-type app_record() :: #patient{} | #pharmacy{} | #facility{} | #staff{} | #prescription{}.
 
 %% callbacks
--callback init(term()) -> {ok, context()}. %TODO: precise typespec
+-callback init(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
 -callback stop(term()) -> term().
 
 %% Transactions
@@ -41,10 +43,10 @@
 -callback commit_transaction(context()) -> {ok, context()}.
 
 %% Returns a map object.
--callback get_map(key(), context()) -> {ok, map_object(), context()} | {error, reason()}.
+-callback get_application_record(key(), entity(), context()) -> {ok, app_record(), context()} | {error, reason()}.
 
 %% Returns the value of a key inside a map
--callback find_key(map_object(), key(), nested_key_type(), context()) -> {ok, term(), context()} | {error, reason()}.
+-callback find_key(map_object(), key(), nested_key_type()) -> {ok, term(), context()} | {error, reason()}.
 
 %% term() is a list of lists of operations where in each position you store the operations for each level of nesting []
 %% [[{update, [{update,{key,mykey},{value,myvalue}]}, [], []] means that we will perform an operation on the top level map

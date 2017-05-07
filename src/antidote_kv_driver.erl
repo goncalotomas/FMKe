@@ -30,6 +30,7 @@
   init/1,
   stop/1,
   get_key/3,
+  get_application_record/3,
   get_map/2,
   get_list_of_keys/3,
   put/4,
@@ -64,6 +65,59 @@ stop(_Anything) ->
 
 get_map(Key,Context) ->
   get_key(Key,?MAP,Context).
+
+get_application_record(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+  Object = create_read_bucket(Key,?MAP), %% application records are all of type ?MAP
+  {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
+  case Value of
+    {_Something,[]} -> {{error, not_found}, Context};
+    {map, MapObject} -> {{ok, build_app_record(RecordType,MapObject)}, Context}
+  end.
+
+build_app_record(patient,Object) ->
+  Id = find_key(Object, ?PATIENT_ID_KEY, ?LWWREG, -1),
+  Name = find_key(Object, ?PATIENT_NAME_KEY, ?LWWREG, <<"undefined">>),
+  Address = find_key(Object, ?PATIENT_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+  Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  #patient{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
+build_app_record(pharmacy,Object) ->
+  Id = find_key(Object, ?PHARMACY_ID_KEY, ?LWWREG, -1),
+  Name = find_key(Object, ?PHARMACY_NAME_KEY, ?LWWREG, <<"undefined">>),
+  Address = find_key(Object, ?PHARMACY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+  Prescriptions = find_key(Object, ?PHARMACY_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  #pharmacy{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
+build_app_record(staff,Object) ->
+  Id = find_key(Object, ?STAFF_ID_KEY, ?LWWREG, -1),
+  Name = find_key(Object, ?STAFF_NAME_KEY, ?LWWREG, <<"undefined">>),
+  Address = find_key(Object, ?STAFF_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+  Speciality = find_key(Object, ?STAFF_SPECIALITY_KEY, ?LWWREG, <<"undefined">>),
+  Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  #staff{id=Id,name=Name,address=Address,speciality=Speciality,prescriptions=Prescriptions};
+build_app_record(facility,Object) ->
+  Id = find_key(Object, ?FACILITY_ID_KEY, ?LWWREG, -1),
+  Name = find_key(Object, ?FACILITY_NAME_KEY, ?LWWREG, <<"undefined">>),
+  Address = find_key(Object, ?FACILITY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+  Type = find_key(Object, ?FACILITY_TYPE_KEY, ?LWWREG, <<"undefined">>),
+  #facility{id=Id,name=Name,address=Address,type=Type};
+build_app_record(prescription,Object) ->
+  Id = find_key(Object, ?PRESCRIPTION_ID_KEY, ?LWWREG, -1),
+  PatientId = find_key(Object, ?PRESCRIPTION_PATIENT_ID_KEY, ?LWWREG, <<"undefined">>),
+  PrescriberId = find_key(Object, ?PRESCRIPTION_PRESCRIBER_ID_KEY, ?LWWREG, <<"undefined">>),
+  PharmacyId = find_key(Object, ?PRESCRIPTION_PHARMACY_ID_KEY, ?LWWREG, <<"undefined">>),
+  DatePrescribed = find_key(Object, ?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?LWWREG, <<"undefined">>),
+  IsProcessed = find_key(Object, ?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_NOT_PROCESSED_VALUE),
+  DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, <<"undefined">>),
+  Drugs = find_key(Object, ?PRESCRIPTION_DRUGS_KEY, ?ORSET, []),
+  #prescription{
+      id=Id
+      ,patient_id=PatientId
+      ,pharmacy_id=PharmacyId
+      ,prescriber_id=PrescriberId
+      ,date_prescribed=DatePrescribed
+      ,date_processed=DateProcessed
+      ,drugs=Drugs
+      ,is_processed=IsProcessed
+  }.
 
 %% Returns status {({ok, object}| {error, reason}), context}
 get_key(Key, GeneralKeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
