@@ -5,7 +5,6 @@ all: compile rel
 
 compile:
 	${REBAR} compile
-	scripts/copy_bench_driver.sh
 
 rel:
 	rm -rf _build/default/rel/
@@ -15,7 +14,7 @@ relclean:
 	rm -rf _build/default/rel
 
 populate: compile
-	./test/fmk_setup_script.erl 1 fmk@127.0.0.1
+	./scripts/fmk_setup_script.erl 1 fmk@127.0.0.1
 
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config
