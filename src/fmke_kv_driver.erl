@@ -258,13 +258,12 @@ gen_entity_update(facility,EntityFields) ->
         create_register_op(?FACILITY_TYPE_KEY,Type)
     ];
 gen_entity_update(prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs] = EntityFields,
+    [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
     [
         create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
         create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
         create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
         create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_FACILITY_ID_KEY,FacilityId),
         create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
         create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
     ];
@@ -278,34 +277,31 @@ gen_entity_update(patient,EntityFields) ->
 
 
 gen_nested_entity_update(patient_prescription,EntityFields) ->
-    [PrescriptionId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,Drugs] = EntityFields,
+    [PrescriptionId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
     NestedOps = [
         create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
         create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
         create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_FACILITY_ID_KEY,FacilityId),
         create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
         create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
     ],
     update_map_op(?PATIENT_PRESCRIPTIONS_KEY,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]);
 gen_nested_entity_update(pharmacy_prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PrescriberId,FacilityId,DatePrescribed,Drugs] = EntityFields,
+    [PrescriptionId,PatientId,PrescriberId,DatePrescribed,Drugs] = EntityFields,
     NestedOps = [
         create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
         create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
         create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
-        create_register_op(?PRESCRIPTION_FACILITY_ID_KEY,FacilityId),
         create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
         create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
     ],
     update_map_op(?PHARMACY_PRESCRIPTIONS_KEY,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]);
 gen_nested_entity_update(staff_prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PharmacyId,FacilityId,DatePrescribed,Drugs] = EntityFields,
+    [PrescriptionId,PatientId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
     NestedOps = [
         create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
         create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
         create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_FACILITY_ID_KEY,FacilityId),
         create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
         create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
     ],
