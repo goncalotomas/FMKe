@@ -27,3 +27,47 @@
 -define(TEST_COUNTER_KEY, fmk_counter_test).
 -define(TEST_MAP_KEY, 'fmk_map_test').
 -define(TEST_NESTED_MAP_KEY, 'fmk_nested_map_test').
+
+-record(prescription, {
+    id :: id()
+    ,patient_id :: id()
+    ,pharmacy_id :: id()
+    ,prescriber_id :: id()
+    ,date_prescribed :: field()
+    ,date_processed = <<"undefined">> :: field()
+    ,drugs :: list(field())
+    ,is_processed = <<"not_processed">> :: field()
+}).
+
+-record(patient, {
+    id :: id()
+    ,name :: string()
+    ,address :: string()
+    ,prescriptions = [] :: list(#prescription{})
+    % ,treatments=[] :: list(#treatment{})
+    % ,events=[] :: list(#event{})
+}).
+
+-record(pharmacy, {
+    id :: id()
+    ,name :: string()
+    ,address :: string()
+    ,prescriptions = [] :: list(#prescription{})
+}).
+
+-record(facility, {
+    id :: id()
+    ,name :: string()
+    ,address :: string()
+    ,type :: string()
+    % ,treatments=[] :: list(#treatment{})
+    % ,events=[] :: list(#event{})
+}).
+
+-record(staff, {
+    id :: id()
+    ,name :: string()
+    ,address :: string()
+    ,speciality :: string()
+    ,prescriptions = [] :: list(#prescription{})
+}).
