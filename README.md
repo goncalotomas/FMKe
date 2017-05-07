@@ -55,7 +55,7 @@ Choose one of the following commands:
 
 4. *(must be executed once)* Fill the database with testdata used by the benchmark.
 
-        ./test/fmk_setup_script.erl
+        ./scripts/fmk_setup_script.erl
 
 5. *(optional)* Adjust Benchmark parameters in `test/fmkclient.config`
 
