@@ -15,6 +15,10 @@
 -define (STATIC_FACILITY_NAME_UPDATED, "FMKe facility updated").
 -define (STATIC_FACILITY_TYPE, "FMKe Hospital").
 -define (STATIC_FACILITY_TYPE_UPDATED, "FMKe Hospital updated").
+-define (STATIC_STAFF_NAME,"FMKe doctor name").
+-define (STATIC_STAFF_NAME_UPDATED, "FMKe doctor name updated").
+-define (STATIC_STAFF_SPECIALITY, "FMKe doctor speciality").
+-define (STATIC_STAFF_SPECIALITY_UPDATED, "FMKe doctor speciality updated").
 -endif.
 
 -ifdef(TEST).
@@ -52,6 +56,15 @@ facility_operations_test_() ->
       fun start/0,                              % setup function
       fun stop/1,                               % teardown function
       fun run_facility_operations/1             % instantiator
+    }}.
+
+staff_operations_test_() ->
+    {"Runs a sequential list of operations that expose most of the staff record"
+    " functionality and that serve as unit tests for those operations.",
+    {setup,
+      fun start/0,                              % setup function
+      fun stop/1,                               % teardown function
+      fun run_staff_operations/1             % instantiator
     }}.
 
 start() ->
@@ -155,6 +168,36 @@ run_facility_operations(FmkeNode) ->
         get_static_facility(FmkeNode))
     ].
 
+run_staff_operations(FmkeNode) ->
+    [
+    %% get unexistant key
+    ?_assertEqual({error,not_found},get_static_staff(FmkeNode))
+    %% normal create
+    ,?_assertEqual(ok,create_static_staff(FmkeNode))
+    %% create when record already exists
+    ,?_assertEqual({error,staff_id_taken},create_static_staff(FmkeNode))
+    %% normal get
+    ,?_assertEqual(
+        #staff{
+          id=integer_to_binary(?STATIC_ID),
+          name=list_to_binary(?STATIC_STAFF_NAME),
+          address=list_to_binary(?STATIC_ADDRESS),
+          speciality=list_to_binary(?STATIC_STAFF_SPECIALITY)
+        },
+        get_static_staff(FmkeNode))
+    %% update record fields
+    ,?_assertEqual(ok,update_static_staff(FmkeNode))
+    %% get record after update
+    ,?_assertEqual(
+        #staff{
+          id=integer_to_binary(?STATIC_ID),
+          name=list_to_binary(?STATIC_STAFF_NAME_UPDATED),
+          address=list_to_binary(?STATIC_ADDRESS_UPDATED),
+          speciality=list_to_binary(?STATIC_STAFF_SPECIALITY_UPDATED)
+        },
+        get_static_staff(FmkeNode))
+    ].
+
 create_static_patient(FmkeNode) ->
     run_generic_create_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME,?STATIC_ADDRESS]).
 
@@ -163,6 +206,9 @@ create_static_pharmacy(FmkeNode) ->
 
 create_static_facility(FmkeNode) ->
     run_generic_create_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME,?STATIC_ADDRESS,?STATIC_FACILITY_TYPE]).
+
+create_static_staff(FmkeNode) ->
+    run_generic_create_op(FmkeNode,staff,[?STATIC_ID,?STATIC_STAFF_NAME,?STATIC_ADDRESS,?STATIC_STAFF_SPECIALITY]).
 
 get_static_patient(FmkeNode) ->
     run_generic_get_op(FmkeNode,patient).
@@ -173,6 +219,9 @@ get_static_pharmacy(FmkeNode) ->
 get_static_facility(FmkeNode) ->
     run_generic_get_op(FmkeNode,facility).
 
+get_static_staff(FmkeNode) ->
+    run_generic_get_op(FmkeNode,staff).
+
 update_static_patient(FmkeNode) ->
     run_generic_update_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
 
@@ -181,6 +230,9 @@ update_static_pharmacy(FmkeNode) ->
 
 update_static_facility(FmkeNode) ->
     run_generic_update_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_FACILITY_TYPE_UPDATED]).
+
+update_static_staff(FmkeNode) ->
+    run_generic_update_op(FmkeNode,staff,[?STATIC_ID,?STATIC_STAFF_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_STAFF_SPECIALITY_UPDATED]).
 
 run_generic_create_op(FmkeNode,Entity,Args) ->
     OpAtom = build_create_op(Entity),
