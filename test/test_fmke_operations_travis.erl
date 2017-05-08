@@ -5,12 +5,16 @@
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
 -define (STATIC_ID, 1).
--define (STATIC_PATIENT_NAME,"FMKe patient").
--define (STATIC_PATIENT_NAME_UPDATED, "FMKe patient updated").
 -define (STATIC_ADDRESS,"https://github.com/goncalotomas/FMKe").
 -define (STATIC_ADDRESS_UPDATED,"https://github.com/goncalotomas/FMKe.git").
+-define (STATIC_PATIENT_NAME,"FMKe patient").
+-define (STATIC_PATIENT_NAME_UPDATED, "FMKe patient updated").
 -define (STATIC_PHARMACY_NAME,"FMKe pharmacy").
 -define (STATIC_PHARMACY_NAME_UPDATED, "FMKe pharmacy updated").
+-define (STATIC_FACILITY_NAME,"FMKe facility").
+-define (STATIC_FACILITY_NAME_UPDATED, "FMKe facility updated").
+-define (STATIC_FACILITY_TYPE, "FMKe Hospital").
+-define (STATIC_FACILITY_TYPE_UPDATED, "FMKe Hospital updated").
 -endif.
 
 -ifdef(TEST).
@@ -41,6 +45,15 @@ pharmacy_operations_test_() ->
       fun run_pharmacy_operations/1             % instantiator
     }}.
 
+facility_operations_test_() ->
+    {"Runs a sequential list of operations that expose most of the facility record"
+    " functionality and that serve as unit tests for those operations.",
+    {setup,
+      fun start/0,                              % setup function
+      fun stop/1,                               % teardown function
+      fun run_facility_operations/1             % instantiator
+    }}.
+
 start() ->
     net_kernel:start(['test_ops_travis@127.0.0.1',longnames]),
     erlang:set_cookie(node(),antidote),
@@ -69,7 +82,7 @@ run_patient_operations(FmkeNode) ->
           prescriptions=[]
         },
         get_static_patient(FmkeNode))
-    %% update patient fields
+    %% update record fields
     ,?_assertEqual(ok,update_static_patient(FmkeNode))
     %% get record after update
     ,?_assertEqual(
@@ -99,7 +112,7 @@ run_pharmacy_operations(FmkeNode) ->
           prescriptions=[]
         },
         get_static_pharmacy(FmkeNode))
-    %% update patient fields
+    %% update record fields
     ,?_assertEqual(ok,update_static_pharmacy(FmkeNode))
     %% get record after update
     ,?_assertEqual(
@@ -112,11 +125,44 @@ run_pharmacy_operations(FmkeNode) ->
         get_static_pharmacy(FmkeNode))
     ].
 
+run_facility_operations(FmkeNode) ->
+    [
+    %% get unexistant key
+    ?_assertEqual({error,not_found},get_static_facility(FmkeNode))
+    %% normal create
+    ,?_assertEqual(ok,create_static_facility(FmkeNode))
+    %% create when record already exists
+    ,?_assertEqual({error,facility_id_taken},create_static_facility(FmkeNode))
+    %% normal get
+    ,?_assertEqual(
+        #facility{
+          id=integer_to_binary(?STATIC_ID),
+          name=list_to_binary(?STATIC_FACILITY_NAME),
+          address=list_to_binary(?STATIC_ADDRESS),
+          type=list_to_binary(?STATIC_FACILITY_TYPE)
+        },
+        get_static_facility(FmkeNode))
+    %% update record fields
+    ,?_assertEqual(ok,update_static_facility(FmkeNode))
+    %% get record after update
+    ,?_assertEqual(
+        #facility{
+          id=integer_to_binary(?STATIC_ID),
+          name=list_to_binary(?STATIC_FACILITY_NAME_UPDATED),
+          address=list_to_binary(?STATIC_ADDRESS_UPDATED),
+          type=list_to_binary(?STATIC_FACILITY_TYPE_UPDATED)
+        },
+        get_static_facility(FmkeNode))
+    ].
+
 create_static_patient(FmkeNode) ->
     run_generic_create_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME,?STATIC_ADDRESS]).
 
 create_static_pharmacy(FmkeNode) ->
     run_generic_create_op(FmkeNode,pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME,?STATIC_ADDRESS]).
+
+create_static_facility(FmkeNode) ->
+    run_generic_create_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME,?STATIC_ADDRESS,?STATIC_FACILITY_TYPE]).
 
 get_static_patient(FmkeNode) ->
     run_generic_get_op(FmkeNode,patient).
@@ -124,11 +170,17 @@ get_static_patient(FmkeNode) ->
 get_static_pharmacy(FmkeNode) ->
     run_generic_get_op(FmkeNode,pharmacy).
 
+get_static_facility(FmkeNode) ->
+    run_generic_get_op(FmkeNode,facility).
+
 update_static_patient(FmkeNode) ->
     run_generic_update_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
 
 update_static_pharmacy(FmkeNode) ->
     run_generic_update_op(FmkeNode,pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
+
+update_static_facility(FmkeNode) ->
+    run_generic_update_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_FACILITY_TYPE_UPDATED]).
 
 run_generic_create_op(FmkeNode,Entity,Args) ->
     OpAtom = build_create_op(Entity),
