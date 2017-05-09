@@ -129,8 +129,8 @@ get_prescription_by_id(Context,Id) ->
 
 get_prescription_medication(Context,Id) ->
   case get_prescription_by_id(Context,Id) of
-      {{ok, PrescriptionObject},Context1} ->
-          {{ok,?KV_IMPLEMENTATION:find_key(PrescriptionObject,?PRESCRIPTION_DRUGS_KEY,?MAP)},Context1};
+      {{ok, PrescriptionObject = #prescription{}},Context1} ->
+          {{ok,PrescriptionObject#prescription.drugs,Context1}};
       Error -> Error
   end.
 
