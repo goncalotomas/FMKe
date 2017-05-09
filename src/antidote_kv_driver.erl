@@ -78,20 +78,20 @@ build_app_record(patient,Object) ->
   Id = find_key(Object, ?PATIENT_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?PATIENT_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?PATIENT_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
-  Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  Prescriptions = read_nested_prescriptions(Object, ?PATIENT_PRESCRIPTIONS_KEY),
   #patient{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
 build_app_record(pharmacy,Object) ->
   Id = find_key(Object, ?PHARMACY_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?PHARMACY_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?PHARMACY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
-  Prescriptions = find_key(Object, ?PHARMACY_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  Prescriptions = read_nested_prescriptions(Object, ?PHARMACY_PRESCRIPTIONS_KEY),
   #pharmacy{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
 build_app_record(staff,Object) ->
   Id = find_key(Object, ?STAFF_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?STAFF_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?STAFF_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
   Speciality = find_key(Object, ?STAFF_SPECIALITY_KEY, ?LWWREG, <<"undefined">>),
-  Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, ?NESTED_MAP, []),
+  Prescriptions = read_nested_prescriptions(Object, ?STAFF_PRESCRIPTIONS_KEY),
   #staff{id=Id,name=Name,address=Address,speciality=Speciality,prescriptions=Prescriptions};
 build_app_record(facility,Object) ->
   Id = find_key(Object, ?FACILITY_ID_KEY, ?LWWREG, -1),
@@ -118,6 +118,16 @@ build_app_record(prescription,Object) ->
       ,drugs=Drugs
       ,is_processed=IsProcessed
   }.
+
+read_nested_prescriptions(Object,Key) ->
+  case find_key(Object, Key, ?NESTED_MAP, []) of
+      [] -> [];
+      ListPrescriptions -> lists:map(
+                              fun({_PHeader,Prescription}) ->
+                                  build_app_record(prescription,Prescription)
+                              end
+                            ,ListPrescriptions)
+  end.
 
 %% Returns status {({ok, object}| {error, reason}), context}
 get_key(Key, GeneralKeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
@@ -211,9 +221,11 @@ find_key(Map, Key, GeneralKeyType) ->
   find_key(Map,Key,KeyType,not_found).
 
 find_key(Map, Key, KeyType, FallbackValue) ->
-  case lists:keyfind({Key,KeyType},1,Map) of
+  try lists:keyfind({Key,KeyType},1,Map) of
     false -> FallbackValue;
     {{Key,KeyType},Value} -> Value
+  catch
+    _:_ -> FallbackValue
   end.
 
 build_map_update_op(NestedOps) ->
