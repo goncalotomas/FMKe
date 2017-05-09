@@ -303,40 +303,31 @@ verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProc
     }).
 
 cmp_presc_fields(prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.id =:= Expected#prescription.id)
-    and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
+    (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
-    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
-    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
-    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
 
 cmp_presc_fields(patient_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.id =:= Expected#prescription.id)
-    and (DBPrescription#prescription.patient_id =:= ?UNDEFINED_FIELD)
+    (DBPrescription#prescription.patient_id =:= ?UNDEFINED_FIELD)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
-    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
-    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
-    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
 
 cmp_presc_fields(pharmacy_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.id =:= Expected#prescription.id)
-    and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
+    (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= ?UNDEFINED_FIELD)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
-    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
-    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
-    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
 
 cmp_presc_fields(staff_prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.id =:= Expected#prescription.id)
     and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= ?UNDEFINED_FIELD)
+    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription).
+
+cmp_common_presc_fields(DBPrescription = #prescription{}, Expected = #prescription{}) ->
+    (DBPrescription#prescription.id =:= Expected#prescription.id)
     and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
     and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
     and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
