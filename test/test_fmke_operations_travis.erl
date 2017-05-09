@@ -5,6 +5,7 @@
 -ifdef(TEST).
 -compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
+-define(setup(F), {setup, fun start/0, fun stop/1, F}).
 -define (STATIC_ID, 1).
 -define (STATIC_ADDRESS,"https://github.com/goncalotomas/FMKe").
 -define (STATIC_ADDRESS_UPDATED,"https://github.com/goncalotomas/FMKe.git").
@@ -27,59 +28,37 @@
 
 connection_test_() ->
     {"Runs a quick ping test between the current test node and the local FMKe node",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun test_connection/1                     % instantiator
-    }}.
+    ?setup(fun test_connection/1)}.
 
 patient_operations_test_() ->
     {"Runs a sequential list of operations that expose most of the patient record"
     " functionality and that serve as unit tests for those operations.",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun run_patient_operations/1              % instantiator
-    }}.
+    ?setup(fun run_patient_operations/1)}.
 
 pharmacy_operations_test_() ->
     {"Runs a sequential list of operations that expose most of the pharmacy record"
     " functionality and that serve as unit tests for those operations.",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun run_pharmacy_operations/1             % instantiator
-    }}.
+    ?setup(fun run_pharmacy_operations/1)}.
 
 facility_operations_test_() ->
     {"Runs a sequential list of operations that expose most of the facility record"
     " functionality and that serve as unit tests for those operations.",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun run_facility_operations/1             % instantiator
-    }}.
+    ?setup(fun run_facility_operations/1)}.
 
 staff_operations_test_() ->
     {"Runs a sequential list of operations that expose most of the staff record"
     " functionality and that serve as unit tests for those operations.",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun run_staff_operations/1                % instantiator
-    }}.
+    ?setup(fun run_staff_operations/1)}.
 
 prescription_operations_test_() ->
     {"Runs a sequential list of operations that expose most of the prescription record"
     " functionality and that serve as unit tests for those operations.",
-    {setup,
-      fun start/0,                              % setup function
-      fun stop/1,                               % teardown function
-      fun run_prescription_operations/1         % instantiator
-    }}.
+    ?setup(fun run_prescription_operations/1)}.
 
 start() ->
-    net_kernel:start(['test_ops_travis@127.0.0.1',longnames]),
+    Task = rand:uniform(100),
+    Pname = build_generic_op("test_ops_travis_~p@127.0.0.1",[Task]),
+    net_kernel:start([Pname,longnames]),
     erlang:set_cookie(node(),antidote),
     'fmk@127.0.0.1'.
 
