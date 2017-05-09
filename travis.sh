@@ -18,7 +18,15 @@ if [ $1 = "test" ]; then
         echo "running FMKe unit tests with antidote back end..."
         ./scripts/start_data_store.sh antidote
         ./scripts/start_fmke.sh
+        set +e
         ./rebar3 eunit
+        if [ $? -ne  0 ]; then
+            set -e
+            echo "fatal: one or more tests failed."
+            ./scripts/stop_fmke.sh
+            ./scripts/stop_data_store.sh antidote
+            exit 5
+        fi
         ./scripts/stop_fmke.sh
         ./scripts/stop_data_store.sh antidote
         echo "done"
