@@ -211,11 +211,16 @@ run_staff_operations(FmkeNode) ->
 
 run_prescription_operations(FmkeNode) ->
     %% generating required fields to pattern match on later
-    BinStaticId = integer_to_binary(?STATIC_ID),
+
     DatePrescribed1 = gen_rand_date(),
     DatePrescribed2 = gen_rand_date(),
     Drugs1 = gen_drugs(),
     Drugs2 = gen_drugs(),
+    BinStaticId = integer_to_binary(?STATIC_ID),
+    BinDate1 = list_to_binary(DatePrescribed1),
+    BinDate2 = list_to_binary(DatePrescribed2),
+    BinDrugs1 = [list_to_binary(X) || X <- Drugs1],
+    BinDrugs2 = [list_to_binary(X) || X <- Drugs2],
     [
     %% assumes that data store already contains basic entities such as patients,
     %% hospitals, doctors and pharmacies.
@@ -226,8 +231,43 @@ run_prescription_operations(FmkeNode) ->
     %% create when record already exists
     ,?_assertEqual({error,prescription_id_taken},create_static_prescription(FmkeNode,?STATIC_ID,DatePrescribed2,Drugs2))
     %% normal get for first prescription
-    ,?_assert(verify_prescription_fields(FmkeNode,?STATIC_ID,DatePrescribed1,?UNDEFINED_FIELD,Drugs1,?PRESCRIPTION_NOT_PROCESSED_VALUE))
-
+    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+      ?STATIC_ID,DatePrescribed1,?UNDEFINED_FIELD,Drugs1,?PRESCRIPTION_NOT_PROCESSED_VALUE
+      ]))
+    %% check that prescription is present inside each basic entity
+    %% check if prescription is inside the patient record
+    ,?_assert(fetch_prescription(FmkeNode,patient,#prescription{
+        id = BinStaticId
+        ,patient_id = ?UNDEFINED_FIELD
+        ,pharmacy_id = BinStaticId
+        ,prescriber_id = BinStaticId
+        ,date_prescribed = BinDate1
+        ,date_processed = ?UNDEFINED_FIELD
+        ,drugs = BinDrugs1
+        ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
+    }))
+    %% check if prescription is inside the pharmacy record
+    ,?_assert(fetch_prescription(FmkeNode,pharmacy,#prescription{
+        id = BinStaticId
+        ,patient_id = BinStaticId
+        ,pharmacy_id = ?UNDEFINED_FIELD
+        ,prescriber_id = BinStaticId
+        ,date_prescribed = BinDate1
+        ,date_processed = ?UNDEFINED_FIELD
+        ,drugs = BinDrugs1
+        ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
+    }))
+    %% check if prescription is inside the staff record
+    ,?_assert(fetch_prescription(FmkeNode,staff,#prescription{
+        id = BinStaticId
+        ,patient_id = BinStaticId
+        ,pharmacy_id = BinStaticId
+        ,prescriber_id = ?UNDEFINED_FIELD
+        ,date_prescribed = BinDate1
+        ,date_processed = ?UNDEFINED_FIELD
+        ,drugs = BinDrugs1
+        ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
+    }))
     % %% update record fields
     % ,?_assertEqual(ok,update_static_prescription(FmkeNode))
     % %% get record after update
@@ -241,18 +281,38 @@ run_prescription_operations(FmkeNode) ->
     %     get_static_prescription(FmkeNode))
     ].
 
+fetch_prescription(FmkeNode,patient,ExpectedPrescription) ->
+    PrescriptionList = (get_static_patient(FmkeNode))#patient.prescriptions,
+    look_for_prescription(PrescriptionList,patient_prescription,ExpectedPrescription);
 
-verify_prescription_fields(FmkeNode,Id,DatePrescribed,DateProcessed,Drugs,IsProcessed) when is_list(DatePrescribed) ->
-    verify_prescription_fields(FmkeNode,Id,list_to_binary(DatePrescribed),DateProcessed,Drugs,IsProcessed);
+fetch_prescription(FmkeNode,pharmacy,ExpectedPrescription) ->
+    PrescriptionList = (get_static_pharmacy(FmkeNode))#pharmacy.prescriptions,
+    look_for_prescription(PrescriptionList,pharmacy_prescription,ExpectedPrescription);
 
-verify_prescription_fields(FmkeNode,Id,DatePrescribed,DateProcessed,Drugs,IsProcessed) when is_list(DateProcessed) ->
-    verify_prescription_fields(FmkeNode,Id,DatePrescribed,list_to_binary(DateProcessed),Drugs,IsProcessed);
+fetch_prescription(FmkeNode,staff,ExpectedPrescription) ->
+    PrescriptionList = (get_static_staff(FmkeNode))#staff.prescriptions,
+    look_for_prescription(PrescriptionList,staff_prescription,ExpectedPrescription).
 
-verify_prescription_fields(FmkeNode,Id,DatePrescribed,DateProcessed,Drugs,IsProcessed) ->
+look_for_prescription(PrescriptionList,TypePrescriptions,ExpectedPrescription) ->
+    Results = lists:map(
+        fun(Prescription) ->
+            io:format("~p~n",[Prescription]),
+            cmp_presc_fields(TypePrescriptions,Prescription,ExpectedPrescription)
+        end
+    ,PrescriptionList),
+    lists:member(true, Results).
+
+verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DatePrescribed) ->
+    verify_prescription_fields(FmkeNode,PrescriptionType,[Id,list_to_binary(DatePrescribed),DateProcessed,Drugs,IsProcessed]);
+
+verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DateProcessed) ->
+    verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,list_to_binary(DateProcessed),Drugs,IsProcessed]);
+
+verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) ->
     DBPrescription = get_static_prescription(FmkeNode,Id),
     %% static id is used for the basic entities key
     BinStaticId = integer_to_binary(?STATIC_ID),
-    cmp_presc_fields(DBPrescription, #prescription{
+    cmp_presc_fields(prescription,DBPrescription, #prescription{
       id=BinStaticId
       ,patient_id = BinStaticId
       ,pharmacy_id = BinStaticId
@@ -263,11 +323,41 @@ verify_prescription_fields(FmkeNode,Id,DatePrescribed,DateProcessed,Drugs,IsProc
       ,is_processed = IsProcessed
     }).
 
-cmp_presc_fields(DBPrescription = #prescription{}, Expected = #prescription{}) ->
+cmp_presc_fields(prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
     (DBPrescription#prescription.id =:= Expected#prescription.id)
     and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
+    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
+    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
+    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
+    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+
+cmp_presc_fields(patient_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
+    (DBPrescription#prescription.id =:= Expected#prescription.id)
+    and (DBPrescription#prescription.patient_id =:= ?UNDEFINED_FIELD)
+    and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
+    and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
+    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
+    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
+    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
+    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+
+cmp_presc_fields(pharmacy_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
+    (DBPrescription#prescription.id =:= Expected#prescription.id)
+    and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
+    and (DBPrescription#prescription.pharmacy_id =:= ?UNDEFINED_FIELD)
+    and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
+    and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
+    and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
+    and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
+    and cmp_drug_list(DBPrescription#prescription.drugs,Expected#prescription.drugs);
+
+cmp_presc_fields(staff_prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
+    (DBPrescription#prescription.id =:= Expected#prescription.id)
+    and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
+    and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
+    and (DBPrescription#prescription.prescriber_id =:= ?UNDEFINED_FIELD)
     and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
     and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
     and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
