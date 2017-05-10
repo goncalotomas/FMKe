@@ -163,9 +163,12 @@ start_transaction(_OldContext) ->
 
 %% Return status {(ok | error), context}
 commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
-  {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TransactionId),
+  CmtRes = antidotec_pb:commit_transaction(Pid, TransactionId),
   Result = poolboy:checkin(antidote_connection_pool, Pid),
-  {Result, #antidote_context{pid=Pid}}.
+  case CmtRes of
+    {ok, _Something} -> {Result, #antidote_context{pid=Pid}};
+    {error, unknown} -> {{error, txn_aborted},#antidote_context{pid=Pid}}
+  end.
 
 %% Creates an Antidote bucket of a certain type.
 -spec create_write_bucket(field(), crdt(), term()) -> object_bucket().

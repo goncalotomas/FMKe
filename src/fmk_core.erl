@@ -229,8 +229,10 @@ execute_get_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments)
 execute_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments) ->
     {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
     {Result, DBContext1} = execute_op_with_txn_context(Op,Arguments,DBContext),
-    {ok, _DBContext2} = ?DB_DRIVER:commit_transaction(DBContext1), %% assumes TXN commits
-    Result.
+    case ?DB_DRIVER:commit_transaction(DBContext1) of
+        {ok, _DBContext2} -> Result;
+        {Error, _DBContext3} -> Error
+    end.
 
 execute_op_with_txn_context(Op,Arguments,DBContext) when is_atom(Op), is_list(Arguments) ->
     {_Result, _DBContext1} = apply(?DB_DRIVER,Op,[DBContext] ++ Arguments).
