@@ -24,6 +24,11 @@ bench: compile
 console: rel
 	./_build/default/rel/fmk/bin/env console
 
+travis:
+	#./travis.sh test fmk
+	./travis.sh test antidote
+	./travis.sh bench antidote
+
 dialyzer:
 	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
 	${REBAR} dialyzer
