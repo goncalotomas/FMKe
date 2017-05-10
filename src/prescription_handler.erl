@@ -39,7 +39,6 @@ create_prescription(Req) ->
 		PatientId = proplists:get_value(<<"patient_id">>, Json),
 		PrescriberId = proplists:get_value(<<"prescriber_id">>, Json),
 		PharmacyId = proplists:get_value(<<"pharmacy_id">>, Json),
-		FacilityId = proplists:get_value(<<"facility_id">>, Json),
 		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
 		CsvDrugs = proplists:get_value(<<"drugs">>, Json),
 		IntegerId =
@@ -52,11 +51,12 @@ create_prescription(Req) ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						ListDrugs = parse_line(CsvDrugs),
-						ServerResponse = fmk_core:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,FacilityId,DatePrescribed,ListDrugs),
+						ServerResponse = fmk_core:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,ListDrugs),
 						Success = ServerResponse =:= ok,
 						Result = case ServerResponse of
 								ok -> ServerResponse;
-          {error, Reason} -> fmk_core:error_to_binary(Reason)
+								{error, txn_aborted} -> <<"transaction aborted">>;
+          			{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
 						end,
 						JsonReply =	jsx:encode([{success,Success},{result,Result}]),
 						cowboy_req:reply(200, #{
@@ -114,10 +114,15 @@ get_prescription(Req) ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						ServerResponse = fmk_core:get_prescription_by_id(IntegerId),
-						Success = ServerResponse =/= {error,not_found},
+						Success = case ServerResponse of
+								{error,not_found} -> false;
+								{error,txn_aborted} -> false;
+								{error, Other} -> false;
+								_Success -> true
+						end,
 						JsonReply = case Success of
 								true ->
-										jsx:encode([{success,Success},{result,crdt_json_encoder:encode_object(prescription,ServerResponse)}]);
+										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(prescription,ServerResponse)}]);
 								false ->
 										jsx:encode([{success,Success},{result,fmk_core:error_to_binary(ServerResponse)}])
 						end,

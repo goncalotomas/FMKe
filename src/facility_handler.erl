@@ -96,7 +96,7 @@ get_facility(Req) ->
 						JsonReply = case Success of
 								true ->
 										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ crdt_json_encoder:encode(facility,ServerResponse) ++ "}"),
+												("{\"success\": \"~p\", \"result\": " ++ fmke_proplists:encode(facility,ServerResponse) ++ "}"),
 												[Success]
 										));
 								false ->

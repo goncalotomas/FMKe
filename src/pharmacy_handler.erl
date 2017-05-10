@@ -85,7 +85,7 @@ get_pharmacy(Req) ->
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										jsx:encode([{success,Success},{result,crdt_json_encoder:encode_object(pharmacy,ServerResponse)}]);
+										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(pharmacy,ServerResponse)}]);
 								false ->
 										jsx:encode([{success,Success},{result,ServerResponse}])
 						end,
