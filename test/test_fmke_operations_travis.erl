@@ -197,9 +197,9 @@ run_prescription_operations(FmkeNode) ->
     Drugs2 = gen_drugs(),
     BinStaticId = integer_to_binary(?STATIC_ID),
     BinDate1 = list_to_binary(DatePrescribed1),
-    BinDate2 = list_to_binary(DatePrescribed2),
+    %BinDate2 = list_to_binary(DatePrescribed2),
     BinDrugs1 = [list_to_binary(X) || X <- Drugs1],
-    BinDrugs2 = [list_to_binary(X) || X <- Drugs2],
+    %BinDrugs2 = [list_to_binary(X) || X <- Drugs2],
     [
     %% assumes that data store already contains basic entities such as patients,
     %% hospitals, doctors and pharmacies.
@@ -291,7 +291,7 @@ verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProc
     DBPrescription = get_static_prescription(FmkeNode,Id),
     %% static id is used for the basic entities key
     BinStaticId = integer_to_binary(?STATIC_ID),
-    cmp_presc_fields(prescription,DBPrescription, #prescription{
+    cmp_presc_fields(PrescriptionType,DBPrescription, #prescription{
       id=BinStaticId
       ,patient_id = BinStaticId
       ,pharmacy_id = BinStaticId
@@ -306,25 +306,25 @@ cmp_presc_fields(prescription,DBPrescription = #prescription{}, Expected = #pres
     (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
+    and cmp_common_presc_fields(DBPrescription,Expected);
 
 cmp_presc_fields(patient_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
     (DBPrescription#prescription.patient_id =:= ?UNDEFINED_FIELD)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
+    and cmp_common_presc_fields(DBPrescription,Expected);
 
 cmp_presc_fields(pharmacy_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
     (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= ?UNDEFINED_FIELD)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription);
+    and cmp_common_presc_fields(DBPrescription,Expected);
 
 cmp_presc_fields(staff_prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    and (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
+    (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= ?UNDEFINED_FIELD)
-    and cmp_common_presc_fields(DBPrescription,ExpectedPrescription).
+    and cmp_common_presc_fields(DBPrescription,Expected).
 
 cmp_common_presc_fields(DBPrescription = #prescription{}, Expected = #prescription{}) ->
     (DBPrescription#prescription.id =:= Expected#prescription.id)
