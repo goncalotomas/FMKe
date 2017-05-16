@@ -190,11 +190,13 @@ run_staff_operations(FmkeNode) ->
 
 run_prescription_operations(FmkeNode) ->
     %% generating required fields to pattern match on later
-
     DatePrescribed1 = gen_rand_date(),
     DatePrescribed2 = gen_rand_date(),
+    DateProcessed1 = gen_rand_date(),
     Drugs1 = gen_drugs(),
     Drugs2 = gen_drugs(),
+    NewDrugs1 = gen_drugs(),
+    NewDrugList1 = lists:append(Drugs1,NewDrugs1),
     BinStaticId = integer_to_binary(?STATIC_ID),
     BinDate1 = list_to_binary(DatePrescribed1),
     %BinDate2 = list_to_binary(DatePrescribed2),
@@ -207,7 +209,7 @@ run_prescription_operations(FmkeNode) ->
     ?_assertEqual({error,not_found},get_static_prescription(FmkeNode,?STATIC_ID))
     %% normal create for first prescription
     ,?_assertEqual(ok,create_static_prescription(FmkeNode,?STATIC_ID,DatePrescribed1,Drugs1))
-    %% create when record already exists
+    %% create when record already exists (purposely passing in details of prescription 2...)
     ,?_assertEqual({error,prescription_id_taken},create_static_prescription(FmkeNode,?STATIC_ID,DatePrescribed2,Drugs2))
     %% normal get for first prescription
     ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
@@ -247,18 +249,27 @@ run_prescription_operations(FmkeNode) ->
         ,drugs = BinDrugs1
         ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
     }))
-    % %% update record fields
-    % ,?_assertEqual(ok,update_static_prescription(FmkeNode))
-    % %% get record after update
-    % ,?_assertEqual(
-    %     #prescription{
-    %       id=integer_to_binary(?STATIC_ID),
-    %       name=list_to_binary(?STATIC_STAFF_NAME_UPDATED),
-    %       address=list_to_binary(?STATIC_ADDRESS_UPDATED),
-    %       speciality=list_to_binary(?STATIC_STAFF_SPECIALITY_UPDATED)
-    %     },
-    %     get_static_prescription(FmkeNode))
+    ,?_assertEqual({error,invalid_update_operation},update_presc_drugs_w_non_valid_op(FmkeNode,remove_drugs,?STATIC_ID,NewDrugs1))
+    ,?_assertEqual(ok,add_static_prescription_drugs(FmkeNode,?STATIC_ID,NewDrugs1))
+    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+      ?STATIC_ID,DatePrescribed1,?UNDEFINED_FIELD,NewDrugList1,?PRESCRIPTION_NOT_PROCESSED_VALUE
+      ]))
+    ,?_assertEqual(ok,process_static_prescription(FmkeNode,?STATIC_ID,DateProcessed1))
+    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+      ?STATIC_ID,DatePrescribed1,DateProcessed1,NewDrugList1,?PRESCRIPTION_PROCESSED_VALUE
+      ]))
+    ,?_assertEqual({error,prescription_already_processed},add_static_prescription_drugs(FmkeNode,?STATIC_ID,NewDrugs1))
+    ,?_assertEqual({error,prescription_already_processed},process_static_prescription(FmkeNode,?STATIC_ID,DateProcessed1))
     ].
+
+add_static_prescription_drugs(FmkeNode,PrescriptionId,ListDrugs) ->
+    run_rpc_op(FmkeNode,update_prescription_medication,[PrescriptionId,add_drugs,ListDrugs]).
+
+update_presc_drugs_w_non_valid_op(FmkeNode,Operation,PrescriptionId,ListDrugs) ->
+    run_rpc_op(FmkeNode,update_prescription_medication,[PrescriptionId,Operation,ListDrugs]).
+
+process_static_prescription(FmkeNode,PrescriptionId,DateProcessed) ->
+    run_rpc_op(FmkeNode,process_prescription,[PrescriptionId,DateProcessed]).
 
 fetch_prescription(FmkeNode,patient,ExpectedPrescription) ->
     PrescriptionList = (get_static_patient(FmkeNode))#patient.prescriptions,
