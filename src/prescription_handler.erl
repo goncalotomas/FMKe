@@ -85,11 +85,11 @@ update_prescription(Req) ->
 														DrugsList = parse_line(CsvDrugs),
 														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,DrugsList),
 														Success = ServerResponse =:= ok,
-														Result =
-														  case ServerResponse of
-														    {error, Reason} -> fmk_core:error_to_binary(Reason);
-														    ok -> ServerResponse
-														  end,
+														Result = case ServerResponse of
+																ok -> ServerResponse;
+																{error, txn_aborted} -> <<"transaction aborted">>;
+								          			{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
+														end,
 														jsx:encode([{success, Success}, {result, Result}])
 										end;
 								_Date ->

@@ -13,10 +13,13 @@
 
 -behaviour(gen_fmke_driver).
 
+-type context() :: term().
+
 -export([
     init/1,
     stop/1,
     start_transaction/1,
+    abort_transaction/1,
     commit_transaction/1,
     create_patient/4,
     create_pharmacy/4,
@@ -45,6 +48,9 @@
 -define(REGISTER, register).
 
 start_transaction(Context) ->
+    ?KV_IMPLEMENTATION:start_transaction(Context).
+
+abort_transaction(Context) ->
     ?KV_IMPLEMENTATION:start_transaction(Context).
 
 commit_transaction(Context) ->
@@ -147,13 +153,20 @@ get_staff_prescriptions(Context,Id) ->
 process_prescription(Context,PrescriptionId,DateProcessed) ->
     case get_prescription_by_id(Context,PrescriptionId) of
         {{error,not_found},Context1} ->
-            {{error,not_found},Context1};
+            {{error,no_such_prescription},Context1};
         {{ok,PrescriptionObject},Context2} ->
-            %% TODO check if prescription is already processed
+            process_prescription_w_obj(Context,PrescriptionObject,DateProcessed)
+    end.
+
+process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed) ->
+    case Prescription#prescription.is_processed of
+        ?PRESCRIPTION_PROCESSED_VALUE -> {error, {prescription_already_processed}};
+        _Other ->
+            PrescriptionId = binary_to_integer(Prescription#prescription.id),
+            PatientId = binary_to_integer(Prescription#prescription.patient_id),
+            PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
+            PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
             PrescriptionKey = gen_key(prescription,PrescriptionId),
-            PatientId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PATIENT_ID_KEY,?REGISTER)),
-            PrescriberId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PRESCRIBER_ID_KEY,?REGISTER)),
-            PharmacyId = binary_to_integer(find_key(PrescriptionObject,?PRESCRIPTION_PHARMACY_ID_KEY,?REGISTER)),
             PatientKey = gen_key(patient,PatientId),
             PrescriberKey = gen_key(staff,PrescriberId),
             PharmacyKey = gen_key(pharmacy,PharmacyId),
@@ -167,11 +180,30 @@ process_prescription(Context,PrescriptionId,DateProcessed) ->
             PharmacyUpdate = [update_map_op(?PHARMACY_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
             PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
 
-            {ok, Context3} = execute_create_op(Context2,PrescriptionKey,NestedOp),
-            {ok, Context4} = execute_create_op(Context3,PatientKey,PatientUpdate),
-            {ok, Context5} = execute_create_op(Context4,PharmacyKey,PharmacyUpdate),
-            {ok, Context6} = execute_create_op(Context5,PrescriberKey,PrescriberUpdate),
-            {ok, Context6}
+            Operations = [
+                {PrescriptionKey,NestedOp},
+                {PatientKey,PatientUpdate},
+                {PharmacyKey,PharmacyUpdate},
+                {PrescriberKey,PrescriberUpdate}
+            ],
+
+            run_process_updates(Context,Operations,false)
+      end.
+
+-spec run_process_updates(Context :: context(), ListOps :: list(), Aborted :: boolean()) ->
+    {ok,context()} | {{error, term()},context()}.
+run_process_updates(Context,ListOps,true) ->
+    ?KV_IMPLEMENTATION:abort_transaction(Context),
+    {{error,txn_aborted},Context};
+run_process_updates(Context,[],false) ->
+    {ok, Context};
+run_process_updates(Context,[H|T],false) ->
+    {Key,Update} = H,
+    case execute_create_op(Context,Key,Update) of
+        {ok, Context2} ->
+            run_process_updates(Context2,T,false);
+        {_Error,Context3} ->
+            run_process_updates(Context3,T,true)
     end.
 
 update_patient_details(Context,Id,Name,Address) ->
