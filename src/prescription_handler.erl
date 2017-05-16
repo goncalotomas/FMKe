@@ -88,6 +88,7 @@ update_prescription(Req) ->
 														Result = case ServerResponse of
 																ok -> ServerResponse;
 																{error, txn_aborted} -> <<"transaction aborted">>;
+																{error, prescription_already_processed} -> <<"prescription already processed">>;
 								          			{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
 														end,
 														jsx:encode([{success, Success}, {result, Result}])
