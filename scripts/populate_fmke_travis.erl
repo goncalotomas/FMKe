@@ -16,7 +16,7 @@
 
 main([ClientId, FmkNodeRef]) ->
   DirName = filename:dirname(escript:script_name()),
-  {ok, FmkConfigProps} = file:consult(DirName ++ "/fmke_travis.config"),
+  {ok, FmkConfigProps} = file:consult(DirName ++ "/../config/fmke_travis.config"),
   FmkConfig = #fmkconfig{
     numpatients = proplists:get_value(numpatients, FmkConfigProps),
     numpharmacies = proplists:get_value(numpharmacies, FmkConfigProps),
@@ -151,8 +151,7 @@ add_prescription_rec(FmkNode, PrescriptionId, ListPatientIds, FmkConfig) ->
   [CurrentId | Tail] = ListPatientIds,
   PharmacyId = rand:uniform(FmkConfig#fmkconfig.numpharmacies),
   PrescriberId = rand:uniform(FmkConfig#fmkconfig.numstaff),
-  FacilityId = rand:uniform(FmkConfig#fmkconfig.numfacilities),
-  run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, FacilityId, "1/1/2017", ["Acetaminophen"]]),
+  run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, "1/1/2017", ["Acetaminophen"]]),
   add_prescription_rec(FmkNode, PrescriptionId - 1, Tail, FmkConfig).
 
 run_op(FmkNode, create_pharmacy, Params) ->
@@ -168,7 +167,7 @@ run_op(FmkNode, create_staff, Params) ->
   [_Id, _Name, _Address, _Speciality] = Params,
   run_rpc_op(FmkNode, create_staff, Params);
 run_op(FmkNode, create_prescription, Params) ->
-  [_PrescriptionId, _PatientId, _PrescriberId, _PharmacyId, _FacilityId, _DatePrescribed, _Drugs] = Params,
+  [_PrescriptionId, _PatientId, _PrescriberId, _PharmacyId, _DatePrescribed, _Drugs] = Params,
   run_rpc_op(FmkNode, create_prescription, Params).
 
 run_rpc_op(FmkNode, Op, Params) ->

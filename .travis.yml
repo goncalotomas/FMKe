@@ -1,11 +1,13 @@
 language: erlang
 otp_release:
-  - 19.1
+  - 19.2
 services:
   - docker
 install:
   - make all
 script:
+  - ./travis.sh test fmke
+  - ./travis.sh test antidote
   - ./travis.sh bench antidote
 sudo: required
 dist: trusty
