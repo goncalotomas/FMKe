@@ -218,6 +218,7 @@ concatenate_list_with_id(List,Id) ->
     lists:flatten(io_lib:format(List, [Id])).
 
 error_to_binary(Reason) ->
+    io:format("~p~n",[Reason]),
     list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
 
 execute_get_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments) ->
@@ -229,9 +230,14 @@ execute_get_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments)
 execute_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments) ->
     {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
     {Result, DBContext1} = execute_op_with_txn_context(Op,Arguments,DBContext),
-    case ?DB_DRIVER:commit_transaction(DBContext1) of
-        {ok, _DBContext2} -> Result;
-        {Error, _DBContext3} -> Error
+    case Result of
+        {error,txn_aborted} ->
+            Result;
+        _Other ->
+            case ?DB_DRIVER:commit_transaction(DBContext1) of
+                {ok, _DBContext2} -> Result;
+                {Error, _DBContext3} -> Error
+            end
     end.
 
 execute_op_with_txn_context(Op,Arguments,DBContext) when is_atom(Op), is_list(Arguments) ->

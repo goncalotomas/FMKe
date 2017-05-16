@@ -96,8 +96,9 @@ update_prescription(Req) ->
 										ServerResponse = fmk_core:process_prescription(IntegerId,DateProcessed),
 										Success = ServerResponse =:= ok,
 										Result = case ServerResponse of
-											{error, Reason} -> fmk_core:error_to_binary(Reason);
-											ok -> ServerResponse
+												ok -> ServerResponse;
+												{error, txn_aborted} -> <<"transaction aborted">>;
+												{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
 										end,
 										jsx:encode([{success,Success},{result,Result}])
 						end,
