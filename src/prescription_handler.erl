@@ -119,7 +119,7 @@ get_prescription(Req) ->
 						Success = case ServerResponse of
 								{error,not_found} -> false;
 								{error,txn_aborted} -> false;
-								{error, Other} -> false;
+								{error, _Other} -> false;
 								_Success -> true
 						end,
 						JsonReply = case Success of
