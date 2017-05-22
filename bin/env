@@ -11,13 +11,13 @@ if [ -z "$IP" ]; then
 fi
 
 # Antidote instance port.
-if [ -z "$ANTIDOTE_PB_PORT" ]; then
-  export ANTIDOTE_PB_PORT=8087
+if [ -z "$ANTIDOTE_PB_PORTS" ]; then
+  export ANTIDOTE_PB_PORTS=8087
 fi
 
 # Antidote instance IP address.
-if [ -z "$ANTIDOTE_ADDRESS" ]; then
-  export ANTIDOTE_ADDRESS="127.0.0.1"
+if [ -z "$ANTIDOTE_ADDRESSES" ]; then
+  export ANTIDOTE_ADDRESSES="127.0.0.1"
 fi
 
 # Receive the host name from the parameters
