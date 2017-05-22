@@ -32,14 +32,14 @@ with_connection(Fun) ->
 init(_Options) ->
     ListConnHostnames = fmk_config:get(db_conn_hostnames,["127.0.0.1"]),
     ListConnPorts = fmk_config:get(db_conn_ports, ["8087"]),
-    ConnModule = fmk_config:get(db_conn_module,antidote_kv_driver),
+    ConnModule = fmk_config:get(db_conn_module,antidotec_pb_socket),
     PoolArgs = [
       {name, {local, fmke_db_connection_pool}},
       {worker_module, ?MODULE},
-      {size, 30},
+      {size, 32},
       {max_overflow, 0}
     ],
-    WorkerArgs = [ConnModule,ListAntidoteAddresses, ListAntidotePorts],
+    WorkerArgs = [ConnModule,ListConnHostnames,ListConnPorts],
     PoolSpec = poolboy:child_spec(fmke_db_connection_pool, PoolArgs, WorkerArgs),
     {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
@@ -59,5 +59,5 @@ try_connect(Module,Hostname,Port,Timeout) ->
         {error, Reason} ->
             io:format("Could not connect to ~p:~p, Reason: ~p~n", [Hostname, Port, Reason]),
             timer:sleep(Timeout),
-            try_connect(Hostname, Port, min(10000, Timeout*2))
+            try_connect(Module, Hostname, Port, min(10000, Timeout*2))
     end.
