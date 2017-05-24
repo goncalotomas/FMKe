@@ -9,5 +9,8 @@ script:
   - ./travis.sh test fmke
   - ./travis.sh test antidote
   - ./travis.sh bench antidote
+cache:
+  directories:
+  - "$HOME/.cache/rebar3/hex/default"
 sudo: required
 dist: trusty
