@@ -27,6 +27,7 @@
          init/1,
          stop/1,
          start_transaction/1,
+         get_application_record/3,
          commit_transaction/1
         ]).
 
@@ -51,18 +52,125 @@
 
 %%ATTENTION: Does not manage multiple connections.
 init({[NodeAddress | _OtherNA] , [Port | _OP]}) ->
-    riakc_pb_socket:start_link(NodeAddress, Port);
+    set_app_vars([NodeAddress],[Port]),
+    start_sup_link();
 
 %%ATTENTION: Does not manage multiple connections.
 init({[NodeAddress | _OtherNA] , [Port | _OP], HeadNodeName, HeadNodeCookie}) ->
     erlang:set_cookie(HeadNodeName, HeadNodeCookie),
-    case riakc_pb_socket:start_link(NodeAddress, Port) of
+    set_app_vars([NodeAddress],[Port]),
+    case start_sup_link() of
         {ok, Pid} ->
             create_buckets(HeadNodeName),
             %{ok, {riak, Pid}};
             %Needed to change context format to be compatible with FMKe.
             {ok, Pid};
         Other -> {error, Other}
+    end.
+
+start_sup_link() ->
+    case fmk_sup:start_link() of
+       {ok, Pid} -> start_conn_pool(Pid);
+       _Error -> _Error
+    end.
+
+start_conn_pool(Pid) ->
+    RiakHostnames = get_app_var(db_conn_hostnames,["127.0.0.1"]),
+    RiakPorts = get_app_var(db_conn_ports,["8087"]),
+    {ok,_} = db_connection_pool:start([
+        {hostnames, RiakHostnames},
+        {ports, RiakPorts},
+        {module, riakc_pb_socket}
+    ]),
+    {ok,Pid}.
+
+set_app_vars(NodeAddresses,NodePorts) ->
+    fmk_config:set(db_conn_module,riakc_pb_socket),
+    set_app_var(db_conn_hostnames,"RIAK_ADDRESSES",NodeAddresses),
+    set_app_var(db_conn_ports,"RIAK_PB_PORTS",NodePorts).
+
+get_app_var(VarName,DefaultVal) ->
+    fmk_config:get(VarName,DefaultVal).
+
+set_app_var(VarName, EnvVarName, DefaultVal) ->
+    EnvOrDefault = os:getenv(EnvVarName, DefaultVal),
+    ParsedValue = parse_app_var(VarName,EnvOrDefault),
+    fmk_config:set(VarName,ParsedValue),
+    io:format("Set ~p application variable to value ~p~n",[VarName,ParsedValue]).
+
+get_application_record(Key, _RecordType, Context) ->
+  io:format("inside get_application_record(~p,~p,~p)",[Key,_RecordType,Context]),
+  case get_key({_RecordType,Key},map,Context) of
+      {{ok,[]},_Context1} -> {{error, not_found}, Context};
+      {{ok,Object},_Context2} -> build_app_record(_RecordType,Object)
+  end.
+
+build_app_record(patient,Object) when is_list(Object) andalso (length(Object) >= 3)  ->
+  Id = lists:nth(1,Object),
+  Name = lists:nth(2,Object),
+  Address = lists:nth(3,Object),
+  % Prescriptions = read_nested_prescriptions(Object, ?PATIENT_PRESCRIPTIONS_KEY),
+  #patient{id=Id,name=Name,address=Address}.%,prescriptions=Prescriptions};
+% build_app_record(pharmacy,Object) ->
+%   Id = find_key(Object, ?PHARMACY_ID_KEY, ?LWWREG, -1),
+%   Name = find_key(Object, ?PHARMACY_NAME_KEY, ?LWWREG, <<"undefined">>),
+%   Address = find_key(Object, ?PHARMACY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+%   Prescriptions = read_nested_prescriptions(Object, ?PHARMACY_PRESCRIPTIONS_KEY),
+%   #pharmacy{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
+% build_app_record(staff,Object) ->
+%   Id = find_key(Object, ?STAFF_ID_KEY, ?LWWREG, -1),
+%   Name = find_key(Object, ?STAFF_NAME_KEY, ?LWWREG, <<"undefined">>),
+%   Address = find_key(Object, ?STAFF_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+%   Speciality = find_key(Object, ?STAFF_SPECIALITY_KEY, ?LWWREG, <<"undefined">>),
+%   Prescriptions = read_nested_prescriptions(Object, ?STAFF_PRESCRIPTIONS_KEY),
+%   #staff{id=Id,name=Name,address=Address,speciality=Speciality,prescriptions=Prescriptions};
+% build_app_record(facility,Object) ->
+%   Id = find_key(Object, ?FACILITY_ID_KEY, ?LWWREG, -1),
+%   Name = find_key(Object, ?FACILITY_NAME_KEY, ?LWWREG, <<"undefined">>),
+%   Address = find_key(Object, ?FACILITY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
+%   Type = find_key(Object, ?FACILITY_TYPE_KEY, ?LWWREG, <<"undefined">>),
+%   #facility{id=Id,name=Name,address=Address,type=Type};
+% build_app_record(prescription,Object) ->
+%   Id = find_key(Object, ?PRESCRIPTION_ID_KEY, ?LWWREG, -1),
+%   PatientId = find_key(Object, ?PRESCRIPTION_PATIENT_ID_KEY, ?LWWREG, <<"undefined">>),
+%   PrescriberId = find_key(Object, ?PRESCRIPTION_PRESCRIBER_ID_KEY, ?LWWREG, <<"undefined">>),
+%   PharmacyId = find_key(Object, ?PRESCRIPTION_PHARMACY_ID_KEY, ?LWWREG, <<"undefined">>),
+%   DatePrescribed = find_key(Object, ?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?LWWREG, <<"undefined">>),
+%   IsProcessed = find_key(Object, ?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_NOT_PROCESSED_VALUE),
+%   DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, <<"undefined">>),
+%   Drugs = find_key(Object, ?PRESCRIPTION_DRUGS_KEY, ?ORSET, []),
+%   #prescription{
+%       id=Id
+%       ,patient_id=PatientId
+%       ,pharmacy_id=PharmacyId
+%       ,prescriber_id=PrescriberId
+%       ,date_prescribed=DatePrescribed
+%       ,date_processed=DateProcessed
+%       ,drugs=Drugs
+%       ,is_processed=IsProcessed
+%   }.
+
+%% exactly the same to antidote_kv_driver
+parse_app_var(db_conn_hostnames,ListAddresses) when is_list(ListAddresses), (length(ListAddresses) > 0) ->
+    [list_to_atom(X) || X <- ListAddresses];
+parse_app_var(db_conn_hostnames,ListAddresses) ->
+    [list_to_atom(X) || X <- parse_list_from_env_var(ListAddresses)];
+parse_app_var(db_conn_ports,ListPorts) when is_list(ListPorts), length(ListPorts) > 0 ->
+    case is_integer(lists:nth(1,ListPorts)) of
+        true ->
+            [X || X <- ListPorts];
+        false -> [list_to_integer(X) || X <- ListPorts]
+    end;
+parse_app_var(db_conn_ports,ListPorts) ->
+    parse_list_from_env_var(ListPorts).
+
+parse_list_from_env_var(String) ->
+    io:format("RECEIVED: ~p\n",[String]),
+    try
+      string:tokens(String,",") %% CSV style
+    catch
+      _:_  ->
+        bad_input_format
     end.
 
 stop(_Context = {_,Pid,_}) ->
@@ -86,9 +194,16 @@ create_buckets(RiakNodeName) ->
 
 adapt_to_riak({Bucket, Key}, Type) ->
     TypeString = lists:flatten(["\"",atom_to_list(Type),"\""]),
-    BucketBinary = list_to_binary(Bucket),
-    KeyBinary = list_to_binary(Key),
-    {{TypeString, BucketBinary}, KeyBinary}.
+    BinaryBucket = build_binary_bucket(Bucket),
+    BinaryKey = Key,
+    {{TypeString, BinaryBucket}, BinaryKey};
+adapt_to_riak(Key,Type) ->
+    adapt_to_riak({read_bucket(Key),Key},Type).
+
+build_binary_bucket(Bucket) when is_list(Bucket) ->
+    list_to_binary(Bucket);
+build_binary_bucket(Bucket) when is_atom(Bucket) ->
+    build_binary_bucket(atom_to_list(Bucket)).
 
 get_key(Key, Type, Context = {riak_tx, Pid, RiakObjs}) ->
     {B, K} = RiakKey = adapt_to_riak(Key, Type),
@@ -101,14 +216,36 @@ get_key(Key, Type, Context = {riak_tx, Pid, RiakObjs}) ->
                              {error, _Reason} -> create_obj(RiakType, [])
                          end,
             UpdtRiakObjs = dict:store({RiakType, RiakKey}, FetchedObj, RiakObjs),
-            {ok, get_value(RiakType, FetchedObj), {riak_tx, Pid, UpdtRiakObjs}}
+            {{ok, get_value(RiakType, FetchedObj)}, {riak_tx, Pid, UpdtRiakObjs}}
     end.
 
 get_map(Key, Context) ->
     get_key(Key, map, Context).
 
+read_bucket(Key) when is_binary(Key) ->
+    read_bucket(binary_to_list(Key));
+read_bucket(Key) when is_list(Key) ->
+    Entities = ["facility","patient","pharmacy","prescription","staff","treatment","event"],
+    SearchResults = lists:map(fun(Entity) -> string:str(Key,Entity) end,Entities),
+    case return_positive(SearchResults) of
+        0 -> "undefined";
+        Position -> lists:nth(Position,Entities)
+    end.
+
+return_positive(List) when is_list(List) ->
+    return_positive_rec(1,List).
+
+return_positive_rec(CurrPos,[H|T]) when H =:= 0 ->
+    return_positive_rec(CurrPos+1,T);
+return_positive_rec(CurrPos,[H|T]) when H > 0 ->
+    CurrPos;
+return_positive_rec(_CurrPos,[]) ->
+    0.
+
 update_map(Key, Operation, Context0 = {riak_tx, Pid, _RiakObjs0}) ->
-    RiakKey = adapt_to_riak(Key, map),
+    StringKey = binary_to_list(Key),
+    RiakBucket = read_bucket(StringKey),
+    RiakKey = adapt_to_riak({RiakBucket,Key}, map),
     RiakType = get_type_driver(map),
 
     {{ok, _}, {_,_,RiakObjs1}} = get_key(Key, map, Context0),
@@ -168,7 +305,8 @@ start_transaction({riak_tx, _,_}) ->
 %start_transaction({riak, Pid} = _Context) ->
 %    {ok, {riak_tx, Pid, dict:new()}};
 
-start_transaction(Pid) ->
+start_transaction(_OldContext) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
     {ok, {riak_tx, Pid, dict:new()}}.
 
 %start_transaction(_Context) ->
@@ -178,6 +316,7 @@ commit_transaction(_Context = {riak_tx, Pid, RiakObjs}) ->
     dict:fold(fun({RiakType, {B, K}}, Object, _) ->
                       riakc_pb_socket:update_type(Pid, B, K, RiakType:to_op(Object))
               end, nil, RiakObjs),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
     {ok, Pid}.
 
 create_obj(RiakType, []) ->
@@ -193,4 +332,3 @@ get_type_driver(map) -> ?CRDT_MAP.
 %get_type_driver(set) -> ?CRDT_SET;
 
 %get_type_driver(register) -> ?CRDT_REGISTER.
-
