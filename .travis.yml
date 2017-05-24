@@ -1,4 +1,5 @@
 language: erlang
+sudo: false
 otp_release:
   - 19.2
 services:
