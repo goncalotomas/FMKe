@@ -47,7 +47,12 @@ start_link([Module,ListHostnames,ListPorts]) ->
     true = (Len = length(ListHostnames)) =:= length(ListPorts),
     Index = rand:uniform(Len),
     Hostname = lists:nth(Index,ListHostnames),
-    Port = list_to_integer(lists:nth(Index,ListPorts)),
+    Element = lists:nth(Index,ListPorts),
+    Port =
+      case is_integer(Element) of
+          true -> Element;
+          false -> list_to_integer(Element)
+      end,
     try_connect(Module,Hostname, Port, 100).
 
 try_connect(Module,Hostname,Port,Timeout) ->
