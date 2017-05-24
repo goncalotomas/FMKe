@@ -17,7 +17,7 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(riak_kv_driver).
+-module(fmke_db_driver_riak_kv).
 -include("fmk.hrl").
 
 -behaviour(gen_kv_driver).
@@ -77,7 +77,7 @@ start_sup_link() ->
 start_conn_pool(Pid) ->
     RiakHostnames = get_app_var(db_conn_hostnames,["127.0.0.1"]),
     RiakPorts = get_app_var(db_conn_ports,["8087"]),
-    {ok,_} = db_connection_pool:start([
+    {ok,_} = fmke_db_conn_pool:start([
         {hostnames, RiakHostnames},
         {ports, RiakPorts},
         {module, riakc_pb_socket}
@@ -237,7 +237,7 @@ return_positive(List) when is_list(List) ->
 
 return_positive_rec(CurrPos,[H|T]) when H =:= 0 ->
     return_positive_rec(CurrPos+1,T);
-return_positive_rec(CurrPos,[H|T]) when H > 0 ->
+return_positive_rec(CurrPos,[H|_]) when H > 0 ->
     CurrPos;
 return_positive_rec(_CurrPos,[]) ->
     0.
@@ -306,7 +306,7 @@ start_transaction({riak_tx, _,_}) ->
 %    {ok, {riak_tx, Pid, dict:new()}};
 
 start_transaction(_OldContext) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = poolboy:checkout(fmke_fmke_db_conn_pool),
     {ok, {riak_tx, Pid, dict:new()}}.
 
 %start_transaction(_Context) ->
@@ -316,7 +316,7 @@ commit_transaction(_Context = {riak_tx, Pid, RiakObjs}) ->
     dict:fold(fun({RiakType, {B, K}}, Object, _) ->
                       riakc_pb_socket:update_type(Pid, B, K, RiakType:to_op(Object))
               end, nil, RiakObjs),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    poolboy:checkin(fmke_fmke_db_conn_pool, Pid),
     {ok, Pid}.
 
 create_obj(RiakType, []) ->
