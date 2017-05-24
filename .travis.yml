@@ -10,5 +10,8 @@ script:
   - ./rebar3 as test,antidote release
   - ./travis.sh test antidote
   - ./travis.sh bench antidote
+cache:
+  directories:
+  - "$HOME/.cache/rebar3/hex/default"
 sudo: required
 dist: trusty
