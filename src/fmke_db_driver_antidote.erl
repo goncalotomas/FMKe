@@ -17,7 +17,7 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(antidote_kv_driver).
+-module(fmke_db_driver_antidote).
 -include("fmk.hrl").
 -include("fmk_kv.hrl").
 -include("fmke_antidote.hrl").
@@ -61,7 +61,7 @@ start_sup_link() ->
 start_conn_pool(Pid) ->
     AntidoteHostnames = get_app_var(db_conn_hostnames,["127.0.0.1"]),
     AntidotePorts = get_app_var(db_conn_ports,["8087"]),
-    {ok,_} = db_connection_pool:start([
+    {ok,_} = fmke_db_conn_pool:start([
         {hostnames, AntidoteHostnames},
         {ports, AntidotePorts},
         {module, antidotec_pb_socket}
@@ -193,14 +193,14 @@ put(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId})
 
 %% Return status {(ok | error), context}
 start_transaction(_OldContext) ->
-  Pid = poolboy:checkout(fmke_db_connection_pool),
+  Pid = poolboy:checkout(fmke_fmke_db_conn_pool),
   {ok, TxnId} = antidotec_pb:start_transaction(Pid, ignore, {}),
   {ok, #antidote_context{pid=Pid, txn_id = TxnId}}.
 
 %% Return status {(ok | error), context}
 commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
   CmtRes = antidotec_pb:commit_transaction(Pid, TransactionId),
-  Result = poolboy:checkin(fmke_db_connection_pool, Pid),
+  Result = poolboy:checkin(fmke_fmke_db_conn_pool, Pid),
   case CmtRes of
     {ok, _Something} -> {Result, #antidote_context{pid=Pid}};
     {error, unknown} -> {{error, txn_aborted},#antidote_context{pid=Pid}}

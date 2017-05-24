@@ -1,4 +1,4 @@
--module(db_connection_pool).
+-module(fmke_db_conn_pool).
 -author("Gonçalo Tomás <goncalo@goncalotomas.com>").
 
 -behaviour(poolboy_worker).
@@ -23,7 +23,7 @@ start(Options) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, [Options]).
 
 with_connection(Fun) ->
-    poolboy:transaction(fmke_db_connection_pool, Fun).
+    poolboy:transaction(fmke_fmke_db_conn_pool, Fun).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -34,13 +34,13 @@ init(_Options) ->
     ListConnPorts = fmk_config:get(db_conn_ports, ["8087"]),
     ConnModule = fmk_config:get(db_conn_module,antidotec_pb_socket),
     PoolArgs = [
-      {name, {local, fmke_db_connection_pool}},
+      {name, {local, fmke_fmke_db_conn_pool}},
       {worker_module, ?MODULE},
       {size, 32},
       {max_overflow, 0}
     ],
     WorkerArgs = [ConnModule,ListConnHostnames,ListConnPorts],
-    PoolSpec = poolboy:child_spec(fmke_db_connection_pool, PoolArgs, WorkerArgs),
+    PoolSpec = poolboy:child_spec(fmke_fmke_db_conn_pool, PoolArgs, WorkerArgs),
     {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
 start_link([Module,ListHostnames,ListPorts]) ->
