@@ -59,8 +59,8 @@ start_sup_link() ->
     end.
 
 start_conn_pool(Pid) ->
-    AntidoteHostnames = get_app_var(antidote_addresses,["127.0.0.1"]),
-    AntidotePorts = get_app_var(antidote_ports,["8087"]),
+    AntidoteHostnames = get_app_var(db_conn_hostnames,["127.0.0.1"]),
+    AntidotePorts = get_app_var(db_conn_ports,["8087"]),
     {ok,_} = db_connection_pool:start([
         {hostnames, AntidoteHostnames},
         {ports, AntidotePorts},
