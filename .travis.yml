@@ -7,6 +7,8 @@ services:
   - docker
 install:
   - make all
+before_script:
+  - kerl list installations
 script:
   - ./travis.sh test fmke
   - ./rebar3 as test,antidote release
