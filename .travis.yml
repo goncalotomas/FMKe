@@ -7,6 +7,7 @@ install:
   - make all
 script:
   - ./travis.sh test fmke
+  - ./rebar3 as test,antidote release
   - ./travis.sh test antidote
   - ./travis.sh bench antidote
 sudo: required
