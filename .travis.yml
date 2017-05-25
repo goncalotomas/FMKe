@@ -1,7 +1,6 @@
 language: erlang
 sudo: false
 otp_release:
-  - 18.3
   - 19.3
 services:
   - docker
