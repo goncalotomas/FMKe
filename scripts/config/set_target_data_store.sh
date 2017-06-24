@@ -1,28 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 set -e
-
-declare -a kvs=("antidote" "riak" "redis")
-declare -a sqldbs=()
 
 show_supported_dbs()
 {
   echo "FMKe supports the following data stores:"
-  for i in ${kvs[@]}; do echo "-$i"; done
-  for i in ${sqldbs[@]}; do echo "-$i"; done
-}
-
-select_driver()
-{
-    if [ "$1" == "antidote" ]; then
-        DBTYPE_DRIVER="fmke_kv_driver"
-        DBDRIVER_MODULE="antidote_kv_driver"
-    elif [ "$1" == "riak" ]; then
-        DBTYPE_DRIVER="fmke_kv_driver"
-        DBDRIVER_MODULE="riak_kv_driver"
-    elif [ "$1" == "redis" ]; then
-        DBTYPE_DRIVER="fmke_kv_driver"
-        DBDRIVER_MODULE="redis_kv_driver"
-    fi
+  for value in "antidote" "riak" "redis" ; do
+      echo "-$value"
+  done
 }
 
 if [ "$#" -ne 1 ]; then
@@ -34,35 +18,53 @@ fi
 
 TARGETDB=$1
 
-if [[ ! " ${kvs[@]} " =~ " ${TARGETDB} " && ! " ${sqldbs[@]} " =~ " ${TARGETDB}" ]]; then
-    echo "Error: invalid or unsupported data store name"
-    show_supported_dbs
-    echo "error"
-    exit 2
-fi
-
 DBTYPE_DRIVER=""
 DBDRIVER_MODULE=""
 
-# TARGETDB contains a valid data store name
-if [[ " ${kvs[@]} " =~ " ${TARGETDB} " ]]; then
-    echo "Trying to select ${TARGETDB} as target..."
-    select_driver ${TARGETDB}
-    echo "Changing driver type to ${DBTYPE_DRIVER}..."
-    sed -i '' -e "s/-define(DB_DRIVER,.*/\-define(DB_DRIVER, $DBTYPE_DRIVER)\./g" include/fmk.hrl
-    if [ "$?" -ne 0 ]; then
-        echo "Error: error changing driver type"
-        echo "error"
-        exit 3
-    fi
-    echo "Changing implementation driver to ${DBDRIVER_MODULE}..."
-    sed -i '' -e "s/-define(KV_IMPLEMENTATION,.*/\-define(KV_IMPLEMENTATION, $DBDRIVER_MODULE)\./g" include/fmk.hrl
-    if [ "$?" -ne 0 ]; then
-        echo "Error: error changing driver implementation"
-        echo "error"
-        exit 3
-    fi
-    echo "success"
+echo "Trying to select ${TARGETDB} as target..."
+
+if [ "$1" == "antidote" ]; then
+    DBTYPE_DRIVER="fmke_kv_driver"
+    DBDRIVER_MODULE="fmke_db_driver_antidote"
+elif [ "$1" == "riak" ]; then
+    DBTYPE_DRIVER="fmke_kv_driver"
+    DBDRIVER_MODULE="fmke_db_driver_riak_kv"
+elif [ "$1" == "redis" ]; then
+    DBTYPE_DRIVER="fmke_kv_driver"
+    DBDRIVER_MODULE="fmke_db_driver_redis"
+else
+    echo "Error: invalid or unsupported data store name"
+    show_supported_dbs
+    echo "error"
+    exit 3
 fi
 
-#sed -i '' -e "s/-define(KV_IMPLEMENTATION,.*/\-define(KV_IMPLEMENTATION,something)\./g" include/fmk.hrl
+echo "Changing driver type to ${DBTYPE_DRIVER}..."
+echo "Changing implementation driver to ${DBDRIVER_MODULE}..."
+
+if [ "$?" -ne 0 ]; then
+    echo "Error: error changing driver type"
+    echo "error"
+    exit 3
+fi
+
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    echo "Making changes in the header file using Linux commands..."
+    sed -i -e "2s/.*/-define(DB_DRIVER, $DBTYPE_DRIVER)\./" ./include/fmk.hrl
+    sed -i -e "3s/.*/-define(KV_IMPLEMENTATION, $DBDRIVER_MODULE)\./" ./include/fmk.hrl
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "Making changes in the header file using OS X commands..."
+    sed -i '' -e "2s/.*/-define(DB_DRIVER, $DBTYPE_DRIVER)\./" ./include/fmk.hrl
+    sed -i '' -e "3s/.*/-define(KV_IMPLEMENTATION, $DBDRIVER_MODULE)\./" ./include/fmk.hrl
+elif [[ "$OSTYPE" == "freebsd"* ]]; then
+    echo "Making changes in the header file using FreeBSD commands..."
+    sed -i -e "2s/.*/-define(DB_DRIVER, $DBTYPE_DRIVER)\./" ./include/fmk.hrl
+    sed -i -e "3s/.*/-define(KV_IMPLEMENTATION, $DBDRIVER_MODULE)\./" ./include/fmk.hrl
+fi
+
+if [ "$?" -ne 0 ]; then
+    echo "Error: error changing driver implementation"
+    echo "error"
+    exit 3
+fi
+echo "success"
