@@ -193,14 +193,14 @@ put(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId})
 
 %% Return status {(ok | error), context}
 start_transaction(_OldContext) ->
-  Pid = poolboy:checkout(fmke_fmke_db_conn_pool),
+  Pid = poolboy:checkout(fmke_db_connection_pool),
   {ok, TxnId} = antidotec_pb:start_transaction(Pid, ignore, {}),
   {ok, #antidote_context{pid=Pid, txn_id = TxnId}}.
 
 %% Return status {(ok | error), context}
 commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
   CmtRes = antidotec_pb:commit_transaction(Pid, TransactionId),
-  Result = poolboy:checkin(fmke_fmke_db_conn_pool, Pid),
+  Result = poolboy:checkin(fmke_db_connection_pool, Pid),
   case CmtRes of
     {ok, _Something} -> {Result, #antidote_context{pid=Pid}};
     {error, unknown} -> {{error, txn_aborted},#antidote_context{pid=Pid}}
