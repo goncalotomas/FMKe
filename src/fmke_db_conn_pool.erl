@@ -1,3 +1,5 @@
+%% Heavily inspired in Peter Zeller's previous module antidote_pool.
+%% This module manages connections between databases and FMKe.
 -module(fmke_db_conn_pool).
 -author("Gonçalo Tomás <goncalo@goncalotomas.com>").
 
@@ -23,7 +25,7 @@ start(Options) ->
     supervisor:start_link({local, ?SERVER}, ?MODULE, [Options]).
 
 with_connection(Fun) ->
-    poolboy:transaction(fmke_fmke_db_conn_pool, Fun).
+    poolboy:transaction(fmke_db_connection_pool, Fun).
 
 %%%===================================================================
 %%% Supervisor callbacks
@@ -34,13 +36,13 @@ init(_Options) ->
     ListConnPorts = fmk_config:get(db_conn_ports, ["8087"]),
     ConnModule = fmk_config:get(db_conn_module,antidotec_pb_socket),
     PoolArgs = [
-      {name, {local, fmke_fmke_db_conn_pool}},
+      {name, {local, fmke_db_connection_pool}},
       {worker_module, ?MODULE},
       {size, 32},
       {max_overflow, 0}
     ],
     WorkerArgs = [ConnModule,ListConnHostnames,ListConnPorts],
-    PoolSpec = poolboy:child_spec(fmke_fmke_db_conn_pool, PoolArgs, WorkerArgs),
+    PoolSpec = poolboy:child_spec(fmke_db_connection_pool, PoolArgs, WorkerArgs),
     {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
 start_link([Module,ListHostnames,ListPorts]) ->
@@ -56,10 +58,10 @@ start_link([Module,ListHostnames,ListPorts]) ->
     try_connect(Module,Hostname, Port, 100).
 
 try_connect(Module,Hostname,Port,Timeout) ->
-    io:format("Connecting to ~p:~p~n", [Hostname, Port]),
+    % io:format("Connecting to ~p:~p~n", [Hostname, Port]),
     case Module:start_link(Hostname, Port) of
         {ok, Pid} ->
-            io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),
+            % io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),
             {ok, Pid};
         {error, Reason} ->
             io:format("Could not connect to ~p:~p, Reason: ~p~n", [Hostname, Port, Reason]),
