@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+echo "compiling FMKe..."
+./rebar3 compile
 # Start FMK:
 echo "starting FMKe..."
 _build/default/rel/fmk/bin/env start
