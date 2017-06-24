@@ -286,7 +286,6 @@ fetch_prescription(FmkeNode,staff,ExpectedPrescription) ->
 look_for_prescription(PrescriptionList,TypePrescriptions,ExpectedPrescription) ->
     Results = lists:map(
         fun(Prescription) ->
-            io:format("~p~n",[Prescription]),
             cmp_presc_fields(TypePrescriptions,Prescription,ExpectedPrescription)
         end
     ,PrescriptionList),
