@@ -109,7 +109,7 @@
   0},
  {<<"riakc">>,
   {git,"https://github.com/goncalotomas/riakc",
-       {ref,"2af948ab8719eb4a142844ba9e16592dfc5a1545"}},
+       {ref,"72eb5dce5b3c29097242e85f729a44e8cab496a2"}},
   0},
  {<<"snappy">>,
   {git,"https://github.com/rpt/snappy.git",

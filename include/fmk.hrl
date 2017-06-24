@@ -1,6 +1,6 @@
 %%-define(ANTIDOTE, 'antidote@127.0.0.1').
 -define(DB_DRIVER, fmke_kv_driver).
--define(KV_IMPLEMENTATION, antidote_kv_driver).
+-define(KV_IMPLEMENTATION, fmke_db_driver_antidote).
 -define (DEFAULT_FMKE_HTTP_PORT, 9090).
 -define (APP, fmke).
 

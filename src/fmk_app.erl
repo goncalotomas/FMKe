@@ -15,15 +15,7 @@
 %%====================================================================
 
 start(_StartType, _StartArgs) ->
-
-    %HACK: Short-circuit over DB_DRIVER.
-    %TODO: Pass configurable parameters.
-    Args = case ?KV_IMPLEMENTATION of
-               antidote_kv_driver -> [];
-               riak_kv_driver -> {["127.0.0.1"],[8087], 'riak@127.0.0.1', riak}
-           end,
-
-    Result = ?DB_DRIVER:init(Args),
+    Result = ?DB_DRIVER:init({}),
     Dispatch = cowboy_router:compile([
       {'_', [
         {"/", fmk_handler, []},
@@ -39,8 +31,8 @@ start(_StartType, _StartArgs) ->
         {"/staff/[:id]/prescriptions", staff_handler, prescriptions}
       ]}
     ]),
-    set_application_variable(http_port,"HTTP_PORT",?DEFAULT_FMKE_HTTP_PORT),
-    HttpPort = list_to_integer(fmk_config:get(http_port,9090)),
+    fmk_config:set_from_env(http_port,"HTTP_PORT",?DEFAULT_FMKE_HTTP_PORT),
+    HttpPort = fmk_config:get(http_port,9090),
     {ok, _} = cowboy:start_clear(http, 100, [{port, HttpPort}], #{
       env => #{dispatch => Dispatch}
     }),
@@ -49,14 +41,3 @@ start(_StartType, _StartArgs) ->
 %%--------------------------------------------------------------------
 stop(_State) ->
     ?DB_DRIVER:stop([]).
-
-%%====================================================================
-%% Internal functions
-%%====================================================================
-set_application_variable(ApplicationVariable, EnvironmentVariable, EnvironmentDefault) ->
-  %% try to load value from environment variable
-  Default = os:getenv(EnvironmentVariable, EnvironmentDefault),
-  Value = application:get_env(?APP,ApplicationVariable,Default),
-  fmk_config:set(ApplicationVariable,Value),
-  Value.
-

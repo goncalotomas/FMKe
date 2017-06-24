@@ -1,14 +1,21 @@
 language: erlang
+sudo: false
 otp_release:
-  - 19.2
+  - 20.0-rc1
+  - 19.3
 services:
   - docker
 install:
   - make all
 script:
   - ./travis.sh test fmke
-  - ./rebar3 as test,antidote release
+  - ./rebar3 as test,antidote,riak release
   - ./travis.sh test antidote
+  - ./travis.sh test riak
   - ./travis.sh bench antidote
+  - ./travis.sh bench riak
+cache:
+  directories:
+  - "$HOME/.cache/rebar3/hex/default"
 sudo: required
 dist: trusty
