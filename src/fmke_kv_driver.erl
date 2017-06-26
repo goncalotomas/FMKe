@@ -46,6 +46,17 @@
     update_prescription_medication/4
 ]).
 
+-export ([
+    %% unimplemented, unused functions.
+    %% need to be here for the gen_kv_driver interface.
+    create_event/5,
+    create_treatment/5,
+    create_prescription/8,
+    get_facility_treatments/2,
+    get_staff_treatments/2,
+    get_treatment_by_id/2
+]).
+
 -define(MAP, map).
 -define(REGISTER, register).
 
@@ -96,9 +107,9 @@ create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,Dat
             PatientUpdate = [gen_nested_entity_update(patient_prescription,PrescFieldsPatient)],
             PharmacyUpdate = [gen_nested_entity_update(pharmacy_prescription,PrescFieldsPharmacy)],
             PrescriberUpdate = [gen_nested_entity_update(staff_prescription,PrescFieldsStaff)],
-            {ok, Context2} = ?KV_IMPLEMENTATION:update_map(PatientKey,PatientUpdate,Context1),
-            {ok, Context3} = ?KV_IMPLEMENTATION:update_map(PharmacyKey,PharmacyUpdate,Context2),
-            {ok, Context4} = ?KV_IMPLEMENTATION:update_map(PrescriberKey,PrescriberUpdate,Context3),
+            {ok, Context2} = ?KV_IMPLEMENTATION:put(PatientKey,patient,PatientUpdate,Context1),
+            {ok, Context3} = ?KV_IMPLEMENTATION:put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
+            {ok, Context4} = ?KV_IMPLEMENTATION:put(PrescriberKey,staff,PrescriberUpdate,Context3),
             {ok, Context4};
         ErrorMessage -> ErrorMessage
     end.
@@ -184,10 +195,10 @@ process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed)
             PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
 
             Operations = [
-                {PrescriptionKey,NestedOp},
-                {PatientKey,PatientUpdate},
-                {PharmacyKey,PharmacyUpdate},
-                {PrescriberKey,PrescriberUpdate}
+                {PrescriptionKey,prescription,NestedOp},
+                {PatientKey,patient,PatientUpdate},
+                {PharmacyKey,pharmacy,PharmacyUpdate},
+                {PrescriberKey,staff,PrescriberUpdate}
             ],
 
             run_updates(Context,Operations,false)
@@ -201,8 +212,8 @@ run_updates(Context,_ListOps,true) ->
 run_updates(Context,[],false) ->
     {ok, Context};
 run_updates(Context,[H|T],false) ->
-    {Key,Update} = H,
-    case execute_create_op(Context,Key,Update) of
+    {Key,KeyType,Update} = H,
+    case execute_create_op(Context,Key,KeyType,Update) of
         {ok, Context2} ->
             run_updates(Context2,T,false);
         {_Error,Context3} ->
@@ -212,22 +223,22 @@ run_updates(Context,[H|T],false) ->
 update_patient_details(Context,Id,Name,Address) ->
     PatientKey = gen_key(patient,Id),
     PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PatientKey,PatientUpdate).
+    execute_create_op(Context,PatientKey,patient,PatientUpdate).
 
 update_pharmacy_details(Context,Id,Name,Address) ->
     PharmacyKey = gen_key(pharmacy,Id),
     PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PharmacyKey,PharmacyUpdate).
+    execute_create_op(Context,PharmacyKey,pharmacy,PharmacyUpdate).
 
 update_facility_details(Context,Id,Name,Address,Type) ->
     FacilityKey = gen_key(facility,Id),
     FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
-    execute_create_op(Context,FacilityKey,FacilityUpdate).
+    execute_create_op(Context,FacilityKey,facility,FacilityUpdate).
 
 update_staff_details(Context,Id,Name,Address,Speciality) ->
     StaffKey = gen_key(staff,Id),
     StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
-    execute_create_op(Context,StaffKey,StaffUpdate).
+    execute_create_op(Context,StaffKey,staff,StaffUpdate).
 
 update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
     case get_prescription_by_id(Context,PrescriptionId) of
@@ -257,10 +268,10 @@ update_prescription_w_obj(Context,Prescription = #prescription{},Operation,Drugs
             PrescriberUpdate = ?build_nested_map_op(?STAFF_PRESCRIPTIONS_KEY,PrescriptionKey,NestedOp),
 
             ListUpdates = [
-                {PrescriptionKey,NestedOp},
-                {PatientKey,PatientUpdate},
-                {PharmacyKey,PharmacyUpdate},
-                {PrescriberKey,PrescriberUpdate}
+                {PrescriptionKey,prescription,NestedOp},
+                {PatientKey,patient,PatientUpdate},
+                {PharmacyKey,pharmacy,PharmacyUpdate},
+                {PrescriberKey,staff,PrescriberUpdate}
             ],
 
             run_update_prescription_ops(Context,Operation,ListUpdates)
@@ -275,13 +286,13 @@ run_update_prescription_ops(Context, _OtherOp, _Updates) ->
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions
 %%-----------------------------------------------------------------------------
-execute_create_op(Context,Key,Operation) ->
-    {ok, _Context2} = ?KV_IMPLEMENTATION:update_map(Key,Operation,Context).
+execute_create_op(Context,Key,KeyType,Operation) ->
+    {ok, _Context2} = ?KV_IMPLEMENTATION:put(Key,KeyType,Operation,Context).
 
 execute_get_op(Context,{Key,RecordType}) ->
       execute_get_op(Context,RecordType,Key).
 execute_get_op(Context,RecordType,Key) ->
-    ?KV_IMPLEMENTATION:get_application_record(Key,RecordType,Context).
+    ?KV_IMPLEMENTATION:get(Key,RecordType,Context).
 
 gen_entity_update(pharmacy,EntityFields) ->
     [Id,Name,Address] = EntityFields,
@@ -362,7 +373,7 @@ handle_get_result_for_create_op(Entity,EntityFields,{{error,not_found},Context})
     Id = hd(EntityFields), %% Assumes ID is always the first field in the field list.
     EntityKey = gen_key(Entity,Id),
     EntityUpdate = gen_entity_update(Entity,EntityFields),
-    execute_create_op(Context,EntityKey,EntityUpdate);
+    execute_create_op(Context,EntityKey,Entity,EntityUpdate);
 
 handle_get_result_for_create_op(Entity,EntityFields,{{ok, _Object}, Context})
         when is_atom(Entity), is_list(EntityFields) ->
@@ -388,9 +399,6 @@ create_register_op(Key,Value) ->
 create_set_op(Key, Elements) ->
     {create_set, Key, Elements}.
 
-find_key(Map, Key, KeyType) ->
-    ?KV_IMPLEMENTATION:find_key(Map,Key,KeyType).
-
 gen_key(Entity,Id) ->
     list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
 
@@ -412,8 +420,33 @@ gen_facility_key(Id) ->
 gen_prescription_key(Id) ->
     gen_key(prescription,Id).
 
+%% -------------------------------------------------------------------
+%% Setup and teardown functions (simply pass down to db module)
+%% -------------------------------------------------------------------
+
 init(State) ->
     ?KV_IMPLEMENTATION:init(State).
 
 stop(State) ->
     ?KV_IMPLEMENTATION:stop(State).
+
+%% -------------------------------------------------------------------
+%% Unimplemented functions (listed below to accept the gen_kv_driver interface):
+%% -------------------------------------------------------------------
+create_event(_1,_2,_3,_4,_5) ->
+    erlang:error(not_implemented).
+
+create_prescription(_1,_2,_3,_4,_5,_6,_7,_8) ->
+    erlang:error(not_implemented).
+
+create_treatment(_1,_2,_3,_4,_5) ->
+    erlang:error(not_implemented).
+
+get_facility_treatments(_1,_2) ->
+    erlang:error(not_implemented).
+
+get_staff_treatments(_1,_2) ->
+    erlang:error(not_implemented).
+
+get_treatment_by_id(_1,_2) ->
+    erlang:error(not_implemented).
