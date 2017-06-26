@@ -1,7 +1,8 @@
+dist: trusty
 language: erlang
 sudo: false
 otp_release:
-  - 20.0-rc1
+  - 20.0
   - 19.3
 services:
   - docker
@@ -17,5 +18,3 @@ script:
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"
-sudo: required
-dist: trusty
