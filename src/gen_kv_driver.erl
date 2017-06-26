@@ -29,8 +29,7 @@
 -type nested_register_update() :: {creat_register, key(), term()}.
 -type nested_set_update() :: {create_set, key(), [term()]}.
 -type nested_map_update() :: {create_map, key(), map_update()} | {update_map, key(), map_update()}.
--type map_object() :: term(). %% specific to each driver
--type nested_key_type() :: register | set | map.
+
 -type entity() :: patient | pharmacy | facility | staff | prescription | treatment | event.
 -type app_record() :: #patient{} | #pharmacy{} | #facility{} | #staff{} | #prescription{}.
 
@@ -43,13 +42,10 @@
 -callback commit_transaction(context()) -> {ok, context()}.
 
 %% Returns a map object.
--callback get_application_record(key(), entity(), context()) -> {ok, app_record(), context()} | {error, reason()}.
-
-%% Returns the value of a key inside a map
--callback find_key(map_object(), key(), nested_key_type()) -> {ok, term(), context()} | {error, reason()}.
+-callback get(key(), entity(), context()) -> {ok, app_record(), context()} | {error, reason()}.
 
 %% term() is a list of lists of operations where in each position you store the operations for each level of nesting []
 %% [[{update, [{update,{key,mykey},{value,myvalue}]}, [], []] means that we will perform an operation on the top level map
 %% and none in the lower levels. On the other side,
 %% [[], [], [{other_update_op, something_else}]] means that we will only add
--callback update_map(key(), map_update(), context()) -> {ok, context()} | {error, reason(), context()}.
+-callback put(key(), entity(), map_update(), context()) -> {ok, context()} | {error, reason(), context()}.
