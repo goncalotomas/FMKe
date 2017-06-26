@@ -8,9 +8,10 @@ services:
   - docker
 install:
   - make all
+before_script:
+  - ./rebar3 as test,antidote,riak,redis release
 script:
   - ./travis.sh test fmke
-  - ./rebar3 as test,antidote,riak release
   - ./travis.sh test antidote
   - ./travis.sh test riak
   - ./travis.sh bench antidote
