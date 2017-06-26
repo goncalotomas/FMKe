@@ -29,15 +29,15 @@
 -export([
     init/1,
     stop/1,
-    get_key/3,
-    get_application_record/3,
-    get_map/2,
-    get_list_of_keys/3,
-    put/4,
+
+
     start_transaction/1,
     commit_transaction/1,
-    update_map/3,
-    find_key/3
+
+    get/3,
+    put/4
+
+
 ]).
 
 %% -------------------------------------------------------------------
@@ -99,10 +99,7 @@ close_antidote_socket() ->
       ok
   end.
 
-get_map(Key,Context) ->
-  get_key(Key,?MAP,Context).
-
-get_application_record(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+get(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
   Object = create_read_bucket(Key,?MAP), %% application records are all of type ?MAP
   {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
   case Value of
@@ -165,27 +162,8 @@ read_nested_prescriptions(Object,Key) ->
                             ,ListPrescriptions)
   end.
 
-%% Returns status {({ok, object}| {error, reason}), context}
-get_key(Key, GeneralKeyType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
-  KeyType = convert_key_type(GeneralKeyType),
-  Object = create_read_bucket(Key,KeyType),
-  {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
-  case Value of
-    {_Something,[]} -> {{error, not_found}, Context};
-    {map, MapObject} -> {{ok, MapObject}, Context}
-  end.
-
-%% Returns status {({ok, list(object)} | {error, reason}), context}
-get_list_of_keys(ListKeys, ListKeyTypes, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
-  ListObjects = (lists:foldl(
-    fun(Key,KeyType) -> create_read_bucket(Key,KeyType) end,
-    ListKeys,ListKeyTypes)
-  ),
-  {ok, Values} = antidotec_pb:read_values(Pid, ListObjects, TxnId),
-  {{ok, Values}, Context}.
-
 %% Return status {(ok | error), context}
-put(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
+put_map(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
   Object = create_write_bucket(Key,KeyType,Value),
 
   Result = antidotec_pb:update_objects(Pid, [Object], TxnId),
@@ -239,8 +217,8 @@ add_to_set_op(Elements) when is_list(Elements) ->
 build_map_op(Key,Type,Op) ->
   {{Key,Type}, Op}.
 
-update_map(Key,ListOps,Context) ->
-  put(Key,?MAP,inner_update_map(ListOps),Context).
+put(Key,_KeyType,ListOps,Context) ->
+  put_map(Key,?MAP,inner_update_map(ListOps),Context).
 
 inner_update_map([]) ->
   [];
@@ -254,10 +232,6 @@ inner_update_map([H|T]) ->
        {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key,inner_update_map(NestedOps))
   end,
   [HeadOp] ++ inner_update_map(T).
-
-find_key(Map, Key, GeneralKeyType) ->
-  KeyType = convert_key_type(GeneralKeyType),
-  find_key(Map,Key,KeyType,not_found).
 
 find_key(Map, Key, KeyType, FallbackValue) ->
   try lists:keyfind({Key,KeyType},1,Map) of
@@ -281,8 +255,3 @@ parse_list_from_env_var(String) ->
     _:_  ->
       bad_input_format
   end.
-
-convert_key_type(register) ->
-  ?LWWREG;
-convert_key_type(map) ->
-  ?MAP.
