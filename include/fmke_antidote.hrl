@@ -14,3 +14,12 @@
 -define (MVREG, antidote_crdt_mvreg).
 -define (ORSET, antidote_crdt_orset).
 -define (RGA, antidote_crdt_rga).
+
+%% Type specification borrowed from antidote
+-type txid() :: {pid(), antidote:txid()}.
+-type snapshot_time() :: antidote:snapshot_time().
+-type bound_object() :: antidote:bound_object().
+-type op_name() :: antidote:op_name().
+-type op_param() :: antidote:op_param().
+-type crdt_op() :: any().
+-type object_bucket() :: {field(), crdt(), term()}.

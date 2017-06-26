@@ -25,18 +25,18 @@
 
 %% API
 -export([
-         init/1,
-         stop/1,
-         start_transaction/1,
-         get_application_record/3,
-         commit_transaction/1
-        ]).
+    %% Setup and teardown functions
+    init/1,
+    stop/1,
 
--export([
-         get_key/3,
-        %  get_map/2,
-         update_map/3
-        ]).
+    %% Transactional context functions
+    start_transaction/1,
+    commit_transaction/1,
+
+    %% Data access functions (with transactional context)
+    get/3,
+    put/4
+]).
 
 -define (BUCKET_TYPE, <<"maps">>).
 
@@ -77,17 +77,20 @@ start_conn_pool(Pid) ->
 %% -------------------------------------------------------------------
 %% Data access exports - Interaction with Riak KV
 %% -------------------------------------------------------------------
-%% TODO review KV store generic API
-%% TODO these functions should NOT be exported simultaneously with get_key.
-%% get_map(Key,Context) -> ok.
-update_map(Key,ListOps,Context) ->
-    put_key(Key,get_entity_from_key(Key),ListOps,Context).
+put(Key,KeyType,ListOps,Context={Pid}) ->
+    %% Create new local riak map object.
+    Map = build_ops(ListOps),
 
-%% TODO this function should NOT be exported simultaneously with get_key.
-get_application_record(Key, RecordType, Context) ->
+    %% Save map to Riak
+    Result = riakc_pb_socket:update_type(
+      %% structure of update_type
+      %% (Pid, {bucket_type, bucket_name}, key, object)
+      Pid, {<<"maps">>, get_bucket(KeyType)}, Key, riakc_map:to_op(Map)
+    ),
+    {Result,Context}.
+
+get(Key, RecordType, Context) ->
     BucketName = get_bucket(RecordType),
-    BucketType = get_bucket_type(RecordType),
-    Bucket = {BucketType, BucketName},
     case get_key(Key,BucketName,Context) of
         {error,{notfound,map}} -> {{error, not_found}, Context};
         {{ok,[]}} -> {{error, not_found}, Context};
@@ -148,23 +151,11 @@ tryfetch(Key,KeyType,Map,DefaultVal) ->
 
 parse_nested_prescriptions([]) -> [];
 parse_nested_prescriptions([[]]) -> [];
-parse_nested_prescriptions({{NestedPrescriptionsKey,map},ListPrescriptions}) ->
+parse_nested_prescriptions({{_NestedKey,map},ListPrescriptions}) ->
     [build_app_record(prescription,Map) || Map <- ListPrescriptions];
-parse_nested_prescriptions(_ListPrescriptions=[H|T]) when is_list(_ListPrescriptions) ->
-    [build_app_record(prescription,{map,ListFields,[],[],undefined}) || {{_SomeKey,map},ListFields} <- _ListPrescriptions].
+parse_nested_prescriptions(ListPrescriptions=[_H|_T]) when is_list(ListPrescriptions) ->
+    [build_app_record(prescription,{map,ListFields,[],[],undefined}) || {{_SomeKey,map},ListFields} <- ListPrescriptions].
 
-put_key(Key, Type, ListOps, _Context={Pid}) ->
-
-    %% Create new local riak map object.
-    Map = build_ops(ListOps),
-
-    %% Save map to Riak
-    Result = riakc_pb_socket:update_type(
-      %% structure of update_type
-      %% (Pid, {bucket_type, bucket_name}, key, object)
-      Pid, {<<"maps">>, get_bucket_from_key(Key)}, Key, riakc_map:to_op(Map)
-    ),
-    {Result,_Context}.
 
 build_ops(ListOps) ->
     Map = riakc_map:new(),
@@ -180,23 +171,18 @@ put_key_build_ops_rec(Map, _ListOps = [H|T]) ->
             update_nested_set(Map,add,Key,Elements);
         {create_map,Key,ListUpdates} ->
             update_nested_map(Map,Key,ListUpdates);
+        {create_flag,Op,Key} ->
+            %% NOTE: not used in practice
+            update_nested_flag(Map,Op,Key);
+        {create_counter,Key,Op,Value} ->
+            %% NOTE: not used in practice
+            update_nested_counter(Map,Op,Key,Value);
         {update_map,Key,ListUpdates} ->
             update_nested_map(Map,Key,ListUpdates)
     end,
     put_key_build_ops_rec(NewMap, T).
 
 
-update_nested_field(Map, map, NestedKey, Value) ->
-    update_nested_map(Map, NestedKey, Value);
-update_nested_field(Map, flag, NestedKey, Value) ->
-    update_nested_flag(Map, NestedKey, Value).
-
-update_nested_field(Map, register, Op, NestedKey, Value) ->
-    update_nested_register(Map, Op, NestedKey, Value);
-update_nested_field(Map, counter, Op, NestedKey, Value) ->
-    update_nested_counter(Map, Op, NestedKey, Value);
-update_nested_field(Map, set, Op, NestedKey, Value) ->
-    update_nested_set(Map, Op, NestedKey, Value).
 
 update_nested_map(Map, _NestedKey, []) -> Map;
 update_nested_map(Map, NestedKey, ListUpdates) when is_binary(NestedKey) ->
@@ -231,14 +217,14 @@ update_nested_flag(Map, Op, NestedKey) ->
 update_nested_counter(Map, Op, NestedKey, Value) when is_binary(NestedKey), is_integer(Value) ->
     Key = {NestedKey, counter},
     UpdateFunction = get_nested_counter_updt_fun(Op,Value),
-    update_local_map_obj(Key,UpdateFunction,Value).
+    update_local_map_obj(Key,UpdateFunction,Map).
 
 get_nested_register_updt_fun(Map,Op,NestedKey,Value) ->
     case Op of
         set ->
             fun(S) -> riakc_register:set(Value, S) end;
         erase ->
-            fun(S) -> riakc_map:erase({NestedKey, register}, Map) end
+            fun(_S) -> riakc_map:erase({NestedKey, register}, Map) end
     end.
 
 get_nested_set_updt_fun(Op, Values) ->
@@ -277,12 +263,6 @@ get_key(_Key, _Bucket, {}) ->
 get_key(Key, Bucket, _Context = {Pid}) ->
     riakc_pb_socket:fetch_type(Pid, {?BUCKET_TYPE, Bucket}, Key).
 
-get_bucket_from_key(Key) ->
-    get_bucket(get_entity_from_key(Key)).
-
-get_bucket_type(Entity) ->
-    get_bucket(Entity).
-
 get_bucket(facility) ->
     <<"facilities">>;
 get_bucket(patient) ->
@@ -300,16 +280,6 @@ get_bucket(_Other) ->
 get_bucket_from_entity(Entity) ->
     list_to_binary(atom_to_list(Entity)).
 
-%% Retrieves a system entity in the form of an atom given any FMKe key.
-%% FMKe keys follow the pattern ENTITY_ENTITYID, so the entity can be attained
-%% at any time by splitting the key using '_' as the delimiter and getting the
-%% first bit.
-get_entity_from_key(Key) when is_binary(Key) ->
-    get_entity_from_key(binary_to_list(Key));
-
-get_entity_from_key(Key) when is_list(Key) ->
-    list_to_atom(lists:nth(1,string:tokens(Key,"_"))).
-
 %% -------------------------------------------------------------------
 %% Riak transaction related exports (Transactional API)
 %% -------------------------------------------------------------------
@@ -324,9 +294,3 @@ start_transaction(_Context = {}) ->
 commit_transaction(_Context = {Pid}) ->
     poolboy:checkin(fmke_db_connection_pool, Pid),
     {ok, {}}.
-
-%% -------------------------------------------------------------------
-%% Riak CRDT related exports
-%% -------------------------------------------------------------------
-get_type_driver(map) -> riakc_map;
-get_type_driver(_Other) -> undefined.
