@@ -17,19 +17,24 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(redis_kv_driver).
+-module(fmke_db_driver_redis).
 -include("fmk.hrl").
 
 -behaviour(gen_kv_driver).
 
--export([init/1,
-         start_transaction/1,
-         commit_transaction/1,
-         update_map/3,
-         get_map/2,
-         find_key/4,
-         stop/1
-        ]).
+-export([
+    init/1,
+    stop/1,
+
+    start_transaction/1,
+    commit_transaction/1,
+
+    get/3,
+    put/4,
+
+    find_key/4
+
+]).
 
 -record(redis_context, {}).
 
@@ -52,7 +57,7 @@ commit_transaction(Context) ->
 %% Get
 %% Redis does not support map that holds keys of different types,
 %% So just return a dummy object and use find_key to get specific key-value pairs.
-get_map(Key, Context) ->
+get(Key, _KeyType, Context) ->
     {ok, {map, Key}, Context}.
 
 find_key({map, Map}, Key, register, Context) ->
@@ -73,7 +78,7 @@ find_key({map, Map}, Key, set, Context) ->
     end.
 
 %% Updates
-update_map(Key, ListOfOps, Context) ->
+put(Key, _KeyType, ListOfOps, Context) ->
     try  update_nested_objects(Key, ListOfOps, Context) of
         ok -> {ok, Context}
     catch
