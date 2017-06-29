@@ -1,6 +1,6 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
-%%! -smp enable -name setup@127.0.0.1 -cookie antidote -mnesia debug verbose
+%%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
 -define(NUMTHREADS, 10).
@@ -36,7 +36,7 @@ main([ClientId, FmkNodeRef]) ->
   io:format("-~p doctors~n",[FmkConfig#fmkconfig.numstaff]),
   io:format("-~p prescriptions~n",[FmkConfig#fmkconfig.numprescriptions]),
   net_kernel:start([MyNodeName, longnames]),
-  erlang:set_cookie(node(), antidote),
+  erlang:set_cookie(node(), fmke),
   %% check if fmk is running
   case net_adm:ping(FmkNode) of
     pang ->
@@ -105,40 +105,25 @@ parallel_create_h(First, Last, Pid, Fun) ->
 add_pharmacies(FmkNode, Amount) ->
   parallel_create(pharmacies, 1, Amount, ?NUMTHREADS,
     fun(I) ->
-      case I rem 3 of
-        0 -> run_op(FmkNode, create_pharmacy, [I, "Chai Pharmacy", "Costa da Caparica, Portugal"]);
-        1 -> run_op(FmkNode, create_pharmacy, [I, "Carlos Pharmacy", "Costa da Caparica, Portugal"]);
-        2 -> run_op(FmkNode, create_pharmacy, [I, "Shanghai Central Pharmacy", "Shanghai, China"])
-      end
+      run_op(FmkNode, create_pharmacy, [I, gen_random_name(), gen_random_address()]);
     end).
 
 add_facilities(FmkNode, Amount) ->
   parallel_create(facilities, 1, Amount, ?NUMTHREADS,
     fun(I) ->
-      case I rem 10 of
-        0 -> run_op(FmkNode, create_facility, [I, "Amager Hospital", "Amager Island, DK", "Hospital"]);
-        1 -> run_op(FmkNode, create_facility, [I, "Bispebjerg Hospital", "Copenhagen, DK", "Hospital"]);
-        2 -> run_op(FmkNode, create_facility, [I, "Bornholms Hospital", "Bornholms Island, DK", "Hospital"]);
-        3 -> run_op(FmkNode, create_facility, [I, "Gentofte Hospital", "Gentofte, DK", "Hospital"]);
-        4 -> run_op(FmkNode, create_facility, [I, "Glostrup Hospital", "Glostrup, DK", "Hospital"]);
-        5 -> run_op(FmkNode, create_facility, [I, "Herlev Hospital", "Herlev, DK", "Hospital"]);
-        6 -> run_op(FmkNode, create_facility, [I, "Nordsjællands Hospital", "Esbønderup, DK", "Hospital"]);
-        7 -> run_op(FmkNode, create_facility, [I, "Privathospitalet Danmark", "Charlottenlund, DK", "Hospital"]);
-        8 -> run_op(FmkNode, create_facility, [I, "Rigshospitalet", "Copenhagen, DK", "Hospital"]);
-        9 -> run_op(FmkNode, create_facility, [I, "Sct. Hans Hospital", "Zealand Island, DK", "Hospital"])
-      end
+      run_op(FmkNode, create_facility, [I, gen_random_name(), gen_random_address(), gen_random_type()]);
     end).
 
 add_patients(FmkNode, Amount) ->
   parallel_create(patient, 1, Amount, 10,
     fun(I) ->
-      run_op(FmkNode, create_patient, [I, "Phineas Gage", "New Hampshire, United States"])
+      run_op(FmkNode, create_patient, [I, gen_random_name(), gen_random_address()]);
     end).
 
 add_staff(FmkNode, Amount) ->
   parallel_create(staff, 1, Amount, ?NUMTHREADS,
     fun(I) ->
-      run_op(FmkNode, create_staff, [I, "Alexander Fleming", "London, UK", "Pharmacologist"])
+      run_op(FmkNode, create_staff, [I, gen_random_name(), gen_random_address(), gen_random_type()]);
     end).
 
 add_prescription(_FmkNode, 0, _FmkConfig) -> ok;
@@ -152,7 +137,7 @@ add_prescription_rec(FmkNode, PrescriptionId, ListPatientIds, FmkConfig) ->
   PharmacyId = rand:uniform(FmkConfig#fmkconfig.numpharmacies),
   PrescriberId = rand:uniform(FmkConfig#fmkconfig.numstaff),
   FacilityId = rand:uniform(FmkConfig#fmkconfig.numfacilities),
-  run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, FacilityId, "1/1/2017", ["Acetaminophen"]]),
+  run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, FacilityId, gen_random_date(), gen_random_drugs()]),
   add_prescription_rec(FmkNode, PrescriptionId - 1, Tail, FmkConfig).
 
 run_op(FmkNode, create_pharmacy, Params) ->
@@ -194,3 +179,27 @@ next(Dice, Size, Skew, Bottom, Sum, CurrRank) ->
   NextRank = CurrRank + 1,
   Sumi = Sum + (Bottom / math:pow(CurrRank, Skew)),
   next(Dice, Size, Skew, Bottom, Sumi, NextRank).
+
+gen_random_drug(0, List) ->
+    List.
+gen_random_drug(NumDrugs, List) ->
+    gen_random_drug(NumDrugs-1, List) ++ gen_random_date().
+
+gen_random_drugs() ->
+    NumDrugs = rand:uniform(2)+1,
+    gen_random_drug(NumDrugs,[]).
+
+gen_random_name() ->
+    gen_random_string(25).
+
+gen_random_address() ->
+    gen_random_string(40).
+
+gen_random_type() ->
+    gen_random_string(14).
+
+gen_random_date() ->
+    gen_random_string(10).
+
+gen_random_string(NumBytes) when NumBytes > 0 ->
+    binary_to_list(base64:encode(crypto:strong_rand_bytes(NumBytes))).
