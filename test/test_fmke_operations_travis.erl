@@ -59,7 +59,7 @@ start() ->
     Task = rand:uniform(100),
     Pname = build_generic_op("test_ops_travis_~p@127.0.0.1",[Task]),
     net_kernel:start([Pname,longnames]),
-    erlang:set_cookie(node(),antidote),
+    erlang:set_cookie(node(),fmke),
     'fmk@127.0.0.1'.
 
 stop(_FmkeNode) ->

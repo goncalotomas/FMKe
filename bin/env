@@ -51,7 +51,7 @@ if [ -z "$NODE_NAME" ]; then
 fi
 
 if [ -z "$COOKIE" ]; then
-  export COOKIE=antidote
+  export COOKIE=fmke
 fi
 
 export RELX_REPLACE_OS_VARS=true
