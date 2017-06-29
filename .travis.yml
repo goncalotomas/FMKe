@@ -9,12 +9,8 @@ services:
 install:
   - make all
 script:
-  - ./travis.sh test fmke
-  - ./rebar3 as test,antidote,riak release
-  - ./travis.sh test antidote
-  - ./travis.sh test riak
-  - ./travis.sh bench antidote
-  - ./travis.sh bench riak
+  - make test
+  - make bench
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"
