@@ -33,11 +33,12 @@ start(_StartType, _StartArgs) ->
     ]),
     fmk_config:set_from_env(http_port,"HTTP_PORT",?DEFAULT_FMKE_HTTP_PORT),
     HttpPort = fmk_config:get(http_port,9090),
-    {ok, _} = cowboy:start_clear(http, 100, [{port, HttpPort}], #{
-      env => #{dispatch => Dispatch}
-    }),
+    {ok, _} = cowboy:start_http(fmke_http_listener, 100, [{port, HttpPort}],
+      [{env, [{dispatch, Dispatch}]}]
+    ),
     Result.
 
 %%--------------------------------------------------------------------
 stop(_State) ->
-    ?DB_DRIVER:stop([]).
+    ?DB_DRIVER:stop([]),
+    cowboy:stop_listener(fmke_http_listener).
