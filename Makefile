@@ -4,8 +4,7 @@ BENCH=_build/default/lib/basho_bench
 all: compile rel
 
 compile:
-	${REBAR} compile
-	./scripts/compile_basho_bench.sh
+	${REBAR} as test,riak,antidote compile
 
 rel:
 	rm -rf _build/default/rel/
