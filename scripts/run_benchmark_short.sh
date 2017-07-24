@@ -11,7 +11,7 @@ echo "populating $1 via FMKe..."
 
 # Start benchmark
 echo "starting benchmark..."
-_build/default/lib/basho_bench/_build/default/bin/basho_bench config/fmke_travis.config
+_build/test/lib/lasp_bench/_build/default/bin/basho_bench config/fmke_travis.config
 
 if [ -s tests/current/error.log ]; then
     # start existing docker container:
