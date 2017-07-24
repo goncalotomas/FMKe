@@ -1,13 +1,17 @@
 REBAR = $(shell pwd)/rebar3
 BENCH=_build/test/lib/lasp_bench
 
-all: compile compilebench rel
+all: compile compilebench rel reltest
 
 compile:
 	${REBAR} as test compile
 
 rel:
 	rm -rf _build/default/rel/
+	${REBAR} release -n fmk
+
+reltest:
+	rm -rf _build/test/rel/
 	${REBAR} as test release -n fmk
 
 relclean:
