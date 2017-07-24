@@ -1,14 +1,14 @@
 REBAR = $(shell pwd)/rebar3
-BENCH=_build/default/lib/basho_bench
+BENCH=_build/test/lib/lasp_bench
 
-all: compile rel
+all: compile compilebench rel
 
 compile:
-	${REBAR} as test,riak,antidote compile
+	${REBAR} as test compile
 
 rel:
 	rm -rf _build/default/rel/
-	${REBAR} release -n fmk
+	${REBAR} as test release -n fmk
 
 relclean:
 	rm -rf _build/default/rel
@@ -22,6 +22,9 @@ bench: compile
 
 console: rel
 	./_build/default/rel/fmk/bin/env console
+
+compilebench: compile
+	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize
 
 travis:
 	#./travis.sh test fmk
