@@ -5,6 +5,7 @@ all: compile compilebench rel reltest
 
 compile:
 	${REBAR} as test compile
+	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize; cd -
 
 rel:
 	rm -rf _build/default/rel/
@@ -36,7 +37,6 @@ travis:
 	./travis.sh bench antidote
 
 dialyzer:
-	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
 	${REBAR} dialyzer
 
 kv_driver_test:
