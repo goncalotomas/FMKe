@@ -3,7 +3,7 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 2).
+-define(NUMTHREADS, 1).
 
 
 -record(fmkeconfig, {
