@@ -3,6 +3,6 @@ set -e
 
 # Start FMK:
 echo "stopping FMKe..."
-_build/default/rel/fmk/bin/env stop
+_build/default/rel/fmke/bin/env stop
 
 echo "successful FMKe shutdown."

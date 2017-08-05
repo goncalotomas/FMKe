@@ -17,10 +17,10 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(redis_kv_driver).
--include("fmk.hrl").
+-module(fmke_db_driver_redis).
+-include("fmke.hrl").
 
--behaviour(gen_kv_driver).
+-behaviour(fmke_gen_kv_driver).
 
 -export([init/1,
          start_transaction/1,

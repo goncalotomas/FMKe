@@ -1,4 +1,4 @@
--module (event_handler).
+-module (fmke_http_handler_events).
 -include ("fmk_http.hrl").
 
 -export([init/2]).
@@ -44,7 +44,7 @@ create_event(Req) ->
 						IntegerStaffId = binary_to_integer(StaffMemberId),
 						StringTimestamp = binary_to_list(Timestamp),
 						StringDescription = binary_to_list(Description),
-						ServerResponse = fmk_core:create_event(IntegerId,IntegerTreatmentId,IntegerStaffId,StringTimestamp,StringDescription),
+						ServerResponse = fmke:create_event(IntegerId,IntegerTreatmentId,IntegerStaffId,StringTimestamp,StringDescription),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
 								"{\"success\": \"~p\", \"result\": \"~p\"}",
@@ -62,7 +62,7 @@ get_event(Req) ->
 				true ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_EVENT_ID, Req);
 				false ->
-						ServerResponse = fmk_core:get_event_by_id(IntegerId),
+						ServerResponse = fmke:get_event_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->

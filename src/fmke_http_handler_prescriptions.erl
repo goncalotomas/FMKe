@@ -1,4 +1,4 @@
--module (prescription_handler).
+-module (fmke_http_handler_prescriptions).
 -include ("fmk_http.hrl").
 
 -export([init/2]).
@@ -51,12 +51,12 @@ create_prescription(Req) ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
 						ListDrugs = parse_line(CsvDrugs),
-						ServerResponse = fmk_core:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,ListDrugs),
+						ServerResponse = fmke:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,ListDrugs),
 						Success = ServerResponse =:= ok,
 						Result = case ServerResponse of
 								ok -> ServerResponse;
 								{error, txn_aborted} -> <<"transaction aborted">>;
-          			{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
+          			{error, OtherReason} -> fmke:error_to_binary(OtherReason)
 						end,
 						JsonReply =	jsx:encode([{success,Success},{result,Result}]),
 						cowboy_req:reply(200, #{
@@ -83,23 +83,23 @@ update_prescription(Req) ->
 														jsx:encode([{success,false},{result,nothing_to_update}]);
 												_ListDrugs ->
 														DrugsList = parse_line(CsvDrugs),
-														ServerResponse = fmk_core:update_prescription_medication(IntegerId,add_drugs,DrugsList),
+														ServerResponse = fmke:update_prescription_medication(IntegerId,add_drugs,DrugsList),
 														Success = ServerResponse =:= ok,
 														Result = case ServerResponse of
 																ok -> ServerResponse;
 																{error, txn_aborted} -> <<"transaction aborted">>;
 																{error, prescription_already_processed} -> <<"prescription already processed">>;
-								          			{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
+								          			{error, OtherReason} -> fmke:error_to_binary(OtherReason)
 														end,
 														jsx:encode([{success, Success}, {result, Result}])
 										end;
 								_Date ->
-										ServerResponse = fmk_core:process_prescription(IntegerId,DateProcessed),
+										ServerResponse = fmke:process_prescription(IntegerId,DateProcessed),
 										Success = ServerResponse =:= ok,
 										Result = case ServerResponse of
 												ok -> ServerResponse;
 												{error, txn_aborted} -> <<"transaction aborted">>;
-												{error, OtherReason} -> fmk_core:error_to_binary(OtherReason)
+												{error, OtherReason} -> fmke:error_to_binary(OtherReason)
 										end,
 										jsx:encode([{success,Success},{result,Result}])
 						end,
@@ -115,7 +115,7 @@ get_prescription(Req) ->
 				true ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
 				false ->
-						ServerResponse = fmk_core:get_prescription_by_id(IntegerId),
+						ServerResponse = fmke:get_prescription_by_id(IntegerId),
 						Success = case ServerResponse of
 								{error,not_found} -> false;
 								{error,txn_aborted} -> false;
@@ -126,7 +126,7 @@ get_prescription(Req) ->
 								true ->
 										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(prescription,ServerResponse)}]);
 								false ->
-										jsx:encode([{success,Success},{result,fmk_core:error_to_binary(ServerResponse)}])
+										jsx:encode([{success,Success},{result,fmke:error_to_binary(ServerResponse)}])
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>

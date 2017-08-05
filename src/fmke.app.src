@@ -1,8 +1,8 @@
-{application, fmk,
- [{description, "FMK Prototype Application"},
+{application, fmke,
+ [{description, "Benchmark for distributed key-value stores"},
   {vsn, "0.1.0"},
   {registered, []},
-  {mod, { fmk_app, []}},
+  {mod, { fmke_app, []}},
   {applications,
    [kernel,
     stdlib,
@@ -16,7 +16,8 @@
     cowboy,
     hackney,
     jsx,
-	riakc
+    riakc,
+    lager
    ]},
 
   {modules, []},

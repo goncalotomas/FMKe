@@ -18,10 +18,10 @@
 %%
 %% -------------------------------------------------------------------
 -module(fmke_db_driver_riak_kv).
--include("fmk.hrl").
+-include("fmke.hrl").
 -include("fmk_kv.hrl").
 
--behaviour(gen_kv_driver).
+-behaviour(fmke_gen_kv_driver).
 
 %% API
 -export([
@@ -43,36 +43,26 @@
 %% -------------------------------------------------------------------
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
-init(_Anything) ->
-    set_app_vars(),
-    start_sup_link().
-
-stop(_Context = {_,Pid,_}) ->
-    riakc_pb_socket:stop(Pid).
-
-set_app_vars() ->
-    fmk_config:set(db_conn_module,riakc_pb_socket),
-    fmk_config:set_from_env(db_conn_hostnames,"RIAK_ADDRESSES",["127.0.0.1"]),
-    fmk_config:set_from_env(db_conn_ports,"RIAK_PB_PORTS",["8087"]).
-
-start_sup_link() ->
-    case fmk_sup:start_link() of
-       {ok, Pid} -> start_conn_pool(Pid);
+init(Params) ->
+    case fmke_sup:start_link() of
+       {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error
     end.
 
-start_conn_pool(Pid) ->
-    RiakHostnames = fmk_config:get(db_conn_hostnames,["127.0.0.1"]),
-    RiakPorts = fmk_config:get(db_conn_ports,["8087"]),
-    WorkerArgs = [
-        {hostnames, RiakHostnames},
-        {ports, RiakPorts},
-        {module, riakc_pb_socket}
-    ],
-    case fmke_db_conn_pool:start(WorkerArgs) of
-        {ok,_} -> {ok,Pid};
-        {error,Reason} -> {error, Reason}
-    end.
+start_conn_pool(Pid, Params) ->
+    Hostnames = proplists:get_value(db_conn_hostnames, Params),
+    Ports = proplists:get_value(db_conn_ports, Params),
+    ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
+    {ok,_} = fmke_db_conn_pool:start([
+        {db_conn_hostnames, Hostnames},
+        {db_conn_ports, Ports},
+        {db_conn_module, riakc_pb_socket},
+        {db_conn_pool_size, ConnPoolSize}
+    ]),
+    {ok,Pid}.
+
+stop(_Context = {_,Pid,_}) ->
+    riakc_pb_socket:stop(Pid).
 
 %% -------------------------------------------------------------------
 %% Data access exports - Interaction with Riak KV
