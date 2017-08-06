@@ -1,5 +1,5 @@
 -module (test_fmke_operations_travis).
--include("fmk.hrl").
+-include("fmke.hrl").
 -include("fmk_kv.hrl").
 
 -ifdef(TEST).
@@ -60,7 +60,7 @@ start() ->
     Pname = build_generic_op("test_ops_travis_~p@127.0.0.1",[Task]),
     net_kernel:start([Pname,longnames]),
     erlang:set_cookie(node(),fmke),
-    'fmk@127.0.0.1'.
+    'fmke@127.0.0.1'.
 
 stop(_FmkeNode) ->
     net_kernel:stop().
@@ -416,6 +416,6 @@ format_list(List,Args) ->
     lists:flatten(io_lib:format(List,Args)).
 
 run_rpc_op(FmkeNode, Op, Params) ->
-    rpc:block_call(FmkeNode, fmk_core, Op, Params).
+    rpc:block_call(FmkeNode, fmke, Op, Params).
 
 -endif.

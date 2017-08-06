@@ -9,20 +9,20 @@ compile:
 
 rel:
 	rm -rf _build/default/rel/
-	${REBAR} release -n fmk
+	${REBAR} release -n fmke
 
 relclean:
 	rm -rf _build/default/rel
 
 populate: compile
-	./scripts/fmk_setup_script.erl 1 fmk@127.0.0.1
+	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmk@127.0.0.1"
 
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config
 	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
 
 console: rel
-	./_build/default/rel/fmk/bin/env console
+	./_build/default/rel/fmke/bin/env console
 
 travis:
 	#./travis.sh test fmk
@@ -30,7 +30,7 @@ travis:
 	./travis.sh bench antidote
 
 dialyzer:
-	-rm _build/default/lib/fmk/ebin/basho_bench_driver_fmkclient.beam
+	-rm _build/default/lib/fmke/ebin/basho_bench_driver_fmkclient.beam
 	${REBAR} dialyzer
 
 kv_driver_test:

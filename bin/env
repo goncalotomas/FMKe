@@ -10,19 +10,9 @@ if [ -z "$IP" ]; then
   export IP="127.0.0.1"
 fi
 
-# Antidote instance port.
-if [ -z "$ANTIDOTE_PB_PORTS" ]; then
-  export ANTIDOTE_PB_PORTS=8087
-fi
-
-# Antidote instance IP address.
-if [ -z "$ANTIDOTE_ADDRESSES" ]; then
-  export ANTIDOTE_ADDRESSES="127.0.0.1"
-fi
-
 # Receive the host name from the parameters
 if [ -z "$INSTANCE_NAME" ]; then
-    export INSTANCE_NAME=fmk
+    export INSTANCE_NAME=fmke
 fi
 
 # Choose the hostname for the epmd long name if the hostname exists

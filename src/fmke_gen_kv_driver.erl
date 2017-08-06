@@ -18,8 +18,8 @@
 %%
 %% -------------------------------------------------------------------
 
--module(gen_kv_driver).
--include ("fmk.hrl").
+-module(fmke_gen_kv_driver).
+-include ("fmke.hrl").
 
 %% Types TODO: refine type defs
 -type key() :: term().

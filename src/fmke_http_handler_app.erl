@@ -1,4 +1,4 @@
--module (fmk_handler).
+-module (fmke_http_handler_app).
 -include ("fmk_http.hrl").
 
 -export([init/2]).

@@ -3,7 +3,7 @@
 %% @end
 %%%-------------------------------------------------------------------
 
--module(fmk_sup).
+-module(fmke_sup).
 
 -behaviour(supervisor).
 

@@ -34,7 +34,7 @@ elif [ $1 = "riak" ]; then
         set -e
         docker run -d --name riak -p "8087:8087" -p "8098:8098" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak
     fi
-    sleep 5
+    sleep 15
     echo "riak started."
 else
     echo "fatal: data store not recognised. Cannot proceed."

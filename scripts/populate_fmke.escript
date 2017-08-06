@@ -28,7 +28,7 @@ main([Database, ConfigFile, FmkNodeRef]) ->
   MyNodeName = "fmke_populator@127.0.0.1",
   FmkNode = list_to_atom(FmkNodeRef),
   io:format("Node name set to ~p.\n", [MyNodeName]),
-  io:format("Target FMKE node set to ~p.\n", [FmkNode]),
+  io:format("Target FMKe node set to ~p.\n", [FmkNode]),
   io:format("The population script is going to create the following entities:~n",[]),
   io:format("-~p patients~n",[FmkConfig#fmkeconfig.numpatients]),
   io:format("-~p pharmacies~n",[FmkConfig#fmkeconfig.numpharmacies]),
@@ -40,7 +40,7 @@ main([Database, ConfigFile, FmkNodeRef]) ->
   %% check if fmkeis running
   case net_adm:ping(FmkNode) of
     pang ->
-      io:format("Cannot connect to fmke.\n", []);
+      io:format("Cannot connect to FMKe.\n", []);
     pong ->
       ok
   end,
@@ -156,7 +156,7 @@ run_op(FmkNode, create_prescription, Params) ->
   run_rpc_op(FmkNode, create_prescription, Params).
 
 run_rpc_op(FmkNode, Op, Params) ->
-  ok = case rpc:call(FmkNode, fmk_core, Op, Params) of
+  ok = case rpc:call(FmkNode, fmke, Op, Params) of
          {error, Reason} ->
            io:format("Error in ~p with params ~p\n", [Op, Params]),
            {error, Reason};
