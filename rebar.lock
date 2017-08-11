@@ -3,8 +3,14 @@
   {git,"https://github.com/SyncFree/antidote_pb",
        {ref,"eb59f91ec8fa111dbbb50e399c181d1ab57bcb96"}},
   0},
- {<<"cowboy">>,{pkg,<<"cowboy">>,<<"1.1.2">>},0},
- {<<"cowlib">>,{pkg,<<"cowlib">>,<<"1.0.2">>},1},
+ {<<"cowboy">>,
+  {git,"https://github.com/ninenines/cowboy",
+       {ref,"238ac3afc661046fb554a8bbb62d2b9912023247"}},
+  0},
+ {<<"cowlib">>,
+  {git,"https://github.com/ninenines/cowlib",
+       {ref,"11e07d3c2b164d06ad35188d83ad70e7501396db"}},
+  1},
  {<<"eredis">>,{pkg,<<"eredis">>,<<"1.0.8">>},1},
  {<<"eredis_cluster">>,{pkg,<<"eredis_cluster">>,<<"0.5.8">>},0},
  {<<"goldrush">>,
@@ -25,7 +31,10 @@
   {git,"git://github.com/basho/erlang_protobuffs.git",
        {ref,"0dde9d3b37b7bec3a4dfb0e87684dd7039e169ab"}},
   2},
- {<<"ranch">>,{pkg,<<"ranch">>,<<"1.3.2">>},1},
+ {<<"ranch">>,
+  {git,"https://github.com/ninenines/ranch",
+       {ref,"55c2a9d623454f372a15e99721a37093d8773b48"}},
+  1},
  {<<"riak_pb">>,
   {git,"git://github.com/syncfree/riak_pb",
        {ref,"322309b2bb69b38191a51b21247a71b5e412e656"}},
@@ -36,11 +45,8 @@
   0}]}.
 [
 {pkg_hash,[
- {<<"cowboy">>, <<"61AC29EA970389A88ECA5A65601460162D370A70018AFE6F949A29DCA91F3BB0">>},
- {<<"cowlib">>, <<"9D769A1D062C9C3AC753096F868CA121E2730B9A377DE23DEC0F7E08B1DF84EE">>},
  {<<"eredis">>, <<"AB4FDA1C4BA7FBE6C19C26C249DC13DA916D762502C4B4FA2DF401A8D51C5364">>},
  {<<"eredis_cluster">>, <<"79598AC152224BF9BB12ACA4AC02B46467D0C38AF2C9B1367A2D221647C4C0D3">>},
  {<<"jsx">>, <<"7ACC7D785B5ABE8A6E9ADBDE926A24E481F29956DD8B4DF49E3E4E7BCC92A018">>},
- {<<"poolboy">>, <<"6B46163901CFD0A1B43D692657ED9D7E599853B3B21B95AE5AE0A777CF9B6CA8">>},
- {<<"ranch">>, <<"E4965A144DC9FBE70E5C077C65E73C57165416A901BD02EA899CFD95AA890986">>}]}
+ {<<"poolboy">>, <<"6B46163901CFD0A1B43D692657ED9D7E599853B3B21B95AE5AE0A777CF9B6CA8">>}]}
 ].

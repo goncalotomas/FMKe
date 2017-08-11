@@ -9,24 +9,24 @@ compile:
 
 rel:
 	rm -rf _build/default/rel/
-	${REBAR} release -n fmk
+	${REBAR} release -n fmke
 
 reltest:
 	rm -rf _build/test/rel/
-	${REBAR} as test release -n fmk
+	${REBAR} as test release -n fmke
 
 relclean:
 	rm -rf _build/default/rel
 
 populate: compile
-	./scripts/fmk_setup_script.erl 1 fmk@127.0.0.1
+	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmk@127.0.0.1"
 
 bench: compile
 	${BENCH}/_build/default/bin/basho_bench test/fmkclient.config
 	-Rscript --vanilla ${BENCH}/priv/summary.r -i tests/current
 
 console: rel
-	./_build/default/rel/fmk/bin/env console
+	./_build/default/rel/fmke/bin/env console
 
 compilebench: compile
 	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize

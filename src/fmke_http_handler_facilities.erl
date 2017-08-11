@@ -1,4 +1,4 @@
--module (pharmacy_handler).
+-module (fmke_http_handler_facilities).
 -include ("fmk_http.hrl").
 
 -export([init/2]).
@@ -18,26 +18,27 @@ init(Req0, Opts) ->
 	end.
 
 handle_req(<<"POST">>, true, Req) ->
-		create_pharmacy(Req);
+		create_facility(Req);
 handle_req(<<"POST">>, false, Req) ->
 		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
 
 handle_req(<<"PUT">>, true, Req) ->
-		update_pharmacy(Req);
+		update_facility(Req);
 handle_req(<<"PUT">>, false, Req) ->
 		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
 
 handle_req(<<"GET">>, true, Req) ->
 		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
 handle_req(<<"GET">>, false, Req) ->
-		get_pharmacy(Req).
+		get_facility(Req).
 
-create_pharmacy(Req) ->
+create_facility(Req) ->
 		{ok, Data, _Req2} = cowboy_req:read_body(Req),
 		Json = jsx:decode(Data),
 		Id = proplists:get_value(<<"id">>, Json),
 		Name = proplists:get_value(<<"name">>, Json),
 		Address = proplists:get_value(<<"address">>, Json),
+		Type = proplists:get_value(<<"type">>, Json),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
@@ -45,49 +46,64 @@ create_pharmacy(Req) ->
 				false ->
 						StringName = binary_to_list(Name),
 						StringAddress = binary_to_list(Address),
-						ServerResponse = fmk_core:create_pharmacy(IntegerId,StringName,StringAddress),
+						StringType = binary_to_list(Type),
+						ServerResponse = fmke:create_facility(IntegerId,StringName,StringAddress,StringType),
 						Success = ServerResponse =:= ok,
-						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
+						JsonReply =	lists:flatten(io_lib:format(
+								"{\"success\": \"~p\", \"result\": \"~p\"}",
+								[Success,ServerResponse]
+						)),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
 
-update_pharmacy(Req) ->
+update_facility(Req) ->
 		{ok, Data, _Req2} = cowboy_req:read_body(Req),
 		Json = jsx:decode(Data),
 		Name = proplists:get_value(<<"name">>, Json),
 		Address = proplists:get_value(<<"address">>, Json),
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
+		Type = proplists:get_value(<<"type">>, Json),
+		Id = cowboy_req:binding(?BINDING_FACILITY_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PHARMACY_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
 				false ->
 						StringName = binary_to_list(Name),
 						StringAddress = binary_to_list(Address),
-						ServerResponse = fmk_core:update_pharmacy_details(IntegerId,StringName,StringAddress),
+            StringType = binary_to_list(Type),
+						ServerResponse = fmke:update_facility_details(IntegerId,StringName,StringAddress,StringType),
 						Success = ServerResponse =:= ok,
-						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
+						JsonReply =	lists:flatten(io_lib:format(
+								"{\"success\": \"~p\", \"result\": \"~p\"}",
+								[Success,ServerResponse]
+						)),
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
 						}, JsonReply, Req)
 		end.
 
-get_pharmacy(Req) ->
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
+get_facility(Req) ->
+		Id = cowboy_req:binding(?BINDING_FACILITY_ID, Req, -1),
 		IntegerId = binary_to_integer(Id),
 		case IntegerId =< ?MIN_ID of
 				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PHARMACY_ID, Req);
+						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
 				false ->
-						ServerResponse = fmk_core:get_pharmacy_by_id(IntegerId),
+						ServerResponse = fmke:get_facility_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->
-										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(pharmacy,ServerResponse)}]);
+										lists:flatten(io_lib:format(
+												("{\"success\": \"~p\", \"result\": " ++ fmke_proplists:encode(facility,ServerResponse) ++ "}"),
+												[Success]
+										));
 								false ->
-										jsx:encode([{success,Success},{result,ServerResponse}])
+										lists:flatten(io_lib:format(
+												"{\"success\": \"~p\", \"result\": \"~p\"}",
+												[Success,ServerResponse]
+										))
 						end,
 						cowboy_req:reply(200, #{
 								<<"content-type">> => <<"application/json">>
