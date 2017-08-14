@@ -1,111 +1,62 @@
 -module (fmke_http_handler_facilities).
 -include ("fmk_http.hrl").
 
--export([init/2]).
+-behaviour(fmke_gen_http_handler).
 
-init(Req0, Opts) ->
-	try
-		Method = cowboy_req:method(Req0),
-		HasBody = cowboy_req:has_body(Req0),
-		Req = handle_req(Method, HasBody, Req0),
-		{ok, Req, Opts}
-	catch
-		Err:Reason ->
-			ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
-			io:format(ErrorMessage),
-			Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
-			{ok, Req2, Opts}
-	end.
+-export([init/2, handle_req/3, perform_operation/4]).
+
+init(Req, Opts) ->
+		fmke_gen_http_handler:init(?MODULE, Req, Opts).
+
+%% Create patient function ( POST /patients )
+handle_req(<<"GET">>, _, Req) ->
+		fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [id], []);
+
+handle_req(<<"POST">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"POST">>, true, Req) ->
-		create_facility(Req);
-handle_req(<<"POST">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{id, integer}, {name, string}, {address, string}, {type, string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"POST">>, Req, [], Properties);
+
+handle_req(<<"PUT">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"PUT">>, true, Req) ->
-		update_facility(Req);
-handle_req(<<"PUT">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{name, string}, {address, string}, {type, string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"PUT">>, Req, [id], Properties).
 
-handle_req(<<"GET">>, true, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
-handle_req(<<"GET">>, false, Req) ->
-		get_facility(Req).
+perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:get_facility_by_id(Id) of
+						{error, Reason} -> {false, Reason};
+						PatientRecord -> {true, fmke_proplists:encode_object(facility,PatientRecord)}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
 
-create_facility(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		Id = proplists:get_value(<<"id">>, Json),
-		Name = proplists:get_value(<<"name">>, Json),
-		Address = proplists:get_value(<<"address">>, Json),
-		Type = proplists:get_value(<<"type">>, Json),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
-				false ->
-						StringName = binary_to_list(Name),
-						StringAddress = binary_to_list(Address),
-						StringType = binary_to_list(Type),
-						ServerResponse = fmke:create_facility(IntegerId,StringName,StringAddress,StringType),
-						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
+perform_operation(<<"POST">>, Req, [], [{id, Id}, {name, Name}, {address, Address}, {type, Type}]) ->
+		try
+				{Success, ServerResponse} = case fmke:create_facility(Id,Name,Address,Type) of
+						ok -> {true, ok};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
 
-update_facility(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		Name = proplists:get_value(<<"name">>, Json),
-		Address = proplists:get_value(<<"address">>, Json),
-		Type = proplists:get_value(<<"type">>, Json),
-		Id = cowboy_req:binding(?BINDING_FACILITY_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
-				false ->
-						StringName = binary_to_list(Name),
-						StringAddress = binary_to_list(Address),
-            StringType = binary_to_list(Type),
-						ServerResponse = fmke:update_facility_details(IntegerId,StringName,StringAddress,StringType),
-						Success = ServerResponse =:= ok,
-						JsonReply =	lists:flatten(io_lib:format(
-								"{\"success\": \"~p\", \"result\": \"~p\"}",
-								[Success,ServerResponse]
-						)),
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
-
-get_facility(Req) ->
-		Id = cowboy_req:binding(?BINDING_FACILITY_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
-				false ->
-						ServerResponse = fmke:get_facility_by_id(IntegerId),
-						Success = ServerResponse =/= {error,not_found},
-						JsonReply = case Success of
-								true ->
-										lists:flatten(io_lib:format(
-												("{\"success\": \"~p\", \"result\": " ++ fmke_proplists:encode(facility,ServerResponse) ++ "}"),
-												[Success]
-										));
-								false ->
-										lists:flatten(io_lib:format(
-												"{\"success\": \"~p\", \"result\": \"~p\"}",
-												[Success,ServerResponse]
-										))
-						end,
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
+perform_operation(<<"PUT">>, Req, [{id, BinaryId}], [{name, Name}, {address, Address}, {type, Type}]) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:update_facility_details(Id,Name,Address,Type) of
+						ok -> {true, ok};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
 		end.

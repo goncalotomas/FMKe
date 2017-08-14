@@ -1,8 +1,23 @@
+%% Generally useful HTTP parsing functions. Required for gen_http_handler and for
+%% other modules that may wish to manually parse a specific field.
 -module (fmke_http_utils).
 -include ("fmk_http.hrl").
 
--export ([parse_body/2, parse_body/3, parse_id/1, parse_string/2]).
+%%%-------------------------------------------------------------------
+%%% API
+%%%-------------------------------------------------------------------
+-export ([
+		parse_body/2,
+		parse_body/3,
+		parse_id/1,
+		parse_string/2
+]).
 
+-spec parse_body(list({atom(), atom()}), binary()) -> list({atom(), any()}).
+%% Tries to extract a list of properties from an HTTP body.
+%% The property list must be an Erlang proplist in the form [{prop_name, prop_type}]
+%% prop_type must be: string | integer
+%% Returns a proplist with all the found properties that match the passed types.
 parse_body([], _) ->
 		[];
 parse_body(_, <<>>) ->
@@ -11,18 +26,26 @@ parse_body(PropertyList, BinaryJson) ->
 		Json = jsx:decode(BinaryJson),
 		parse_body(PropertyList, Json, []).
 
-parse_body([],_,Accum) ->
+parse_body([], _, Accum) ->
 		Accum;
-parse_body([H|T],Json,Accum) ->
+parse_body([H|T], Json, Accum) ->
 		{Property, Type} = H,
 		true = is_atom(Type),
 		EncodedProperty = list_to_binary(atom_to_list(Property)),
-		ParsedValue = case Type of
-				string -> parse_string(Property, proplists:get_value(EncodedProperty, Json));
-				integer -> parse_id(proplists:get_value(EncodedProperty, Json))
-		end,
-		parse_body(T,Json,lists:append(Accum,[{Property, ParsedValue}])).
+		try
+				ParsedValue = case Type of
+						csv_string -> parse_csv_string(Property, proplists:get_value(EncodedProperty, Json));
+						string -> parse_string(Property, proplists:get_value(EncodedProperty, Json));
+						integer -> parse_id(proplists:get_value(EncodedProperty, Json))
+				end,
+				parse_body(T,Json,lists:append(Accum,[{Property, ParsedValue}]))
+		catch
+				_:_ ->
+						%% Current property could not be found, prevent error from bubbling up
+						parse_body(T,Json,Accum)
+		end.
 
+%% Does a best effort approach to parsing an integer
 parse_id(undefined) ->
 		erlang:error(missing_id);
 parse_id(Id) when is_integer(Id) andalso Id >= ?MIN_ID ->
@@ -59,3 +82,9 @@ parse_string(Name, String) when is_binary(String) ->
 		end;
 parse_string(_, String) when is_list(String) ->
 		String.
+
+parse_csv_string(Name, String) ->
+		ParsedString = parse_string(Name, String),
+		lists:map(fun(Str) -> string:trim(Str, both, " ") end, string:tokens(ParsedString, ",")).
+
+%%TODO this module should have tests in here

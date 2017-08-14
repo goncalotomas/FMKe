@@ -45,7 +45,14 @@ handle_req(Mod, Method, Req, UrlParams, BodyParams) ->
             end
         end, [], UrlParams),
         BodyParamsFound = fmke_http_utils:parse_body(BodyParams, Body),
-        Mod:perform_operation(Method, Req1, UrlParamsFound, BodyParamsFound)
+        case proplists:get_keys(BodyParamsFound) =:= proplists:get_keys(BodyParams) of
+            true ->
+                %% All body params that were requested have been found
+                Mod:perform_operation(Method, Req1, UrlParamsFound, BodyParamsFound);
+            false ->
+                %% Some body parameters are missing, let Mod decide what to do
+                Mod:perform_operation(Method, Req1, UrlParamsFound, {incomplete,BodyParamsFound})
+        end
     catch
 				error:ErrReason ->
             handle_reply(Mod, Req, {error, internal}, false, ErrReason);

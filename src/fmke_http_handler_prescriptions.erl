@@ -1,154 +1,83 @@
 -module (fmke_http_handler_prescriptions).
 -include ("fmk_http.hrl").
 
--export([init/2]).
+-behaviour(fmke_gen_http_handler).
 
-init(Req0, Opts) ->
-	try
-		Method = cowboy_req:method(Req0),
-		HasBody = cowboy_req:has_body(Req0),
-		Req = handle_req(Method, HasBody, Req0),
-		{ok, Req, Opts}
-	catch
-		Err:Reason ->
-			ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
-			io:format(ErrorMessage),
-			Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
-			{ok, Req2, Opts}
-	end.
+-export([init/2, handle_req/3, perform_operation/4]).
+
+init(Req, Opts) ->
+		fmke_gen_http_handler:init(?MODULE, Req, Opts).
+
+%% Create patient function ( POST /patients )
+handle_req(<<"GET">>, _, Req) ->
+		fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [id], []);
+
+handle_req(<<"POST">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"POST">>, true, Req) ->
-		create_prescription(Req);
-handle_req(<<"POST">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{id, integer}, {patient_id, integer}, {prescriber_id, integer},
+				{pharmacy_id, integer}, {date_prescribed, string}, {drugs, csv_string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"POST">>, Req, [], Properties);
+
+handle_req(<<"PUT">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"PUT">>, true, Req) ->
-		update_prescription(Req);
-handle_req(<<"PUT">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{date_processed, string}, {drugs, csv_string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"PUT">>, Req, [id], Properties).
 
-handle_req(<<"GET">>, true, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
-handle_req(<<"GET">>, false, Req) ->
-		get_prescription(Req).
+perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:get_prescription_by_id(Id) of
+						{error, Reason} -> {false, Reason};
+						PrescriptionRecord -> {true, fmke_proplists:encode_object(prescription,PrescriptionRecord)}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
 
-create_prescription(Req) ->
-		{ok, Data, _Req} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		PrescriptionId = proplists:get_value(<<"id">>, Json),
-		PatientId = proplists:get_value(<<"patient_id">>, Json),
-		PrescriberId = proplists:get_value(<<"prescriber_id">>, Json),
-		PharmacyId = proplists:get_value(<<"pharmacy_id">>, Json),
-		DatePrescribed = proplists:get_value(<<"date_prescribed">>, Json),
-		CsvDrugs = proplists:get_value(<<"drugs">>, Json),
-		IntegerId =
-			if
-				is_binary(PrescriptionId) -> list_to_integer(binary_to_list(PrescriptionId));
-				true -> PrescriptionId
-			end,
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
-				false ->
-						ListDrugs = parse_line(CsvDrugs),
-						ServerResponse = fmke:create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,ListDrugs),
-						Success = ServerResponse =:= ok,
-						Result = case ServerResponse of
-								ok -> ServerResponse;
-								{error, txn_aborted} -> <<"transaction aborted">>;
-          			{error, OtherReason} -> fmke:error_to_binary(OtherReason)
-						end,
-						JsonReply =	jsx:encode([{success,Success},{result,Result}]),
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
+perform_operation(<<"POST">>, Req, [],
+									[{id, Id}, {patient_id, PatId}, {prescriber_id, StaffId},
+									{pharmacy_id, PharmId},	{date_prescribed, DatePresc}, {drugs, Drugs}]) ->
+		try
+				{Success, ServerResponse} = case fmke:create_prescription(Id,PatId,StaffId,PharmId,DatePresc,Drugs) of
+						ok -> {true, ok};
+						{error, txn_aborted} -> {false, <<"txn_aborted">>};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
+
+%% Process prescription
+perform_operation(<<"PUT">>, Req, [{id, BinaryId}], {incomplete, [{date_processed, Date}]}) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:process_prescription(Id,Date) of
+						ok -> {true, ok};
+						{error, txn_aborted} -> {false, <<"txn_aborted">>};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
+
+%% Update prescription medication
+perform_operation(<<"PUT">>, Req, [{id, BinaryId}], {incomplete, [{drugs, Drugs}]}) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:update_prescription_medication(Id,add_drugs,Drugs) of
+						ok -> {true, ok};
+						{error, txn_aborted} -> {false, <<"txn_aborted">>};
+						{error, prescription_already_processed} -> {false, <<"prescription_already_processed">>};
+						{error, Reason} -> {false, fmke:error_to_binary(Reason)}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
 		end.
-
-update_prescription(Req) ->
-		{ok, Data, _Req} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		DateProcessed = proplists:get_value(<<"date_processed">>, Json),
-		CsvDrugs = proplists:get_value(<<"drugs">>, Json),
-		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
-				false ->
-						JsonReply = case DateProcessed of
-								undefined ->
-										%% Assuming that in this case we only want to update the prescription medication
-										case CsvDrugs of
-												undefined ->
-														jsx:encode([{success,false},{result,nothing_to_update}]);
-												_ListDrugs ->
-														DrugsList = parse_line(CsvDrugs),
-														ServerResponse = fmke:update_prescription_medication(IntegerId,add_drugs,DrugsList),
-														Success = ServerResponse =:= ok,
-														Result = case ServerResponse of
-																ok -> ServerResponse;
-																{error, txn_aborted} -> <<"transaction aborted">>;
-																{error, prescription_already_processed} -> <<"prescription already processed">>;
-								          			{error, OtherReason} -> fmke:error_to_binary(OtherReason)
-														end,
-														jsx:encode([{success, Success}, {result, Result}])
-										end;
-								_Date ->
-										ServerResponse = fmke:process_prescription(IntegerId,DateProcessed),
-										Success = ServerResponse =:= ok,
-										Result = case ServerResponse of
-												ok -> ServerResponse;
-												{error, txn_aborted} -> <<"transaction aborted">>;
-												{error, OtherReason} -> fmke:error_to_binary(OtherReason)
-										end,
-										jsx:encode([{success,Success},{result,Result}])
-						end,
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
-
-get_prescription(Req) ->
-		Id = cowboy_req:binding(?BINDING_PRESCRIPTION_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PRESCRIPTION_ID, Req);
-				false ->
-						ServerResponse = fmke:get_prescription_by_id(IntegerId),
-						Success = case ServerResponse of
-								{error,not_found} -> false;
-								{error,txn_aborted} -> false;
-								{error, _Other} -> false;
-								_Success -> true
-						end,
-						JsonReply = case Success of
-								true ->
-										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(prescription,ServerResponse)}]);
-								false ->
-										jsx:encode([{success,Success},{result,fmke:error_to_binary(ServerResponse)}])
-						end,
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
-
-
-%% parse_line function fetched from @src http://stackoverflow.com/a/1532947/3547126
-
-parse_line(Line) -> parse_line(Line, []).
-
-parse_line([], Fields) -> lists:reverse(Fields);
-parse_line("," ++ Line, Fields) -> parse_field(Line, Fields);
-parse_line(Line, Fields) -> parse_field(Line, Fields).
-
-parse_field("\"" ++ Line, Fields) -> parse_field_q(Line, [], Fields);
-parse_field(Line, Fields) -> parse_field(Line, [], Fields).
-
-parse_field("," ++ _ = Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf)|Fields]);
-parse_field([C|Line], Buf, Fields) -> parse_field(Line, [C|Buf], Fields);
-parse_field([], Buf, Fields) -> parse_line([], [lists:reverse(Buf)|Fields]).
-
-parse_field_q("\"\"" ++ Line, Buf, Fields) -> parse_field_q(Line, [$"|Buf], Fields);
-parse_field_q("\"" ++ Line, Buf, Fields) -> parse_line(Line, [lists:reverse(Buf)|Fields]);
-parse_field_q([C|Line], Buf, Fields) -> parse_field_q(Line, [C|Buf], Fields).
