@@ -31,6 +31,14 @@ console: rel
 compilebench: compile
 	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize
 
+ct: all
+	./scripts/config/set_target_data_store.sh antidote
+	./scripts/start_data_store.sh antidote
+	./scripts/start_fmke.sh
+	./rebar3 ct
+	./scripts/stop_fmke.sh
+	./scripts/stop_data_store.sh antidote
+
 travis:
 	#./travis.sh test fmk
 	./travis.sh test antidote

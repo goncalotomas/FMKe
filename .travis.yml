@@ -9,7 +9,7 @@ services:
 install:
   - make all
 script:
-  - ./travis.sh test fmke
+  - make ct
   - ./travis.sh test antidote
   - ./travis.sh test riak
   - ./travis.sh bench antidote
