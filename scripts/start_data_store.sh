@@ -2,12 +2,8 @@
 set -e
 echo "trying to load $1 docker image..."
 if [ $1 = "antidote" ]; then
-    # load antidote from docker:
-    # docker inspect returns != 0 when containers don't exist in the system
-    set +e
-    docker inspect antidote &> /dev/null
-    if [ $? -eq 0 ]; then
-        # start existing docker container:
+    docker pull mweber/antidotedb
+    if docker inspect antidote &> /dev/null; then
         set -e
         docker start antidote
     else
@@ -18,15 +14,21 @@ if [ $1 = "antidote" ]; then
     sleep 15
     echo "antidote started."
 elif [ $1 = "redis" ]; then
-    #TODO use redis docker image
-    echo "fatal: not implemented"
-    exit 2
-elif [ $1 = "riak" ]; then
-    #load riak from docker:
-    #docker inspect returns != 0 when containers don't exist in the system
+    docker pull redis
     set +e
-    docker inspect antidote &> /dev/null
-    if [ $? -eq 0 ]; then
+    if docker inspect redis &> /dev/null; then
+        set -e
+        docker start redis
+    else
+        set -e
+        docker run -d --name redis -p "6379:6379" redis
+    fi
+    sleep 15
+    echo "redis started."
+elif [ $1 = "riak" ]; then
+    docker pull goncalotomas/riak
+    set +e
+    if docker inspect riak &> /dev/null; then
         # start existing docker container:
         set -e
         docker start riak
