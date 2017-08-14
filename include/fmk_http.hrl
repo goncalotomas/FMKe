@@ -18,7 +18,7 @@
 -define (CONT_TYPE_JSON, #{<<"content-type">> => <<"application/json">>}).
 -define (ENCODE_FAIL(Reason), jsx:encode([{success,false},{result,Reason}])).
 -define (ENCODE_RESPONSE(Success,Result), jsx:encode([{success,Success},{result,Result}])).
--define (ENCODE_SRV_ERR, ?ENCODE_FAIL("Woops! This request failed.~nThat's all we know!")).
+-define (ENCODE_SRV_ERR, ?ENCODE_FAIL(<<"Woops! This request failed. That's all we know!">>)).
 -define (ENCODE_SUCCESS(Result), jsx:encode([{success,true},{result,Result}])).
 -define (REPLY_WITH_SRV_ERR(Req), cowboy_req:reply(500, ?CONT_TYPE_JSON, ?ENCODE_SRV_ERR, Req)).
 -define (REPLY_WITH_MISS_BODY(Req), cowboy_req:reply(400, ?CONT_TYPE_JSON, ?ENCODE_FAIL("Missing HTTP body!"), Req)).
