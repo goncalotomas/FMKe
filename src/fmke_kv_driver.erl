@@ -225,7 +225,7 @@ update_patient_details(Context,Id,Name,Address) ->
         {{ok,_Object},Context2} ->
             PatientKey = gen_key(patient,Id),
             PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
-            execute_create_op(Context,PatientKey,patient,PatientUpdate)
+            execute_create_op(Context2,PatientKey,patient,PatientUpdate)
     end.
 
 update_pharmacy_details(Context,Id,Name,Address) ->
@@ -235,7 +235,7 @@ update_pharmacy_details(Context,Id,Name,Address) ->
         {{ok,_Object},Context2} ->
             PharmacyKey = gen_key(pharmacy,Id),
             PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
-            execute_create_op(Context,PharmacyKey,pharmacy,PharmacyUpdate)
+            execute_create_op(Context2,PharmacyKey,pharmacy,PharmacyUpdate)
     end.
 
 update_facility_details(Context,Id,Name,Address,Type) ->
@@ -245,7 +245,7 @@ update_facility_details(Context,Id,Name,Address,Type) ->
         {{ok,_Object},Context2} ->
             FacilityKey = gen_key(facility,Id),
             FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
-            execute_create_op(Context,FacilityKey,facility,FacilityUpdate)
+            execute_create_op(Context2,FacilityKey,facility,FacilityUpdate)
     end.
 
 update_staff_details(Context,Id,Name,Address,Speciality) ->
@@ -255,7 +255,7 @@ update_staff_details(Context,Id,Name,Address,Speciality) ->
         {{ok,_Object},Context2} ->
             StaffKey = gen_key(staff,Id),
             StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
-            execute_create_op(Context,StaffKey,staff,StaffUpdate)
+            execute_create_op(Context2,StaffKey,staff,StaffUpdate)
     end.
 
 update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
