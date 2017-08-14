@@ -219,24 +219,44 @@ run_updates(Context,[H|T],false) ->
     end.
 
 update_patient_details(Context,Id,Name,Address) ->
-    PatientKey = gen_key(patient,Id),
-    PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PatientKey,patient,PatientUpdate).
+    case get_patient_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_patient},Context1};
+        {{ok,_Object},Context2} ->
+            PatientKey = gen_key(patient,Id),
+            PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
+            execute_create_op(Context2,PatientKey,patient,PatientUpdate)
+    end.
 
 update_pharmacy_details(Context,Id,Name,Address) ->
-    PharmacyKey = gen_key(pharmacy,Id),
-    PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PharmacyKey,pharmacy,PharmacyUpdate).
+    case get_pharmacy_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_pharmacy},Context1};
+        {{ok,_Object},Context2} ->
+            PharmacyKey = gen_key(pharmacy,Id),
+            PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
+            execute_create_op(Context2,PharmacyKey,pharmacy,PharmacyUpdate)
+    end.
 
 update_facility_details(Context,Id,Name,Address,Type) ->
-    FacilityKey = gen_key(facility,Id),
-    FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
-    execute_create_op(Context,FacilityKey,facility,FacilityUpdate).
+    case get_facility_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_facility},Context1};
+        {{ok,_Object},Context2} ->
+            FacilityKey = gen_key(facility,Id),
+            FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
+            execute_create_op(Context2,FacilityKey,facility,FacilityUpdate)
+    end.
 
 update_staff_details(Context,Id,Name,Address,Speciality) ->
-    StaffKey = gen_key(staff,Id),
-    StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
-    execute_create_op(Context,StaffKey,staff,StaffUpdate).
+    case get_staff_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_staff},Context1};
+        {{ok,_Object},Context2} ->
+            StaffKey = gen_key(staff,Id),
+            StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
+            execute_create_op(Context2,StaffKey,staff,StaffUpdate)
+    end.
 
 update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
     case get_prescription_by_id(Context,PrescriptionId) of

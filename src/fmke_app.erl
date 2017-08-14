@@ -37,8 +37,8 @@ start(_StartType, _StartArgs) ->
       ]}
     ]),
 
-    {ok, _} = cowboy:start_http(fmke_http_listener, 100, [{port, HttpPort}],
-      [{env, [{dispatch, Dispatch}]}]
+    {ok, _} = cowboy:start_clear(fmke_http_listener, [{port, HttpPort}],
+      #{env => #{dispatch => Dispatch}}
     ),
     Result.
 

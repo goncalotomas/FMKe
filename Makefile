@@ -1,15 +1,19 @@
 REBAR = $(shell pwd)/rebar3
-BENCH=_build/default/lib/basho_bench
+BENCH=_build/test/lib/lasp_bench
 
-all: compile rel
+all: compile compilebench rel reltest
 
 compile:
-	${REBAR} compile
-	./scripts/compile_basho_bench.sh
+	${REBAR} as test compile
+	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize; cd -
 
 rel:
 	rm -rf _build/default/rel/
 	${REBAR} release -n fmke
+
+reltest:
+	rm -rf _build/test/rel/
+	${REBAR} as test release -n fmke
 
 relclean:
 	rm -rf _build/default/rel
@@ -24,13 +28,23 @@ bench: compile
 console: rel
 	./_build/default/rel/fmke/bin/env console
 
+compilebench: compile
+	cd ./_build/test/lib/lasp_bench; ./rebar3 escriptize
+
+ct: all
+	./scripts/config/set_target_data_store.sh antidote
+	./scripts/start_data_store.sh antidote
+	./scripts/start_fmke.sh
+	./rebar3 ct
+	./scripts/stop_fmke.sh
+	./scripts/stop_data_store.sh antidote
+
 travis:
 	#./travis.sh test fmk
 	./travis.sh test antidote
 	./travis.sh bench antidote
 
 dialyzer:
-	-rm _build/default/lib/fmke/ebin/basho_bench_driver_fmkclient.beam
 	${REBAR} dialyzer
 
 kv_driver_test:

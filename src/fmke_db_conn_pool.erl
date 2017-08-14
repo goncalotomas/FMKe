@@ -59,7 +59,6 @@ start_link([Module,ListHostnames,ListPorts]) ->
     try_connect(Module,Hostname, Port, 100).
 
 try_connect(Module,Hostname,Port,Timeout) ->
-    % io:format("Connecting to ~p:~p~n", [Hostname, Port]),
     case Module:start_link(Hostname, Port) of
         {ok, Pid} ->
             % io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),

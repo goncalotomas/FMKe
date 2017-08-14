@@ -1,95 +1,62 @@
 -module (fmke_http_handler_pharmacies).
 -include ("fmk_http.hrl").
 
--export([init/2]).
+-behaviour(fmke_gen_http_handler).
 
-init(Req0, Opts) ->
-	try
-		Method = cowboy_req:method(Req0),
-		HasBody = cowboy_req:has_body(Req0),
-		Req = handle_req(Method, HasBody, Req0),
-		{ok, Req, Opts}
-	catch
-		Err:Reason ->
-			ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
-			io:format(ErrorMessage),
-			Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
-			{ok, Req2, Opts}
-	end.
+-export([init/2, handle_req/3, perform_operation/4]).
+
+init(Req, Opts) ->
+		fmke_gen_http_handler:init(?MODULE, Req, Opts).
+
+%% Create pharmacy function ( POST /pharmacies )
+handle_req(<<"GET">>, _, Req) ->
+		fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [id], []);
+
+handle_req(<<"POST">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"POST">>, true, Req) ->
-		create_pharmacy(Req);
-handle_req(<<"POST">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{id, integer}, {name, string}, {address, string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"POST">>, Req, [], Properties);
+
+handle_req(<<"PUT">>, false, Req) ->
+		fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, ?ERR_MISSING_BODY);
 
 handle_req(<<"PUT">>, true, Req) ->
-		update_pharmacy(Req);
-handle_req(<<"PUT">>, false, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_MISSING_BODY, Req);
+		Properties = [{name, string}, {address, string}],
+		fmke_gen_http_handler:handle_req(?MODULE, <<"PUT">>, Req, [id], Properties).
 
-handle_req(<<"GET">>, true, Req) ->
-		cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
-handle_req(<<"GET">>, false, Req) ->
-		get_pharmacy(Req).
+perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:get_pharmacy_by_id(Id) of
+						{error, Reason} -> {false, Reason};
+						PharmacyRecord -> {true, fmke_proplists:encode_object(pharmacy,PharmacyRecord)}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
 
-create_pharmacy(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		Id = proplists:get_value(<<"id">>, Json),
-		Name = proplists:get_value(<<"name">>, Json),
-		Address = proplists:get_value(<<"address">>, Json),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_FACILITY_ID, Req);
-				false ->
-						StringName = binary_to_list(Name),
-						StringAddress = binary_to_list(Address),
-						ServerResponse = fmke:create_pharmacy(IntegerId,StringName,StringAddress),
-						Success = ServerResponse =:= ok,
-						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
+perform_operation(<<"POST">>, Req, [], [{id, Id}, {name, Name}, {address, Address}]) ->
+		try
+				{Success, ServerResponse} = case fmke:create_pharmacy(Id,Name,Address) of
+						ok -> {true, ok};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
+		end;
 
-update_pharmacy(Req) ->
-		{ok, Data, _Req2} = cowboy_req:read_body(Req),
-		Json = jsx:decode(Data),
-		Name = proplists:get_value(<<"name">>, Json),
-		Address = proplists:get_value(<<"address">>, Json),
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PHARMACY_ID, Req);
-				false ->
-						StringName = binary_to_list(Name),
-						StringAddress = binary_to_list(Address),
-						ServerResponse = fmke:update_pharmacy_details(IntegerId,StringName,StringAddress),
-						Success = ServerResponse =:= ok,
-						JsonReply =	jsx:encode([{success,Success},{result,ServerResponse}]),
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
-		end.
-
-get_pharmacy(Req) ->
-		Id = cowboy_req:binding(?BINDING_PHARMACY_ID, Req, -1),
-		IntegerId = binary_to_integer(Id),
-		case IntegerId =< ?MIN_ID of
-				true ->
-						cowboy_req:reply(400, #{}, ?ERR_INVALID_PHARMACY_ID, Req);
-				false ->
-						ServerResponse = fmke:get_pharmacy_by_id(IntegerId),
-						Success = ServerResponse =/= {error,not_found},
-						JsonReply = case Success of
-								true ->
-										jsx:encode([{success,Success},{result,fmke_proplists:encode_object(pharmacy,ServerResponse)}]);
-								false ->
-										jsx:encode([{success,Success},{result,ServerResponse}])
-						end,
-						cowboy_req:reply(200, #{
-								<<"content-type">> => <<"application/json">>
-						}, JsonReply, Req)
+perform_operation(<<"PUT">>, Req, [{id, BinaryId}], [{name, Name}, {address, Address}]) ->
+		try
+				Id = fmke_http_utils:parse_id(BinaryId),
+				{Success, ServerResponse} = case fmke:update_pharmacy_details(Id,Name,Address) of
+						ok -> {true, ok};
+						{error, Reason} -> {false, Reason}
+				end,
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
+		catch error:ErrReason ->
+				fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
 		end.

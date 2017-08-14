@@ -1,8 +1,8 @@
 ## Name of the node
--name ${NODE_NAME}
+-name fmke@127.0.0.1
 
 ## Cookie for distributed erlang
--setcookie ${COOKIE}
+-setcookie fmke
 
 ## Directories with compiled modules
 -pa ./_build/default/lib/*/ebin

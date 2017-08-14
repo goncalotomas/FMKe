@@ -3,7 +3,7 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 2).
+-define(NUMTHREADS, 1).
 
 
 -record(fmkeconfig, {
@@ -15,7 +15,12 @@
 }).
 
 main([Database, ConfigFile, FmkNodeRef]) ->
+  io:format("Running population script with ~p backend.~n",[Database]),
   DirName = filename:dirname(escript:script_name()),
+  Filename = DirName ++ "/../" ++ ConfigFile,
+  io:format("Reading configuration file from ~p~n...",[Filename]),
+  FmkNode = list_to_atom(FmkNodeRef),
+  io:format("Sending FMKe population ops to ~p.\n", [FmkNode]),
   {ok, FmkConfigProps} = file:consult(DirName ++ "/../" ++ ConfigFile),
   FmkConfig = #fmkeconfig{
     numpatients = proplists:get_value(numpatients, FmkConfigProps),
@@ -26,9 +31,8 @@ main([Database, ConfigFile, FmkNodeRef]) ->
   },
 
   MyNodeName = "fmke_populator@127.0.0.1",
-  FmkNode = list_to_atom(FmkNodeRef),
+
   io:format("Node name set to ~p.\n", [MyNodeName]),
-  io:format("Target FMKe node set to ~p.\n", [FmkNode]),
   io:format("The population script is going to create the following entities:~n",[]),
   io:format("-~p patients~n",[FmkConfig#fmkeconfig.numpatients]),
   io:format("-~p pharmacies~n",[FmkConfig#fmkeconfig.numpharmacies]),

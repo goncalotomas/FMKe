@@ -1,5 +1,4 @@
-
--define (ERR_MISSING_BODY, <<"Missing body.">>).
+-define (ERR_MISSING_BODY, <<"Missing request body.">>).
 -define (ERR_BODY_IN_A_GET_REQUEST, <<"Get requests with body don't make sense.">>).
 -define (ERR_INVALID_PATIENT_ID, <<"Invalid user id.">>).
 -define (ERR_INVALID_FACILITY_ID, <<"Invalid facility id.">>).
@@ -16,3 +15,12 @@
 -define (BINDING_PHARMACY_ID, id).
 -define (BINDING_TREATMENT_ID, id).
 -define (BINDING_STAFF_ID, id).
+-define (CONT_TYPE_JSON, #{<<"content-type">> => <<"application/json">>}).
+-define (ENCODE_FAIL(Reason), jsx:encode([{success,false},{result,Reason}])).
+-define (ENCODE_RESPONSE(Success,Result), jsx:encode([{success,Success},{result,Result}])).
+-define (ENCODE_SRV_ERR, ?ENCODE_FAIL(<<"Woops! This request failed. That's all we know!">>)).
+-define (ENCODE_SUCCESS(Result), jsx:encode([{success,true},{result,Result}])).
+-define (REPLY_WITH_SRV_ERR(Req), cowboy_req:reply(500, ?CONT_TYPE_JSON, ?ENCODE_SRV_ERR, Req)).
+-define (REPLY_WITH_MISS_BODY(Req), cowboy_req:reply(400, ?CONT_TYPE_JSON, ?ENCODE_FAIL("Missing HTTP body!"), Req)).
+-define (REPLY_WITH_FAIL(Req,Reason), cowboy_req:reply(400, ?CONT_TYPE_JSON, ?ENCODE_FAIL(Reason), Req)).
+-define (REPLY_WITH_OK(Req,Success,Result), cowboy_req:reply(200, ?CONT_TYPE_JSON, ?ENCODE_RESPONSE(Success,Result), Req)).
