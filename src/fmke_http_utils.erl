@@ -10,7 +10,8 @@
 		parse_body/2,
 		parse_body/3,
 		parse_id/1,
-		parse_string/2
+		parse_string/2,
+		parse_csv_string/2
 ]).
 
 -spec parse_body(list({atom(), atom()}), binary()) -> list({atom(), any()}).
