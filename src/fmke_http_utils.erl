@@ -86,6 +86,10 @@ parse_string(_, String) when is_list(String) ->
 
 parse_csv_string(Name, String) ->
 		ParsedString = parse_string(Name, String),
-		lists:map(fun(Str) -> string:trim(Str, both, " ") end, string:tokens(ParsedString, ",")).
+		lists:map(
+				fun(Str) ->
+						%% string:trim introduced in OTP 20 so I can't use it here
+						re:replace(Str, " ", "", [global, {return, list}])
+				end, string:tokens(ParsedString, ",")).
 
 %%TODO this module should have tests in here
