@@ -5,7 +5,7 @@ echo "running FMKe unit tests with $1 back end..."
 ./scripts/start_data_store.sh $1
 ./scripts/start_fmke.sh
 set +e
-./rebar3 eunit
+rebar3 eunit
 if [ $? -ne  0 ]; then
     set -e
     echo "fatal: one or more tests failed."
