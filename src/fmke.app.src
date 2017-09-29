@@ -6,12 +6,9 @@
   {applications,
    [kernel,
     stdlib,
-    antidote_pb,
-    riak_pb,
     poolboy,
     cowboy,
     jsx,
-    riakc,
     lager
    ]},
 

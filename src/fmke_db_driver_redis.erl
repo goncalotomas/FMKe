@@ -34,6 +34,7 @@
 -record(redis_context, {}).
 
 init([Host, Port]) ->
+    {ok, _} = application:ensure_all_started(eredis_cluster),
     eredis_cluster:start(),
     eredis_cluster:connect([{Host, Port}]),
     {ok, #redis_context{}}.
