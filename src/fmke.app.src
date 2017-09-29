@@ -17,7 +17,9 @@
 
   {modules, []},
 
-  {maintainers, []},
-  {licenses, []},
-  {links, []}
+  {maintainers, ["Goncalo Tomas"]},
+  {licenses, ["Apache 2"]},
+  {links, [
+    {"Github","https://github.com/goncalotomas/FMKe"}
+  ]}
  ]}.
