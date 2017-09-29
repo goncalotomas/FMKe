@@ -46,6 +46,7 @@
 }).
 
 init(Params) ->
+    {ok, _} = application:ensure_all_started(antidote_pb),
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error

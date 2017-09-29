@@ -44,6 +44,8 @@
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
 init(Params) ->
+    {ok, _} = application:ensure_all_started(riak_pb),
+    {ok, _} = application:ensure_all_started(riakc),
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error
