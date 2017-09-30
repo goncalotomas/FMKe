@@ -9,11 +9,9 @@ services:
 install:
   - make all
 script:
+  - make eunit
   - make ct
-  - ./travis.sh test antidote
-  - ./travis.sh test riak
-  - ./travis.sh bench antidote
-  - ./travis.sh bench riak
+  - make bench
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"

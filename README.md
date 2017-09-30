@@ -60,25 +60,24 @@ git clone https://github.com/goncalotomas/FMKe.git
 Once you have a local copy of the repository, the first step is to choose your target data store:
 
 ```bash
-./scripts/config/set_target_data_store.sh TARGET_DB
+make select-TARGET_DB
 ```
 
-Where TARGET_DB should be one of the supported databases. You don't need to have the databases installed, since local benchmarks use Docker images.  
-Finally, you can run a micro-benchmark by using the `travis.sh` script:
+Where TARGET_DB should be one of the supported databases. From now on let's assume that we chose `riak`.  
+You don't need to have any databases installed, since local benchmarks use Docker images.  
+Finally, you can run a micro-benchmark by using the following command:
 
 ```bash
-./travis.sh bench TARGET_DB
+make bench-riak
 ```
 
 Alternatively, you can also validate that your FMKe copy is functional by running unit tests with your desired database as backend:
 
 ```bash
-./travis.sh test TARGET_DB
+make test-riak
 ```
 
 This command will run a battery of unit tests that ensure that all functionality related to the benchmark is able to performed in the database you have previously selected.
-
-Makefile targets will soon be available to make it even easier to run local benchmarks.
 
 [1]: https://syncfree.lip6.fr/
 [2]: https://antidotedb.eu
