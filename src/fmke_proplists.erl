@@ -1,5 +1,5 @@
 -module (fmke_proplists).
--include ("fmk.hrl").
+-include ("fmke.hrl").
 
 -export([encode/2, encode_object/2]).
 

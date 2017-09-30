@@ -1,5 +1,5 @@
 -module (test_fmke_operations_travis).
--include("fmk.hrl").
+-include("fmke.hrl").
 -include("fmk_kv.hrl").
 
 -ifdef(TEST).
@@ -60,7 +60,7 @@ start() ->
     Pname = build_generic_op("test_ops_travis_~p@127.0.0.1",[Task]),
     net_kernel:start([Pname,longnames]),
     erlang:set_cookie(node(),fmke),
-    'fmk@127.0.0.1'.
+    'fmke@127.0.0.1'.
 
 stop(_FmkeNode) ->
     net_kernel:stop().
@@ -219,7 +219,7 @@ run_prescription_operations(FmkeNode) ->
     %% check if prescription is inside the patient record
     ,?_assert(fetch_prescription(FmkeNode,patient,#prescription{
         id = BinStaticId
-        ,patient_id = ?UNDEFINED_FIELD
+        ,patient_id = BinStaticId
         ,pharmacy_id = BinStaticId
         ,prescriber_id = BinStaticId
         ,date_prescribed = BinDate1
@@ -231,7 +231,7 @@ run_prescription_operations(FmkeNode) ->
     ,?_assert(fetch_prescription(FmkeNode,pharmacy,#prescription{
         id = BinStaticId
         ,patient_id = BinStaticId
-        ,pharmacy_id = ?UNDEFINED_FIELD
+        ,pharmacy_id = BinStaticId
         ,prescriber_id = BinStaticId
         ,date_prescribed = BinDate1
         ,date_processed = ?UNDEFINED_FIELD
@@ -243,7 +243,7 @@ run_prescription_operations(FmkeNode) ->
         id = BinStaticId
         ,patient_id = BinStaticId
         ,pharmacy_id = BinStaticId
-        ,prescriber_id = ?UNDEFINED_FIELD
+        ,prescriber_id = BinStaticId
         ,date_prescribed = BinDate1
         ,date_processed = ?UNDEFINED_FIELD
         ,drugs = BinDrugs1
@@ -273,15 +273,15 @@ process_static_prescription(FmkeNode,PrescriptionId,DateProcessed) ->
 
 fetch_prescription(FmkeNode,patient,ExpectedPrescription) ->
     PrescriptionList = (get_static_patient(FmkeNode))#patient.prescriptions,
-    look_for_prescription(PrescriptionList,patient_prescription,ExpectedPrescription);
+    look_for_prescription(PrescriptionList,prescription,ExpectedPrescription);
 
 fetch_prescription(FmkeNode,pharmacy,ExpectedPrescription) ->
     PrescriptionList = (get_static_pharmacy(FmkeNode))#pharmacy.prescriptions,
-    look_for_prescription(PrescriptionList,pharmacy_prescription,ExpectedPrescription);
+    look_for_prescription(PrescriptionList,prescription,ExpectedPrescription);
 
 fetch_prescription(FmkeNode,staff,ExpectedPrescription) ->
     PrescriptionList = (get_static_staff(FmkeNode))#staff.prescriptions,
-    look_for_prescription(PrescriptionList,staff_prescription,ExpectedPrescription).
+    look_for_prescription(PrescriptionList,prescription,ExpectedPrescription).
 
 look_for_prescription(PrescriptionList,TypePrescriptions,ExpectedPrescription) ->
     Results = lists:map(
@@ -316,28 +316,7 @@ cmp_presc_fields(prescription,DBPrescription = #prescription{}, Expected = #pres
     (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
     and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
     and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,Expected);
-
-cmp_presc_fields(patient_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.patient_id =:= ?UNDEFINED_FIELD)
-    and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
-    and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,Expected);
-
-cmp_presc_fields(pharmacy_prescription, DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
-    and (DBPrescription#prescription.pharmacy_id =:= ?UNDEFINED_FIELD)
-    and (DBPrescription#prescription.prescriber_id =:= Expected#prescription.prescriber_id)
-    and cmp_common_presc_fields(DBPrescription,Expected);
-
-cmp_presc_fields(staff_prescription,DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.patient_id =:= Expected#prescription.patient_id)
-    and (DBPrescription#prescription.pharmacy_id =:= Expected#prescription.pharmacy_id)
-    and (DBPrescription#prescription.prescriber_id =:= ?UNDEFINED_FIELD)
-    and cmp_common_presc_fields(DBPrescription,Expected).
-
-cmp_common_presc_fields(DBPrescription = #prescription{}, Expected = #prescription{}) ->
-    (DBPrescription#prescription.id =:= Expected#prescription.id)
+    and (DBPrescription#prescription.id =:= Expected#prescription.id)
     and (DBPrescription#prescription.date_prescribed =:= Expected#prescription.date_prescribed)
     and (DBPrescription#prescription.date_processed =:= Expected#prescription.date_processed)
     and (DBPrescription#prescription.is_processed =:= Expected#prescription.is_processed)
@@ -437,6 +416,6 @@ format_list(List,Args) ->
     lists:flatten(io_lib:format(List,Args)).
 
 run_rpc_op(FmkeNode, Op, Params) ->
-    rpc:block_call(FmkeNode, fmk_core, Op, Params).
+    rpc:block_call(FmkeNode, fmke, Op, Params).
 
 -endif.

@@ -31,14 +31,15 @@ with_connection(Fun) ->
 %%% Supervisor callbacks
 %%%===================================================================
 
-init(_Options) ->
-    ListConnHostnames = fmk_config:get(db_conn_hostnames,["127.0.0.1"]),
-    ListConnPorts = fmk_config:get(db_conn_ports, ["8087"]),
-    ConnModule = fmk_config:get(db_conn_module,antidotec_pb_socket),
+init([Params]) ->
+    ListConnHostnames = proplists:get_value(db_conn_hostnames,Params),
+    ListConnPorts = proplists:get_value(db_conn_ports,Params),
+    ConnModule = proplists:get_value(db_conn_module,Params),
+    ConnPoolSize = proplists:get_value(db_conn_pool_size,Params),
     PoolArgs = [
       {name, {local, fmke_db_connection_pool}},
       {worker_module, ?MODULE},
-      {size, 32},
+      {size, ConnPoolSize},
       {max_overflow, 0}
     ],
     WorkerArgs = [ConnModule,ListConnHostnames,ListConnPorts],
@@ -58,7 +59,6 @@ start_link([Module,ListHostnames,ListPorts]) ->
     try_connect(Module,Hostname, Port, 100).
 
 try_connect(Module,Hostname,Port,Timeout) ->
-    % io:format("Connecting to ~p:~p~n", [Hostname, Port]),
     case Module:start_link(Hostname, Port) of
         {ok, Pid} ->
             % io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),

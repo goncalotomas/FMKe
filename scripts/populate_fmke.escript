@@ -3,7 +3,7 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 2).
+-define(NUMTHREADS, 1).
 
 
 -record(fmkeconfig, {
@@ -14,9 +14,14 @@
   numprescriptions
 }).
 
-main([ClientId, FmkNodeRef]) ->
+main([Database, ConfigFile, FmkNodeRef]) ->
+  io:format("Running population script with ~p backend.~n",[Database]),
   DirName = filename:dirname(escript:script_name()),
-  {ok, FmkConfigProps} = file:consult(DirName ++ "/../config/fmke_travis.config"),
+  Filename = DirName ++ "/../" ++ ConfigFile,
+  io:format("Reading configuration file from ~p~n...",[Filename]),
+  FmkNode = list_to_atom(FmkNodeRef),
+  io:format("Sending FMKe population ops to ~p.\n", [FmkNode]),
+  {ok, FmkConfigProps} = file:consult(DirName ++ "/../" ++ ConfigFile),
   FmkConfig = #fmkeconfig{
     numpatients = proplists:get_value(numpatients, FmkConfigProps),
     numpharmacies = proplists:get_value(numpharmacies, FmkConfigProps),
@@ -25,11 +30,10 @@ main([ClientId, FmkNodeRef]) ->
     numprescriptions = proplists:get_value(numprescriptions, FmkConfigProps)
   },
 
-  MyNodeName = lists:flatten(io_lib:format('fmke_populator~p@127.0.0.1', [list_to_integer(ClientId)])),
-  FmkNode = list_to_atom(FmkNodeRef),
-  io:format("client node is ~p.\n", [MyNodeName]),
-  io:format("fmke node target set as ~p.\n", [FmkNode]),
-  io:format("this script is going to create:~n",[]),
+  MyNodeName = "fmke_populator@127.0.0.1",
+
+  io:format("Node name set to ~p.\n", [MyNodeName]),
+  io:format("The population script is going to create the following entities:~n",[]),
   io:format("-~p patients~n",[FmkConfig#fmkeconfig.numpatients]),
   io:format("-~p pharmacies~n",[FmkConfig#fmkeconfig.numpharmacies]),
   io:format("-~p hospitals~n",[FmkConfig#fmkeconfig.numfacilities]),
@@ -40,22 +44,22 @@ main([ClientId, FmkNodeRef]) ->
   %% check if fmkeis running
   case net_adm:ping(FmkNode) of
     pang ->
-      io:format("cannot connect to fmke.\n", []);
+      io:format("Cannot connect to FMKe.\n", []);
     pong ->
       ok
   end,
-  io:format("populating antidote...\n", []),
+  io:format("Populating ~p...\n", [Database]),
   add_patients(FmkNode, FmkConfig#fmkeconfig.numpatients),
   add_pharmacies(FmkNode, FmkConfig#fmkeconfig.numpharmacies),
   add_facilities(FmkNode, FmkConfig#fmkeconfig.numfacilities),
   add_staff(FmkNode, FmkConfig#fmkeconfig.numstaff),
   add_prescription(FmkNode, FmkConfig#fmkeconfig.numprescriptions, FmkConfig),
-  io:format("finished populating antidote.\n", []);
+  io:format("Successfully populated ~p.\n", [Database]);
 main(_) ->
   usage().
 
 usage() ->
-  io:format("usage: client_id fmke_node\n"),
+  io:format("usage: data_store config_file fmke_node\n"),
   halt(1).
 
 
@@ -156,7 +160,7 @@ run_op(FmkNode, create_prescription, Params) ->
   run_rpc_op(FmkNode, create_prescription, Params).
 
 run_rpc_op(FmkNode, Op, Params) ->
-  ok = case rpc:call(FmkNode, fmk_core, Op, Params) of
+  ok = case rpc:call(FmkNode, fmke, Op, Params) of
          {error, Reason} ->
            io:format("Error in ~p with params ~p\n", [Op, Params]),
            {error, Reason};

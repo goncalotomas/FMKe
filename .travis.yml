@@ -9,7 +9,8 @@ services:
 install:
   - make all
 script:
-  - make test
+  - make eunit
+  - make ct
   - make bench
 cache:
   directories:
