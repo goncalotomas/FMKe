@@ -1,7 +1,7 @@
 REBAR = rebar3
 BENCH=_build/test/lib/lasp_bench
 
-all: compile compilebench rel
+all: compile rel
 
 attach:
 	./_build/default/rel/fmke/bin/env attach
