@@ -54,7 +54,7 @@ kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
 
 populate: compile
-	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmk@127.0.0.1"
+	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmke@127.0.0.1"
 
 rel: relclean
 	rm -rf _build/default/rel/
@@ -77,15 +77,15 @@ shell:
 
 shell-antidote: rel
 	./scripts/start_data_store.sh antidote
-	./_build/default/rel/fmk/bin/env console
+	./_build/default/rel/fmke/bin/env console
 
 shell-redis: rel
 	./scripts/start_data_store.sh redis
-	./_build/default/rel/fmk/bin/env console
+	./_build/default/rel/fmke/bin/env console
 
 shell-riak: rel
 	./scripts/start_data_store.sh riak
-	./_build/default/rel/fmk/bin/env console
+	./_build/default/rel/fmke/bin/env console
 
 start:
 	./scripts/start_fmke.sh
@@ -110,3 +110,22 @@ stop-redis:
 
 stop-riak:
 	./scripts/stop_data_store.sh riak
+
+test-multiple-releases:
+	rm -rf _build/default/rel
+	./scripts/start_data_store.sh antidote
+	./scripts/config/change_http_port.sh 9090
+	./scripts/config/set_target_data_store.sh antidote
+	${REBAR} release -n fmke
+	${REBAR} release -n fmke_test
+	./_build/default/rel/fmke/bin/env start
+	sleep 10
+	./scripts/config/change_http_port.sh 9190
+	./_build/default/rel/fmke_test/bin/env_test start
+	sleep 10
+	./scripts/populate_fmke.escript "antidote" "../config/benchmark_short.config" "fmke_test@127.0.0.1"
+	_build/test/lib/lasp_bench/_build/default/bin/lasp_bench config/benchmark_short.config
+	./scripts/config/change_http_port.sh 9090
+	./_build/default/rel/fmke/bin/env stop
+	./_build/default/rel/fmke_test/bin/env_test stop
+	./scripts/stop_data_store.sh antidote

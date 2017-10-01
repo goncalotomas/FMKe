@@ -16,12 +16,12 @@
 
 main([Database, ConfigFile, FmkNodeRef]) ->
   io:format("Running population script with ~p backend.~n",[Database]),
-  DirName = filename:dirname(escript:script_name()),
-  Filename = DirName ++ "/../" ++ ConfigFile,
-  io:format("Reading configuration file from ~p~n...",[Filename]),
+  {ok, Cwd} = file:get_cwd(),
+  Filename = Cwd ++ "/config/" ++ ConfigFile,
+  io:format("Reading configuration file from ~p...~n",[Filename]),
   FmkNode = list_to_atom(FmkNodeRef),
   io:format("Sending FMKe population ops to ~p.\n", [FmkNode]),
-  {ok, FmkConfigProps} = file:consult(DirName ++ "/../" ++ ConfigFile),
+  {ok, FmkConfigProps} = file:consult(Filename),
   FmkConfig = #fmkeconfig{
     numpatients = proplists:get_value(numpatients, FmkConfigProps),
     numpharmacies = proplists:get_value(numpharmacies, FmkConfigProps),
