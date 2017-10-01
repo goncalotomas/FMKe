@@ -7,7 +7,7 @@ echo "Running small FMKe benchmark tests with $1 back end..."
 
 # Fill database with testdata:
 echo "populating $1 via FMKe..."
-./scripts/populate_fmke.escript $1 'config/benchmark_short.config' 'fmke@127.0.0.1'
+./scripts/populate_fmke.escript $1 'benchmark_short.config' 'fmke@127.0.0.1'
 
 # Start benchmark
 echo "starting benchmark..."
