@@ -8,8 +8,6 @@ services:
   - docker
 install:
   - make all
-before_script:
-  - ./rebar3 as test,antidote,riak,redis release
 script:
   - make eunit
   - make ct
