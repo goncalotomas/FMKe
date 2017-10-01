@@ -11,11 +11,10 @@ install:
 before_script:
   - ./rebar3 as test,antidote,riak,redis release
 script:
-  - ./travis.sh test fmke
-  - ./travis.sh test antidote
-  - ./travis.sh test riak
-  - ./travis.sh bench antidote
-  - ./travis.sh bench riak
+  - make eunit
+  - make ct
+  - make bench
+  - make test-multiple-releases
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"

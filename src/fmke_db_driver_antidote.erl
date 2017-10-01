@@ -18,26 +18,23 @@
 %%
 %% -------------------------------------------------------------------
 -module(fmke_db_driver_antidote).
--include("fmk.hrl").
+-include("fmke.hrl").
 -include("fmk_kv.hrl").
 -include("fmke_antidote.hrl").
 -author("goncalotomas").
 
--behaviour(gen_kv_driver).
+-behaviour(fmke_gen_kv_driver).
 
-%% gen_kv_driver exports
+%% fmke_gen_kv_driver exports
 -export([
     init/1,
     stop/1,
-
 
     start_transaction/1,
     commit_transaction/1,
 
     get/3,
     put/4
-
-
 ]).
 
 %% -------------------------------------------------------------------
@@ -48,56 +45,26 @@
     txn_id :: txid()
 }).
 
-init(_Anything) ->
-    set_app_vars(),
-    start_sup_link().
-
-start_sup_link() ->
-    case fmk_sup:start_link() of
-       {ok, Pid} -> start_conn_pool(Pid);
+init(Params) ->
+    case fmke_sup:start_link() of
+       {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error
     end.
 
-start_conn_pool(Pid) ->
-    AntidoteHostnames = get_app_var(db_conn_hostnames,["127.0.0.1"]),
-    AntidotePorts = get_app_var(db_conn_ports,["8087"]),
+start_conn_pool(Pid, Params) ->
+    Hostnames = proplists:get_value(db_conn_hostnames, Params),
+    Ports = proplists:get_value(db_conn_ports, Params),
+    ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
     {ok,_} = fmke_db_conn_pool:start([
-        {hostnames, AntidoteHostnames},
-        {ports, AntidotePorts},
-        {module, antidotec_pb_socket}
+        {db_conn_hostnames, Hostnames},
+        {db_conn_ports, Ports},
+        {db_conn_module, antidotec_pb_socket},
+        {db_conn_pool_size, ConnPoolSize}
     ]),
     {ok,Pid}.
 
-
-set_app_vars() ->
-    fmk_config:set(db_conn_module,antidotec_pb_socket),
-    set_app_var(db_conn_hostnames,"ANTIDOTE_ADDRESSES",["127.0.0.1"]),
-    set_app_var(db_conn_ports,"ANTIDOTE_PB_PORTS",["8087"]).
-
-get_app_var(VarName,DefaultVal) ->
-    fmk_config:get(VarName,DefaultVal).
-
-set_app_var(VarName, EnvVarName, DefaultVal) ->
-    EnvOrDefault = os:getenv(EnvVarName, DefaultVal),
-    ParsedValue = parse_app_var(VarName,EnvOrDefault),
-    fmk_config:set(VarName,ParsedValue).
-
-parse_app_var(db_conn_hostnames,ListAddresses) ->
-    [list_to_atom(X) || X <- parse_list_from_env_var(ListAddresses)];
-parse_app_var(db_conn_ports,ListPorts) ->
-    parse_list_from_env_var(ListPorts).
-
 stop(_Anything) ->
-  close_antidote_socket().
-
-close_antidote_socket() ->
-  AntidotePbPid = fmk_config:get(?VAR_ANTIDOTE_PB_PID,undefined),
-  case AntidotePbPid of
-    undefined ->
-      {error, error_closing_pb_socket};
-    _SomethingElse ->
-      ok
-  end.
+  ok.
 
 get(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
   Object = create_read_bucket(Key,?MAP), %% application records are all of type ?MAP
@@ -246,12 +213,3 @@ build_map_update_op(NestedOps) ->
 
 build_update_map_bucket_op(Key, NestedOps) ->
   build_map_op(Key,?MAP,build_map_update_op(NestedOps)).
-
-parse_list_from_env_var(String) ->
-  io:format("RECEIVED: ~p\n",[String]),
-  try
-    string:tokens(String,",") %% CSV style
-  catch
-    _:_  ->
-      bad_input_format
-  end.

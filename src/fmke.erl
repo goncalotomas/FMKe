@@ -1,5 +1,5 @@
--module(fmk_core).
--include("fmk.hrl").
+-module(fmke).
+-include("fmke.hrl").
 
 %%-----------------------------------------------------------------------------
 %% Public API for FMK Core
@@ -37,6 +37,8 @@
     binary_staff_key/1,
     binary_pharmacy_key/1
 ]).
+
+-define (DB_DRIVER(), fmke_config:get(driver_type)).
 
 %%-----------------------------------------------------------------------------
 %% Create functions - no transactional context
@@ -113,7 +115,7 @@ get_processed_pharmacy_prescriptions(Id) ->
 get_prescription_medication(Id) ->
     case get_prescription_by_id(Id) of
       {error,not_found} -> {error,no_such_prescriptions};
-      {{ok,PrescriptionObject}, DBContext} -> ?DB_DRIVER:get_prescription_medication(DBContext,PrescriptionObject)
+      {{ok,PrescriptionObject}, DBContext} -> (?DB_DRIVER()):get_prescription_medication(DBContext,PrescriptionObject)
     end.
 
 %% Fetches a staff member by ID.
@@ -126,7 +128,7 @@ get_staff_by_id(Id) ->
 get_staff_prescriptions(StaffId) ->
     case get_staff_by_id(StaffId) of
       {error,not_found} -> {error,no_such_facility};
-      {{ok,StaffObject}, DBContext} -> ?DB_DRIVER:get_staff_prescriptions(DBContext,StaffObject)
+      {{ok,StaffObject}, DBContext} -> (?DB_DRIVER()):get_staff_prescriptions(DBContext,StaffObject)
     end.
 
 %% Fetches a list of treatments given a certain staff member ID.
@@ -134,7 +136,7 @@ get_staff_prescriptions(StaffId) ->
 get_staff_treatments(StaffId) ->
     case get_staff_by_id(StaffId) of
       {error,not_found} -> {error,no_such_facility};
-      {{ok,StaffObject}, DBContext} -> ?DB_DRIVER:get_staff_treatments(DBContext,StaffObject)
+      {{ok,StaffObject}, DBContext} -> (?DB_DRIVER()):get_staff_treatments(DBContext,StaffObject)
     end.
 
 
@@ -228,17 +230,17 @@ execute_get_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments)
     end.
 
 execute_op_no_txn_context(Op,Arguments) when is_atom(Op), is_list(Arguments) ->
-    {ok, DBContext} = ?DB_DRIVER:start_transaction({}),
+    {ok, DBContext} = (?DB_DRIVER()):start_transaction({}),
     {Result, DBContext1} = execute_op_with_txn_context(Op,Arguments,DBContext),
     case Result of
         {error,txn_aborted} ->
             Result;
         _Other ->
-            case ?DB_DRIVER:commit_transaction(DBContext1) of
+            case (?DB_DRIVER()):commit_transaction(DBContext1) of
                 {ok, _DBContext2} -> Result;
                 {Error, _DBContext3} -> Error
             end
     end.
 
 execute_op_with_txn_context(Op,Arguments,DBContext) when is_atom(Op), is_list(Arguments) ->
-    {_Result, _DBContext1} = apply(?DB_DRIVER,Op,[DBContext] ++ Arguments).
+    {_Result, _DBContext1} = apply((?DB_DRIVER()),Op,[DBContext] ++ Arguments).

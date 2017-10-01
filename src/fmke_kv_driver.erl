@@ -7,15 +7,16 @@
 %%% Created : 10. Mar 2017 15:27
 %%%-------------------------------------------------------------------
 -module(fmke_kv_driver).
--include("fmk.hrl").
+-include("fmke.hrl").
 -include("fmk_kv.hrl").
 -author("goncalotomas").
 
--behaviour(gen_fmke_driver).
+-behaviour(fmke_gen_driver).
 
 -type context() :: term().
 
 -define (build_nested_map_op(TopLevelKey,Key,Op), [update_map_op(TopLevelKey,[update_map_op(Key,Op)])]).
+-define (KV_IMPLEMENTATION(), fmke_config:get(driver_implementation)).
 
 -export([
     init/1,
@@ -48,7 +49,7 @@
 
 -export ([
     %% unimplemented, unused functions.
-    %% need to be here for the gen_kv_driver interface.
+    %% need to be here for the fmke_gen_kv_driver interface.
     create_event/5,
     create_treatment/5,
     create_prescription/8,
@@ -61,13 +62,13 @@
 -define(REGISTER, register).
 
 start_transaction(Context) ->
-    ?KV_IMPLEMENTATION:start_transaction(Context).
+    (?KV_IMPLEMENTATION()):start_transaction(Context).
 
 abort_transaction(Context) ->
-    ?KV_IMPLEMENTATION:start_transaction(Context).
+    (?KV_IMPLEMENTATION()):start_transaction(Context).
 
 commit_transaction(Context) ->
-    ?KV_IMPLEMENTATION:commit_transaction(Context).
+    (?KV_IMPLEMENTATION()):commit_transaction(Context).
 
 create_patient(Context, Id, Name, Address) ->
     handle_get_result_for_create_op(patient,[Id,Name,Address],get_patient_by_id(Context,Id)).
@@ -101,15 +102,12 @@ create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,Dat
     case HandleCreateOpResult of
         {ok, Context1} ->
             %% creating top level prescription was successful, create nested objects
-            PrescFieldsPatient = [PrescriptionId,PrescriberId,PharmacyId,DatePrescribed,Drugs],
-            PrescFieldsPharmacy = [PrescriptionId,PatientId,PrescriberId,DatePrescribed,Drugs],
-            PrescFieldsStaff = [PrescriptionId,PatientId,PharmacyId,DatePrescribed,Drugs],
-            PatientUpdate = [gen_nested_entity_update(patient_prescription,PrescFieldsPatient)],
-            PharmacyUpdate = [gen_nested_entity_update(pharmacy_prescription,PrescFieldsPharmacy)],
-            PrescriberUpdate = [gen_nested_entity_update(staff_prescription,PrescFieldsStaff)],
-            {ok, Context2} = ?KV_IMPLEMENTATION:put(PatientKey,patient,PatientUpdate,Context1),
-            {ok, Context3} = ?KV_IMPLEMENTATION:put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
-            {ok, Context4} = ?KV_IMPLEMENTATION:put(PrescriberKey,staff,PrescriberUpdate,Context3),
+            PatientUpdate = [gen_nested_entity_update(prescription,?PATIENT_PRESCRIPTIONS_KEY,PrescriptionFields)],
+            PharmacyUpdate = [gen_nested_entity_update(prescription,?PHARMACY_PRESCRIPTIONS_KEY,PrescriptionFields)],
+            PrescriberUpdate = [gen_nested_entity_update(prescription,?STAFF_PRESCRIPTIONS_KEY,PrescriptionFields)],
+            {ok, Context2} = (?KV_IMPLEMENTATION()):put(PatientKey,patient,PatientUpdate,Context1),
+            {ok, Context3} = (?KV_IMPLEMENTATION()):put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
+            {ok, Context4} = (?KV_IMPLEMENTATION()):put(PrescriberKey,staff,PrescriberUpdate,Context3),
             {ok, Context4};
         ErrorMessage -> ErrorMessage
     end.
@@ -130,7 +128,7 @@ get_processed_pharmacy_prescriptions(Context,Id) ->
     case get_pharmacy_prescriptions(Context,Id) of
         {{ok, PharmacyPrescriptions},Context1} ->
             {{ok,[Prescription || {_PrescriptionKey,Prescription} <- PharmacyPrescriptions,
-                ?KV_IMPLEMENTATION:find_key(Prescription,?PRESCRIPTION_IS_PROCESSED_KEY,?REGISTER)
+                (?KV_IMPLEMENTATION()):find_key(Prescription,?PRESCRIPTION_IS_PROCESSED_KEY,?REGISTER)
                 == ?PRESCRIPTION_PROCESSED_VALUE
             ]},Context1};
         Error -> Error
@@ -139,7 +137,7 @@ get_processed_pharmacy_prescriptions(Context,Id) ->
 get_pharmacy_prescriptions(Context,Id) ->
     case get_pharmacy_by_id(Context,Id) of
         {{ok, PharmacyObject},Context1} ->
-            {{ok,?KV_IMPLEMENTATION:find_key(PharmacyObject,?PHARMACY_PRESCRIPTIONS_KEY,?MAP)},Context1};
+            {{ok,(?KV_IMPLEMENTATION()):find_key(PharmacyObject,?PHARMACY_PRESCRIPTIONS_KEY,?MAP)},Context1};
         Error -> Error
     end.
 
@@ -159,7 +157,7 @@ get_staff_by_id(Context,Id) ->
 get_staff_prescriptions(Context,Id) ->
     case get_staff_by_id(Context,Id) of
         {{ok, StaffObject},Context1} ->
-            {{ok,?KV_IMPLEMENTATION:find_key(StaffObject,?STAFF_PRESCRIPTIONS_KEY,?MAP)},Context1};
+            {{ok,(?KV_IMPLEMENTATION()):find_key(StaffObject,?STAFF_PRESCRIPTIONS_KEY,?MAP)},Context1};
         Error -> Error
     end.
 
@@ -207,7 +205,7 @@ process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed)
 -spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean()) ->
     {ok,context()} | {{error, term()},context()}.
 run_updates(Context,_ListOps,true) ->
-    ?KV_IMPLEMENTATION:abort_transaction(Context),
+    (?KV_IMPLEMENTATION()):abort_transaction(Context),
     {{error,txn_aborted},Context};
 run_updates(Context,[],false) ->
     {ok, Context};
@@ -221,24 +219,44 @@ run_updates(Context,[H|T],false) ->
     end.
 
 update_patient_details(Context,Id,Name,Address) ->
-    PatientKey = gen_key(patient,Id),
-    PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PatientKey,patient,PatientUpdate).
+    case get_patient_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_patient},Context1};
+        {{ok,_Object},Context2} ->
+            PatientKey = gen_key(patient,Id),
+            PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
+            execute_create_op(Context2,PatientKey,patient,PatientUpdate)
+    end.
 
 update_pharmacy_details(Context,Id,Name,Address) ->
-    PharmacyKey = gen_key(pharmacy,Id),
-    PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
-    execute_create_op(Context,PharmacyKey,pharmacy,PharmacyUpdate).
+    case get_pharmacy_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_pharmacy},Context1};
+        {{ok,_Object},Context2} ->
+            PharmacyKey = gen_key(pharmacy,Id),
+            PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
+            execute_create_op(Context2,PharmacyKey,pharmacy,PharmacyUpdate)
+    end.
 
 update_facility_details(Context,Id,Name,Address,Type) ->
-    FacilityKey = gen_key(facility,Id),
-    FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
-    execute_create_op(Context,FacilityKey,facility,FacilityUpdate).
+    case get_facility_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_facility},Context1};
+        {{ok,_Object},Context2} ->
+            FacilityKey = gen_key(facility,Id),
+            FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
+            execute_create_op(Context2,FacilityKey,facility,FacilityUpdate)
+    end.
 
 update_staff_details(Context,Id,Name,Address,Speciality) ->
-    StaffKey = gen_key(staff,Id),
-    StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
-    execute_create_op(Context,StaffKey,staff,StaffUpdate).
+    case get_staff_by_id(Context,Id) of
+        {{error,not_found},Context1} ->
+            {{error,no_such_staff},Context1};
+        {{ok,_Object},Context2} ->
+            StaffKey = gen_key(staff,Id),
+            StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
+            execute_create_op(Context2,StaffKey,staff,StaffUpdate)
+    end.
 
 update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
     case get_prescription_by_id(Context,PrescriptionId) of
@@ -287,12 +305,12 @@ run_update_prescription_ops(Context, _OtherOp, _Updates) ->
 %% Internal auxiliary functions
 %%-----------------------------------------------------------------------------
 execute_create_op(Context,Key,KeyType,Operation) ->
-    {ok, _Context2} = ?KV_IMPLEMENTATION:put(Key,KeyType,Operation,Context).
+    {ok, _Context2} = (?KV_IMPLEMENTATION()):put(Key,KeyType,Operation,Context).
 
 execute_get_op(Context,{Key,RecordType}) ->
       execute_get_op(Context,RecordType,Key).
 execute_get_op(Context,RecordType,Key) ->
-    ?KV_IMPLEMENTATION:get(Key,RecordType,Context).
+    (?KV_IMPLEMENTATION()):get(Key,RecordType,Context).
 
 gen_entity_update(pharmacy,EntityFields) ->
     [Id,Name,Address] = EntityFields,
@@ -335,37 +353,17 @@ gen_entity_update(patient,EntityFields) ->
         create_register_op(?PATIENT_ADDRESS_KEY,Address)
     ].
 
-
-gen_nested_entity_update(patient_prescription,EntityFields) ->
-    [PrescriptionId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
+gen_nested_entity_update(prescription, TopLevelKey, EntityFields) ->
+    [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
     NestedOps = [
         create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
+        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
         create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
         create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
         create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
         create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
     ],
-    update_map_op(?PATIENT_PRESCRIPTIONS_KEY,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]);
-gen_nested_entity_update(pharmacy_prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PrescriberId,DatePrescribed,Drugs] = EntityFields,
-    NestedOps = [
-        create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
-        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
-        create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
-        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
-        create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
-    ],
-    update_map_op(?PHARMACY_PRESCRIPTIONS_KEY,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]);
-gen_nested_entity_update(staff_prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
-    NestedOps = [
-        create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
-        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
-        create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
-        create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
-    ],
-    update_map_op(?STAFF_PRESCRIPTIONS_KEY,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]).
+    update_map_op(TopLevelKey,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]).
 
 
 handle_get_result_for_create_op(Entity,EntityFields,{{error,not_found},Context})
@@ -424,14 +422,14 @@ gen_prescription_key(Id) ->
 %% Setup and teardown functions (simply pass down to db module)
 %% -------------------------------------------------------------------
 
-init(State) ->
-    ?KV_IMPLEMENTATION:init(State).
+init(Params) ->
+    (?KV_IMPLEMENTATION()):init(Params).
 
 stop(State) ->
-    ?KV_IMPLEMENTATION:stop(State).
+    (?KV_IMPLEMENTATION()):stop(State).
 
 %% -------------------------------------------------------------------
-%% Unimplemented functions (listed below to accept the gen_kv_driver interface):
+%% Unimplemented functions (listed below to accept the fmke_gen_kv_driver interface):
 %% -------------------------------------------------------------------
 create_event(_1,_2,_3,_4,_5) ->
     erlang:error(not_implemented).

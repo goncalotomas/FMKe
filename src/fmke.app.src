@@ -1,0 +1,25 @@
+{application, fmke,
+ [{description, "Benchmark for distributed key-value stores"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {mod, { fmke_app, []}},
+  {applications,
+   [kernel,
+    stdlib,
+    antidote_pb,
+    riak_pb,
+    poolboy,
+    cowboy,
+    jsx,
+    riakc,
+    lager
+   ]},
+
+  {modules, []},
+
+  {maintainers, ["Goncalo Tomas"]},
+  {licenses, ["Apache 2"]},
+  {links, [
+    {"Github","https://github.com/goncalotomas/FMKe"}
+  ]}
+ ]}.

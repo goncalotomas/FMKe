@@ -1,8 +1,9 @@
-%%-define(ANTIDOTE, 'antidote@127.0.0.1').
--define(DB_DRIVER, fmke_kv_driver).
--define(KV_IMPLEMENTATION, fmke_db_driver_riak_kv).
--define (DEFAULT_FMKE_HTTP_PORT, 9090).
 -define (APP, fmke).
+
+-define (CONFIG_FILE_PATH, "/../../../../config/fmke.config").
+
+-define(SUPPORTED_DBS, [antidote, riak_kv]).
+-define(SUPPORTED_KVS, [antidote, riak_kv]).
 
 -type id() :: non_neg_integer().
 -type field() :: binary().

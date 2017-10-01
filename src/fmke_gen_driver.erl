@@ -17,7 +17,7 @@
 %% under the License.
 %%
 %% -------------------------------------------------------------------
--module(gen_fmke_driver).
+-module(fmke_gen_driver).
 
 -type id() :: non_neg_integer().
 -type context() :: term().

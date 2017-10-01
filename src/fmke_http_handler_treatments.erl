@@ -1,4 +1,4 @@
--module (treatment_handler).
+-module (fmke_http_handler_treatments).
 -include ("fmk_http.hrl").
 
 -export([init/2]).
@@ -44,7 +44,7 @@ create_treatment(Req) ->
             IntPrescriberId = binary_to_integer(PrescriberId),
             IntFacilityId = binary_to_integer(FacilityId),
 						StrDate = binary_to_list(DatePrescribed),
-						ServerResponse = fmk_core:create_treatment(IntegerId,IntPatientId,IntPrescriberId,IntFacilityId,StrDate),
+						ServerResponse = fmke:create_treatment(IntegerId,IntPatientId,IntPrescriberId,IntFacilityId,StrDate),
 						Success = ServerResponse =:= ok,
 						JsonReply =	lists:flatten(io_lib:format(
 								"{\"success\": \"~p\", \"result\": \"~p\"}",
@@ -62,7 +62,7 @@ get_treatment(Req) ->
 				true ->
 						cowboy_req:reply(400, #{}, ?ERR_INVALID_TREATMENT_ID, Req);
 				false ->
-						ServerResponse = fmk_core:get_treatment_by_id(IntegerId),
+						ServerResponse = fmke:get_treatment_by_id(IntegerId),
 						Success = ServerResponse =/= {error,not_found},
 						JsonReply = case Success of
 								true ->

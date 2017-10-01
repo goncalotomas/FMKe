@@ -18,9 +18,9 @@
 %%
 %% -------------------------------------------------------------------
 -module(fmke_db_driver_redis).
--include("fmk.hrl").
+-include("fmke.hrl").
 
--behaviour(gen_kv_driver).
+-behaviour(fmke_gen_kv_driver).
 
 -export([
     init/1,
