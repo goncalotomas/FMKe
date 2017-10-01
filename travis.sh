@@ -1,10 +1,6 @@
 #!/bin/bash
 set -e
 
-pushd `dirname $0` > /dev/null
-SCRIPTPATH=`pwd -P`
-popd > /dev/null
-
 if [ $1 = "test" ]; then
     if [ $2 = "fmke" ]; then
         echo "running FMKe tests..."

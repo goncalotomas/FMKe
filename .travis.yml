@@ -12,6 +12,7 @@ script:
   - make eunit
   - make ct
   - make bench
+  - make test-multiple-releases
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"
