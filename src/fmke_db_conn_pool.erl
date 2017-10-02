@@ -47,7 +47,7 @@ init([Params]) ->
     {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
 start_link([Module,ListHostnames,ListPorts]) ->
-    true = (Len = length(ListHostnames)) =:= length(ListPorts),
+    true = (Len = length(ListHostnames)) =< length(ListPorts),
     Index = rand:uniform(Len),
     Hostname = lists:nth(Index,ListHostnames),
     Element = lists:nth(Index,ListPorts),

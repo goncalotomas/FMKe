@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 echo "running FMKe unit tests with $1 back end..."
-./scripts/config/set_target_data_store.sh $1
+./scripts/config/change_db.sh $1
 ./scripts/start_data_store.sh $1
 ./scripts/start_fmke.sh
 set +e
