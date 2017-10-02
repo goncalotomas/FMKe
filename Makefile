@@ -27,7 +27,7 @@ console: rel
 	./_build/default/rel/fmke/bin/env console
 
 ct: all
-	./scripts/config/set_target_data_store.sh antidote
+	./scripts/config/change_db.sh antidote
 	./scripts/start_data_store.sh antidote
 	./scripts/start_fmke.sh
 	rebar3 ct
@@ -64,13 +64,13 @@ relclean:
 	rm -rf _build/default/rel
 
 select-antidote:
-	./scripts/config/set_target_data_store.sh antidote
+	./scripts/config/change_db.sh antidote
 
 select-redis:
-	./scripts/config/set_target_data_store.sh redis
+	./scripts/config/change_db.sh redis
 
 select-riak:
-	./scripts/config/set_target_data_store.sh riak
+	./scripts/config/change_db.sh riak
 
 shell:
 	${REBAR} shell --apps fmke --name fmke@127.0.0.1 --setcookie fmke
@@ -115,7 +115,7 @@ test-multiple-releases:
 	rm -rf _build/default/rel
 	./scripts/start_data_store.sh antidote
 	./scripts/config/change_http_port.sh 9090
-	./scripts/config/set_target_data_store.sh antidote
+	./scripts/config/change_db.sh antidote
 	${REBAR} release -n fmke
 	${REBAR} release -n fmke_test
 	./_build/default/rel/fmke/bin/env start
