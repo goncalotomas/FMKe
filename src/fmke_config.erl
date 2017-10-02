@@ -117,12 +117,7 @@ read_tuple_address({_1,_2,_3,_4,_5,_6}) when is_integer(_1) andalso is_integer(_
         integer_to_list(_5) ++ "." ++ integer_to_list(_6).
 
 parse_db_port_list(DbPortList) ->
-    case io_lib:printable_unicode_list(DbPortList) of
-        false ->
-            parse_db_port_list_rec(DbPortList,[]);
-        true ->
-            {ok,[list_to_integer(X) || X <- string:split(DbPortList, " ")]}
-    end.
+    parse_db_port_list_rec(DbPortList,[]).
 
 parse_db_port_list_rec([], Accum) ->
     case length(Accum) > 0 of
