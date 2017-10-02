@@ -1,7 +1,7 @@
-#!/bin/bash
+change_db.sh#!/bin/bash
 set -e
 echo "Running small FMKe benchmark tests with $1 back end..."
-./scripts/config/set_target_data_store.sh $1
+./scripts/config/change_db.sh $1
 ./scripts/start_data_store.sh $1
 ./scripts/start_fmke.sh
 

@@ -3,7 +3,6 @@
 -include("fmk_kv.hrl").
 
 -ifdef(TEST).
--compile(export_all).
 -include_lib("eunit/include/eunit.hrl").
 -define(setup(F), {setup, fun start/0, fun stop/1, F}).
 -define (STATIC_ID, 1).
