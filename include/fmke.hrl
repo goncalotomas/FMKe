@@ -18,7 +18,7 @@
     ,date_prescribed :: field()
     ,date_processed = <<"undefined">> :: field()
     ,drugs :: list(field())
-    ,is_processed = <<"not_processed">> :: field()
+    ,is_processed = <<"prescription_not_processed">> :: field()
 }).
 
 -record(patient, {
