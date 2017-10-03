@@ -91,7 +91,6 @@ get(Key, KeyType, Context) when KeyType == patient; KeyType == pharmacy; KeyType
         _ ->  case PrescKeys of
                   [] ->       {{ok, build_app_record(Fields)}, Context};
                   [_H|_T] ->  Prescs = fetch_nested_prescriptions(Context, lists:sort(PrescKeys)),
-                              io:format("PRESCRIPTIONS: ~p~n", [Prescs]),
                               {{ok, build_app_record(Fields ++ [get_presc_key(KeyType), Prescs])}, Context}
               end
     end;
