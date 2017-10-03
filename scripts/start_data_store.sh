@@ -16,13 +16,7 @@ if [ $1 = "antidote" ]; then
 elif [ $1 = "redis" ]; then
     docker pull redis
     set +e
-    if docker inspect redis &> /dev/null; then
-        set -e
-        docker start redis
-    else
-        set -e
-        docker run -d --name redis -p "6379:6379" redis
-    fi
+    docker run -d --name redis -p "6379:6379" redis
     sleep 15
     echo "redis started."
 elif [ $1 = "riak" ]; then
