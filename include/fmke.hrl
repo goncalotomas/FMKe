@@ -2,8 +2,8 @@
 
 -define (CONFIG_FILE_PATH, "/../../../../config/fmke.config").
 
--define(SUPPORTED_DBS, [antidote, riak_kv]).
--define(SUPPORTED_KVS, [antidote, riak_kv]).
+-define(SUPPORTED_DBS, [antidote, riak_kv, redis]).
+-define(SUPPORTED_KVS, [antidote, riak_kv, redis]).
 
 -type id() :: non_neg_integer().
 -type field() :: binary().
@@ -18,7 +18,7 @@
     ,date_prescribed :: field()
     ,date_processed = <<"undefined">> :: field()
     ,drugs :: list(field())
-    ,is_processed = <<"not_processed">> :: field()
+    ,is_processed = <<"prescription_not_processed">> :: field()
 }).
 
 -record(patient, {

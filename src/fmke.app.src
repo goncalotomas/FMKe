@@ -6,13 +6,14 @@
   {applications,
    [kernel,
     stdlib,
-    antidote_pb,
-    riak_pb,
     poolboy,
+    lager,
     cowboy,
     jsx,
+    antidote_pb,
+    riak_pb,
     riakc,
-    lager
+    eredis
    ]},
 
   {modules, []},

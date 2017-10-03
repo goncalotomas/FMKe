@@ -185,8 +185,7 @@ next(Dice, Size, Skew, Bottom, Sum, CurrRank) ->
 
 gen_random_drugs() ->
     NumDrugs = rand:uniform(2)+1,
-    SeqList = lists:seq(1,NumDrugs),
-    lists:map(fun(_Elem) -> gen_random_date() end, SeqList).
+    lists:map(fun(_) -> gen_random_name() end, lists:seq(1,NumDrugs)).
 
 gen_random_name() ->
     gen_random_string(25).

@@ -35,10 +35,10 @@ We have a generic interface for key-value stores (implemented as an Erlang behav
 ## Supported data stores
 - AntidoteDB
 - Riak
-### In future releases
-- ets
-- Lasp
 - Redis
+### In a future release
+- Lasp
+
 
 ## How the benchmark is deployed
 By default FMKe keeps a connection pool to a single database node, and the workload generation is performed by [Lasp Bench][4].  
@@ -51,6 +51,7 @@ The biggest test case used 36 AntidoteDB instances spread across 3 data centers 
 Before the benchmark, AntidoteDB was populated with over 1 million patient keys, 50 hospitals, 10.000 doctors and 300 pharmacies.
 
 ## Testing out FMKe locally
+FMKe requires Erlang/OTP 20 or newer to run. It will not compile in previous versions.  
 You can test out FMKe locally by cloning the repository:
 
 ```bash
@@ -74,7 +75,7 @@ make bench-riak
 Alternatively, you can also validate that your FMKe copy is functional by running unit tests with your desired database as backend:
 
 ```bash
-make test-riak
+make eunit-riak
 ```
 
 This command will run a battery of unit tests that ensure that all functionality related to the benchmark is able to performed in the database you have previously selected.
