@@ -8,6 +8,7 @@ attach:
 
 bench: compile
 	./travis.sh bench antidote
+	./travis.sh bench redis
 	./travis.sh bench riak
 
 bench-antidote: rel
@@ -39,6 +40,7 @@ dialyzer:
 
 eunit: compile
 	./travis.sh test antidote
+	./travis.sh test redis
 	./travis.sh test riak
 
 eunit-antidote: compile
