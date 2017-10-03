@@ -35,10 +35,10 @@ We have a generic interface for key-value stores (implemented as an Erlang behav
 ## Supported data stores
 - AntidoteDB
 - Riak
-### In future releases
-- ets
-- Lasp
 - Redis
+### In a future release
+- Lasp
+
 
 ## How the benchmark is deployed
 By default FMKe keeps a connection pool to a single database node, and the workload generation is performed by [Lasp Bench][4].  
@@ -74,7 +74,7 @@ make bench-riak
 Alternatively, you can also validate that your FMKe copy is functional by running unit tests with your desired database as backend:
 
 ```bash
-make test-riak
+make eunit-riak
 ```
 
 This command will run a battery of unit tests that ensure that all functionality related to the benchmark is able to performed in the database you have previously selected.
