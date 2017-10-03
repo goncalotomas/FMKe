@@ -90,7 +90,7 @@ get(Key, KeyType, Context) when KeyType == patient; KeyType == pharmacy; KeyType
         [] -> {{error, not_found}, Context};
         _ ->  case PrescKeys of
                   [] ->       {{ok, build_app_record(Fields)}, Context};
-                  [_H|_T] ->  Prescs = fetch_nested_prescriptions(Context, lists:sort(PrescKeys)),
+                  [_H|_T] ->  Prescs = fetch_nested_prescriptions(Context, sort_presc_keys(lists:sort(PrescKeys))),
                               {{ok, build_app_record(Fields ++ [get_presc_key(KeyType), Prescs])}, Context}
               end
     end;
@@ -101,12 +101,26 @@ get(Key, _KeyType, Context) ->
       {ok,Res} -> {{ok, build_app_record(Res)}, Context}
   end.
 
+sort_presc_keys(Props) -> sort_presc_keys(Props, []).
+
+sort_presc_keys([], Props) -> Props;
+sort_presc_keys([H|T], Props) ->
+    case string:find(binary_to_list(H), binary_to_list(?PRESCRIPTION_DRUGS_KEY), trailing) of
+        nomatch ->
+                  NewProps = Props ++ [{H, undefined}],
+                  sort_presc_keys(T, NewProps);
+        _ ->
+                  PrescKey = string:slice(H,0,byte_size(H)-byte_size(?PRESCRIPTION_DRUGS_KEY)),
+                  NewProps = lists:keyreplace(PrescKey, 1, Props, {PrescKey, H}),
+                  sort_presc_keys(T, NewProps)
+    end.
+
 fetch_nested_prescriptions(Context, Prescs) -> fetch_nested_prescriptions(Context, Prescs, []).
 
 fetch_nested_prescriptions(Context, [], Accum) ->
     Prescs = execute_multi_get(Context, Accum),
     parse_prescription_list(Prescs);
-fetch_nested_prescriptions(Context, [Key, DrugsKey | T], Accum) ->
+fetch_nested_prescriptions(Context, [{Key, DrugsKey} | T], Accum) ->
     fetch_nested_prescriptions(Context, T, [["HGETALL", Key], ["SMEMBERS", DrugsKey] | Accum]).
 
 parse_prescription_list(List) ->
