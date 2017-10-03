@@ -51,6 +51,7 @@ The biggest test case used 36 AntidoteDB instances spread across 3 data centers 
 Before the benchmark, AntidoteDB was populated with over 1 million patient keys, 50 hospitals, 10.000 doctors and 300 pharmacies.
 
 ## Testing out FMKe locally
+FMKe requires Erlang/OTP 20 or newer to run. It will not compile in previous versions.  
 You can test out FMKe locally by cloning the repository:
 
 ```bash
