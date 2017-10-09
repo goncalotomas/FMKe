@@ -51,7 +51,7 @@ The biggest test case used 36 AntidoteDB instances spread across 3 data centers 
 Before the benchmark, AntidoteDB was populated with over 1 million patient keys, 50 hospitals, 10.000 doctors and 300 pharmacies.
 
 ## Testing out FMKe locally
-FMKe requires Erlang/OTP 20 or newer to run. It will not compile in previous versions.  
+FMKe requires [Erlang/OTP][9] and [rebar3][10]. You need at least Erlang 20, FMKe will not compile in previous versions.  
 You can test out FMKe locally by cloning the repository:
 
 ```bash
@@ -88,3 +88,5 @@ This command will run a battery of unit tests that ensure that all functionality
 [6]: http://www.tpc.org/tpcc/default.asp
 [7]: http://www.tpc.org/tpce/
 [8]: https://github.com/goncalotomas/FMKe/blob/master/doc/FMK_DataModel.pdf
+[9]: http://www.erlang.org/downloads
+[10]: http://www.rebar3.org/
