@@ -1,6 +1,6 @@
 -define (APP, fmke).
 
--define (CONFIG_FILE_PATH, "/../../../../config/fmke.config").
+-define (CONFIG_FILE_PATH, "/config/fmke.config").
 
 -define(SUPPORTED_DBS, [antidote, riak_kv, redis]).
 -define(SUPPORTED_KVS, [antidote, riak_kv, redis]).
