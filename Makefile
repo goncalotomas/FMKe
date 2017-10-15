@@ -120,10 +120,10 @@ test-multiple-releases:
 	./scripts/config/change_http_port.sh 9090
 	./scripts/config/change_db.sh antidote
 	${REBAR} release -n fmke
-	${REBAR} release -n fmke_test
 	./_build/default/rel/fmke/bin/env start
 	sleep 10
 	./scripts/config/change_http_port.sh 9190
+	${REBAR} release -n fmke_test
 	./_build/default/rel/fmke_test/bin/env_test start
 	sleep 10
 	./scripts/populate_fmke.escript "antidote" "../config/benchmark_short.config" "fmke_test@127.0.0.1"
