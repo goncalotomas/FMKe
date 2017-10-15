@@ -30,6 +30,7 @@ console: rel
 ct: all
 	./scripts/config/change_db.sh antidote
 	./scripts/start_data_store.sh antidote
+	make rel
 	./scripts/start_fmke.sh
 	rebar3 ct
 	./scripts/stop_fmke.sh
