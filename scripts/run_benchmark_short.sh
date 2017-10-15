@@ -3,6 +3,7 @@ set -e
 echo "Running small FMKe benchmark tests with $1 back end..."
 ./scripts/config/change_db.sh $1
 ./scripts/start_data_store.sh $1
+make rel
 ./scripts/start_fmke.sh
 
 # Fill database with testdata:
