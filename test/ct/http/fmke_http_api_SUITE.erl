@@ -452,7 +452,7 @@ add_medication_to_unexisting_prescription(Config) ->
     Properties = [{drugs, "RandomDrug1, RandomDrug2, RandomDrug3"}],
     PropListJson = http_put("/prescriptions/"++integer_to_list(Id-1),Properties),
     false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
+    <<"no_such_prescription">> = proplists:get_value(<<"result">>,PropListJson).
 
 add_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
