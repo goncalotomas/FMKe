@@ -23,9 +23,9 @@
 -include("fmke_antidote.hrl").
 -author("goncalotomas").
 
--behaviour(fmke_gen_kv_driver).
+-behaviour(fmke_gen_simplified_kv_driver).
 
-%% fmke_gen_kv_driver exports
+%% fmke_gen_simplified_kv_driver exports
 -export([
     init/1,
     stop/1,

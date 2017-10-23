@@ -11,76 +11,176 @@
 -include("fmk_kv.hrl").
 -author("goncalotomas").
 
+%% TODO this interface is the same, but has an extra "Context" parameter for all ops
+%% TODO how do we make sure that this module has the same api as fmke.erl? (without relying on unit/coverage tests)...?
 -behaviour(fmke_gen_driver).
+-behaviour(gen_server).
+
+%%-----------------------------------------------------------------------------
+%% Public API for FMK Core
+%%-----------------------------------------------------------------------------
+-export([
+    create_patient/3,
+    create_pharmacy/3,
+    create_facility/4,
+    create_staff/4,
+    create_prescription/6,
+    get_facility_by_id/1,
+    get_patient_by_id/1,
+    get_pharmacy_by_id/1,
+    get_processed_pharmacy_prescriptions/1,
+    get_pharmacy_prescriptions/1,
+    get_prescription_by_id/1,
+    get_prescription_medication/1,
+    get_staff_by_id/1,
+    get_staff_prescriptions/1,
+    get_staff_treatments/1,
+    process_prescription/2,
+    update_patient_details/3,
+    update_pharmacy_details/3,
+    update_facility_details/4,
+    update_staff_details/4,
+    update_prescription_medication/3
+  ]).
 
 -type context() :: term().
 
 -define (build_nested_map_op(TopLevelKey,Key,Op), [update_map_op(TopLevelKey,[update_map_op(Key,Op)])]).
--define (KV_IMPLEMENTATION(), fmke_config:get(driver_implementation)).
-
--export([
-    init/1,
-    stop/1,
-    start_transaction/1,
-    abort_transaction/1,
-    commit_transaction/1,
-    create_patient/4,
-    create_pharmacy/4,
-    create_facility/5,
-    create_staff/5,
-    create_prescription/7,
-    get_event_by_id/2,
-    get_facility_by_id/2,
-    get_patient_by_id/2,
-    get_pharmacy_by_id/2,
-    get_processed_pharmacy_prescriptions/2,
-    get_pharmacy_prescriptions/2,
-    get_prescription_by_id/2,
-    get_prescription_medication/2,
-    get_staff_by_id/2,
-    get_staff_prescriptions/2,
-    process_prescription/3,
-    update_patient_details/4,
-    update_pharmacy_details/4,
-    update_facility_details/5,
-    update_staff_details/5,
-    update_prescription_medication/4
-]).
-
--export ([
-    %% unimplemented, unused functions.
-    %% need to be here for the fmke_gen_kv_driver interface.
-    create_event/5,
-    create_treatment/5,
-    create_prescription/8,
-    get_facility_treatments/2,
-    get_staff_treatments/2,
-    get_treatment_by_id/2
-]).
+%% TODO switch to stateful modules
+-define (KV_IMPLEMENTATION(), fmke_config:get(simplified_driver)).
 
 -define(MAP, map).
 -define(REGISTER, register).
 
-start_transaction(Context) ->
-    (?KV_IMPLEMENTATION()):start_transaction(Context).
+%% -------------------------------------------------------------------
+%% Setup and teardown functions (simply pass down to db module)
+%% -------------------------------------------------------------------
 
-abort_transaction(Context) ->
-    (?KV_IMPLEMENTATION()):start_transaction(Context).
+start(InitParams) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, InitParams, []).
 
-commit_transaction(Context) ->
-    (?KV_IMPLEMENTATION()):commit_transaction(Context).
+stop(State) ->
+    Driver = proplists:get_value(simplified_driver, State),
+    Driver:stop([]),
+    gen_server:call(?MODULE, stop).
 
-create_patient(Context, Id, Name, Address) ->
-    handle_get_result_for_create_op(patient,[Id,Name,Address],get_patient_by_id(Context,Id)).
+init(InitParams) ->
+    Driver = proplists:get_value(simplified_driver, InitParams),
+    Driver:init(InitParams),
+    {ok, Driver}.
 
-create_pharmacy(Context, Id, Name, Address) ->
-    handle_get_result_for_create_op(pharmacy,[Id,Name,Address],get_pharmacy_by_id(Context,Id)).
+handle_cast(_Msg, State) ->
+    {noreply, State}.
 
-create_facility(Context, Id, Name, Address, Type) ->
-    handle_get_result_for_create_op(facility,[Id,Name,Address,Type],get_facility_by_id(Context,Id)).
+handle_call({create_patient, Id, Name, Address}, _From, Driver) ->
+    {reply, create_if_not_exists(patient, [Id, Name, Address], Driver), Driver};
 
-create_staff(Context,Id,Name,Address,Speciality) ->
-    handle_get_result_for_create_op(staff,[Id,Name,Address,Speciality],get_staff_by_id(Context,Id)).
+handle_call({create_pharmacy, Id, Name, Address}, _From, Driver) ->
+    {reply, create_if_not_exists(pharmacy, [Id, Name, Address], Driver), Driver};
+
+handle_call({create_facility, Id, Name, Address, Type}, _From, Driver) ->
+    {reply, create_if_not_exists(facility, [Id, Name, Address, Type], Driver), Driver};
+
+handle_call({create_staff, Id, Name, Address, Speciality}, _From, Driver) ->
+    {reply, create_if_not_exists(staff, [Id, Name, Address, Speciality], Driver), Driver};
+
+handle_call({create_prescription, Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}, _From, Driver) ->
+    {reply, Driver:create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs), Driver};
+
+handle_call({get_facility_by_id, Id}, _From, Driver) ->
+    {reply, execute_get_op(facility, Id, Driver), Driver};
+
+handle_call({get_patient_by_id, Id}, _From, Driver) ->
+    {reply, execute_get_op(patient, Id, Driver), Driver};
+
+handle_call({get_pharmacy_by_id, Id}, _From, Driver) ->
+    {reply, execute_get_op(pharmacy, Id, Driver), Driver};
+
+handle_call({get_pharmacy_prescriptions, Id}, _From, Driver) ->
+    {reply, execute_get_op(pharmacy, Id, Driver), Driver}; %% TODO not filtering pharmacy prescriptions
+
+handle_call({get_processed_pharmacy_prescriptions, Id}, _From, Driver) ->
+    {reply, execute_get_op(pharmacy, Id, Driver), Driver}; %% TODO not filtering processed pharmacy prescriptions
+
+handle_call({get_prescription_by_id, Id}, _From, Driver) ->
+    {reply, execute_get_op(prescription, Id, Driver), Driver};
+
+handle_call({get_prescription_medication, Id}, _From, Driver) ->
+    Prescription = execute_get_op(prescription, Id, Driver),
+    {reply, Prescription#prescription.drugs, Driver};
+
+handle_call({get_staff_by_id, Id}, _From, Driver) ->
+    {reply, execute_get_op(staff, Id, Driver), Driver};
+
+handle_call({get_staff_prescriptions, Id}, _From, Driver) ->
+    {reply, execute_get_op(staff, Id, Driver), Driver}; %% TODO not filtering staff prescriptions
+
+handle_call({update_patient_details, Id, Name, Address}, _From, Driver) ->
+    {reply, Driver:update_patient_details(Id, Name, Address), Driver};
+
+handle_call({update_pharmacy_details, Id, Name, Address}, _From, Driver) ->
+    {reply, Driver:update_pharmacy_details(Id, Name, Address), Driver};
+
+handle_call({update_facility_details, Id, Name, Address, Type}, _From, Driver) ->
+    {reply, Driver:update_facility_details(Id, Name, Address, Type), Driver};
+
+handle_call({update_staff_details, Id, Name, Address, Speciality}, _From, Driver) ->
+    {reply, Driver:update_staff_details(Id, Name, Address, Speciality), Driver};
+
+handle_call({update_prescription_medication, Id, Operation, Drugs}, _From, Driver) ->
+    {reply, Driver:update_prescription_medication(Id, Operation, Drugs), Driver};
+
+handle_call({process_prescription, Id, Date}, _From, Driver) ->
+    {reply, Driver:process_prescription(Id, Date), Driver}.
+
+create_if_not_exists(Entity, Fields, Driver) ->
+    Txn = Driver:start_transaction([]),
+    Id = hd(Fields),
+    {Result, Txn3} =
+      case check_id(Entity, Id, Txn, Driver) of
+        {taken, Txn1} ->
+            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Txn1};
+        {free, Txn2} ->
+            EntityKey = gen_key(Entity, Id),
+            EntityUpdate = gen_entity_update(Entity,Fields),
+            execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
+      end,
+    Driver:commit_transaction(Txn3),
+    Result.
+
+%% Does kind of the opposite of create_if_not_exists/2
+update_if_already_exists(Entity, Fields, Driver) ->
+    Txn = Driver:start_transaction([]),
+    Id = hd(Fields),
+    {Result, Txn3} =
+      case check_id(Entity, Id, Txn, Driver) of
+        {free, Txn1} ->
+            {{error, list_to_atom(lists:flatten(io_lib:format("no_such_~p",[Entity])))}, Txn1};
+        {taken, Txn2} ->
+            EntityKey = gen_key(Entity, Id),
+            EntityUpdate = gen_entity_update(Entity,Fields),
+            execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
+      end,
+    Driver:commit_transaction(Txn3),
+    Result.
+
+%% Checks if an entity exists
+check_id(Entity, Id, Txn, Driver) ->
+    Key = gen_key(Entity, Id),
+    case Driver:get(Key, Entity, Txn) of
+      {{error, not_found}, Txn1} -> {free, Txn1};
+      {_Map, Txn2} -> {taken, Txn2}
+    end.
+
+execute_create_op(Entity, Key, Op, Context, Driver) ->
+    {ok, _Context2} = Driver:put(Key, Entity, Op, Context).
+
+execute_get_op(Entity, Id, Driver) ->
+    Txn = Driver:start_transaction([]),
+    Key = gen_key(Entity, Id),
+    {Result, Txn1} = Driver:get(Key, Entity, Txn),
+    Driver:commit_transaction(Txn1),
+    Result.
 
 create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
     PatientKey = gen_patient_key(PatientId),
@@ -110,55 +210,6 @@ create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,Dat
             {ok, Context4} = (?KV_IMPLEMENTATION()):put(PrescriberKey,staff,PrescriberUpdate,Context3),
             {ok, Context4};
         ErrorMessage -> ErrorMessage
-    end.
-
-get_event_by_id(Context,Id) ->
-    execute_get_op(Context,event,gen_event_key(Id)).
-
-get_facility_by_id(Context,Id) ->
-    execute_get_op(Context,facility,gen_facility_key(Id)).
-
-get_patient_by_id(Context, Id) ->
-    execute_get_op(Context,patient,gen_patient_key(Id)).
-
-get_pharmacy_by_id(Context, Id) ->
-    execute_get_op(Context,pharmacy,gen_pharmacy_key(Id)).
-
-get_processed_pharmacy_prescriptions(Context,Id) ->
-    case get_pharmacy_prescriptions(Context,Id) of
-        {{ok, PharmacyPrescriptions},Context1} ->
-            {{ok,[Prescription || {_PrescriptionKey,Prescription} <- PharmacyPrescriptions,
-                (?KV_IMPLEMENTATION()):find_key(Prescription,?PRESCRIPTION_IS_PROCESSED_KEY,?REGISTER)
-                == ?PRESCRIPTION_PROCESSED_VALUE
-            ]},Context1};
-        Error -> Error
-    end.
-
-get_pharmacy_prescriptions(Context,Id) ->
-    case get_pharmacy_by_id(Context,Id) of
-        {{ok, PharmacyObject},Context1} ->
-            {{ok,(?KV_IMPLEMENTATION()):find_key(PharmacyObject,?PHARMACY_PRESCRIPTIONS_KEY,?MAP)},Context1};
-        Error -> Error
-    end.
-
-get_prescription_by_id(Context,Id) ->
-  execute_get_op(Context,prescription,gen_prescription_key(Id)).
-
-get_prescription_medication(Context,Id) ->
-  case get_prescription_by_id(Context,Id) of
-      {{ok, PrescriptionObject = #prescription{}},Context1} ->
-          {{ok,PrescriptionObject#prescription.drugs,Context1}};
-      Error -> Error
-  end.
-
-get_staff_by_id(Context,Id) ->
-  execute_get_op(Context,staff,gen_staff_key(Id)).
-
-get_staff_prescriptions(Context,Id) ->
-    case get_staff_by_id(Context,Id) of
-        {{ok, StaffObject},Context1} ->
-            {{ok,(?KV_IMPLEMENTATION()):find_key(StaffObject,?STAFF_PRESCRIPTIONS_KEY,?MAP)},Context1};
-        Error -> Error
     end.
 
 process_prescription(Context,PrescriptionId,DateProcessed) ->
@@ -205,7 +256,7 @@ process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed)
 -spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean()) ->
     {ok,context()} | {{error, term()},context()}.
 run_updates(Context,_ListOps,true) ->
-    (?KV_IMPLEMENTATION()):abort_transaction(Context),
+    %% TODO not calling abort on driver, might be useful to do it in some KVS
     {{error,txn_aborted},Context};
 run_updates(Context,[],false) ->
     {ok, Context};
@@ -300,17 +351,134 @@ run_update_prescription_ops(Context, add_drugs, Updates) ->
 run_update_prescription_ops(Context, _OtherOp, _Updates) ->
     {{error,invalid_update_operation},Context}.
 
+%%-----------------------------------------------------------------------------
+%% Create functions - no transactional context
+%%-----------------------------------------------------------------------------
+
+%% Adds a patient to the FMK system, needing only an ID, Name and Address.
+%% A check is done to determine if a patient with the given ID already exists,
+%% and if so the operation fails.
+-spec create_patient(id(),string(),string()) -> ok | {error, reason()}.
+create_patient(Id,Name,Address) ->
+    gen_server:call(?MODULE, {create_patient, Id, Name, Address}).
+
+%% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet been seen.
+-spec create_pharmacy(id(),string(),string()) -> ok | {error, reason()}.
+create_pharmacy(Id,Name,Address) ->
+    gen_server:call(?MODULE, {create_pharmacy, Id, Name, Address}).
+
+%% Adds a facility to the FMK-- system if the ID for the facility has not yet been seen.
+-spec create_facility(id(),string(),string(),string()) -> ok | {error, reason()}.
+create_facility(Id,Name,Address,Type) ->
+    gen_server:call(?MODULE, {create_facility, Id, Name, Address, Type}).
+
+%% Adds a staff member to the FMK-- system if the ID for the member has not yet been seen.
+-spec create_staff(id(),string(),string(),string()) -> ok | {error, reason()}.
+create_staff(Id,Name,Address,Speciality) ->
+    gen_server:call(?MODULE, {create_staff, Id, Name, Address, Speciality}).
+
+%% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
+%% pharmacy. The prescription also includes the prescription date and the list of drugs that should be administered.
+-spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
+create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
+    gen_server:call(?MODULE,
+        {create_prescription, PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}
+    ).
+
+%%-----------------------------------------------------------------------------
+%% Read functions - no transactional context
+%%-----------------------------------------------------------------------------
+
+%% Fetches a patient by ID.
+-spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
+get_patient_by_id(Id) ->
+    gen_server:call(?MODULE, {get_patient_by_id, Id}).
+
+%% Fetches a facility by id.
+-spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
+get_facility_by_id(Id) ->
+    gen_server:call(?MODULE, {get_facility_by_id, Id}).
+
+%% Fetches a pharmacy by ID.
+-spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_by_id(Id) ->
+    gen_server:call(?MODULE, {get_pharmacy_by_id, Id}).
+
+%% Fetches a prescription by ID.
+-spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
+get_prescription_by_id(Id) ->
+    gen_server:call(?MODULE, {get_prescription_by_id, Id}).
+
+%% Fetches a list of prescriptions given a certain pharmacy ID.
+-spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_prescriptions(Id) ->
+    gen_server:call(?MODULE, {get_pharmacy_prescriptions, Id}).
+
+-spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_processed_pharmacy_prescriptions(Id) ->
+    gen_server:call(?MODULE, {get_processed_pharmacy_prescriptions, Id}).
+
+%% Fetches prescription medication by ID.
+-spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
+get_prescription_medication(Id) ->
+    gen_server:call(?MODULE, {get_prescription_medication, Id}).
+
+%% Fetches a staff member by ID.
+-spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
+get_staff_by_id(Id) ->
+    gen_server:call(?MODULE, {get_staff_by_id, Id}).
+
+%% Fetches a list of prescriptions given a certain staff member ID.
+-spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_staff_prescriptions(Id) ->
+    gen_server:call(?MODULE, {get_staff_prescriptions, Id}).
+
+%% Fetches a list of treatments given a certain staff member ID.
+-spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
+get_staff_treatments(_Id) ->
+    erlang:error(not_implemented).
+
+%%-----------------------------------------------------------------------------
+%% Update functions - no transactional context
+%%-----------------------------------------------------------------------------
+
+%% Updates the personal details of a patient with a certain ID.
+-spec update_patient_details(id(),string(),string()) -> ok | {error, reason()}.
+update_patient_details(Id,Name,Address) ->
+    gen_server:call(?MODULE, {update_patient_details, Id, Name, Address}).
+
+%% Updates the details of a pharmacy with a certain ID.
+-spec update_pharmacy_details(id(),string(),string()) -> ok | {error, reason()}.
+update_pharmacy_details(Id,Name,Address) ->
+    gen_server:call(?MODULE, {update_pharmacy_details, Id, Name, Address}).
+
+%% Updates the details of a facility with a certain ID.
+-spec update_facility_details(id(),string(),string(),string()) -> ok | {error, reason()}.
+update_facility_details(Id,Name,Address,Type) ->
+    gen_server:call(?MODULE, {update_facility_details, Id, Name, Address, Type}).
+
+%% Updates the details of a staff member with a certain ID.
+-spec update_staff_details(id(),string(),string(),string()) -> ok | {error, reason()}.
+update_staff_details(Id,Name,Address,Speciality) ->
+    gen_server:call(?MODULE, {update_staff_details, Id, Name, Address, Speciality}).
+
+-spec update_prescription_medication(id(),atom(),[string()]) -> ok | {error, reason()}.
+update_prescription_medication(Id,Operation,Drugs) ->
+    gen_server:call(?MODULE, {update_prescription_medication, Id, Operation, Drugs}).
+
+process_prescription(Id,Date) ->
+    gen_server:call(?MODULE, {process_prescription, Id, Date}).
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions
 %%-----------------------------------------------------------------------------
-execute_create_op(Context,Key,KeyType,Operation) ->
-    {ok, _Context2} = (?KV_IMPLEMENTATION()):put(Key,KeyType,Operation,Context).
-
-execute_get_op(Context,{Key,RecordType}) ->
-      execute_get_op(Context,RecordType,Key).
-execute_get_op(Context,RecordType,Key) ->
-    (?KV_IMPLEMENTATION()):get(Key,RecordType,Context).
+% execute_create_op(Context,Key,KeyType,Operation) ->
+%     {ok, _Context2} = (?KV_IMPLEMENTATION()):put(Key,KeyType,Operation,Context).
+% TODO delete this
+% execute_get_op(Context,{Key,RecordType}) ->
+%       execute_get_op(Context,RecordType,Key).
+% execute_get_op(Context,RecordType,Key) ->
+%     (?KV_IMPLEMENTATION()):get(Key,RecordType,Context).
 
 gen_entity_update(pharmacy,EntityFields) ->
     [Id,Name,Address] = EntityFields,
@@ -417,34 +585,3 @@ gen_facility_key(Id) ->
 
 gen_prescription_key(Id) ->
     gen_key(prescription,Id).
-
-%% -------------------------------------------------------------------
-%% Setup and teardown functions (simply pass down to db module)
-%% -------------------------------------------------------------------
-
-init(Params) ->
-    (?KV_IMPLEMENTATION()):init(Params).
-
-stop(State) ->
-    (?KV_IMPLEMENTATION()):stop(State).
-
-%% -------------------------------------------------------------------
-%% Unimplemented functions (listed below to accept the fmke_gen_kv_driver interface):
-%% -------------------------------------------------------------------
-create_event(_1,_2,_3,_4,_5) ->
-    erlang:error(not_implemented).
-
-create_prescription(_1,_2,_3,_4,_5,_6,_7,_8) ->
-    erlang:error(not_implemented).
-
-create_treatment(_1,_2,_3,_4,_5) ->
-    erlang:error(not_implemented).
-
-get_facility_treatments(_1,_2) ->
-    erlang:error(not_implemented).
-
-get_staff_treatments(_1,_2) ->
-    erlang:error(not_implemented).
-
-get_treatment_by_id(_1,_2) ->
-    erlang:error(not_implemented).

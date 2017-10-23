@@ -21,7 +21,7 @@
 -include("fmke.hrl").
 -include("fmk_kv.hrl").
 
--behaviour(fmke_gen_kv_driver).
+-behaviour(fmke_gen_simplified_kv_driver).
 
 -export([
     init/1,

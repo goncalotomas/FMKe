@@ -18,7 +18,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(fmke_gen_kv_driver).
+-module(fmke_gen_simplified_kv_driver).
 -include ("fmke.hrl").
 
 %% Types TODO: refine type defs
