@@ -60,7 +60,7 @@ stop({Pid}) ->
 
 %% Transactions %% Dummy transactions; Redis doesnot support transactions in a
 %% cluster setup
-start_transaction({}) ->
+start_transaction(_OldContext) ->
     Pid = poolboy:checkout(fmke_db_connection_pool),
     {ok, {Pid}}.
 

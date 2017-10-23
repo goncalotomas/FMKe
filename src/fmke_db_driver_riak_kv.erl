@@ -274,10 +274,7 @@ get_bucket_from_entity(Entity) ->
 %% Riak transaction related exports (Transactional API)
 %% -------------------------------------------------------------------
 
-start_transaction(_Context = {_Pid}) ->
-    erlang:error(transaction_already_started);
-
-start_transaction(_Context = {}) ->
+start_transaction(_Context) ->
     Pid = poolboy:checkout(fmke_db_connection_pool),
     {ok, {Pid}}.
 
