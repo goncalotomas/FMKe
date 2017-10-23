@@ -17,9 +17,11 @@
 -behaviour(gen_server).
 
 %%-----------------------------------------------------------------------------
-%% Public API for FMK Core
+%% fmke_gen_driver exports
 %%-----------------------------------------------------------------------------
 -export([
+    start/1,
+    stop/1,
     create_patient/3,
     create_pharmacy/3,
     create_facility/4,
@@ -42,6 +44,9 @@
     update_staff_details/4,
     update_prescription_medication/3
   ]).
+
+%% gen_server exports
+-export ([init/1, handle_cast/2, handle_call/3]).
 
 -type context() :: term().
 
@@ -66,7 +71,7 @@ stop(State) ->
 
 init(InitParams) ->
     Driver = proplists:get_value(simplified_driver, InitParams),
-    Driver:init(InitParams),
+    Driver:start(InitParams),
     {ok, Driver}.
 
 handle_cast(_Msg, State) ->
@@ -85,7 +90,7 @@ handle_call({create_staff, Id, Name, Address, Speciality}, _From, Driver) ->
     {reply, create_if_not_exists(staff, [Id, Name, Address, Speciality], Driver), Driver};
 
 handle_call({create_prescription, Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}, _From, Driver) ->
-    {reply, Driver:create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs), Driver};
+    {reply, create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs, Driver), Driver};
 
 handle_call({get_facility_by_id, Id}, _From, Driver) ->
     {reply, execute_get_op(facility, Id, Driver), Driver};
@@ -116,25 +121,39 @@ handle_call({get_staff_prescriptions, Id}, _From, Driver) ->
     {reply, execute_get_op(staff, Id, Driver), Driver}; %% TODO not filtering staff prescriptions
 
 handle_call({update_patient_details, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:update_patient_details(Id, Name, Address), Driver};
+    {reply, update_if_already_exists(patient, [Id, Name, Address], Driver), Driver};
 
 handle_call({update_pharmacy_details, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:update_pharmacy_details(Id, Name, Address), Driver};
+    {reply, update_if_already_exists(pharmacy, [Id, Name, Address], Driver), Driver};
 
 handle_call({update_facility_details, Id, Name, Address, Type}, _From, Driver) ->
-    {reply, Driver:update_facility_details(Id, Name, Address, Type), Driver};
+    {reply, update_if_already_exists(facility, [Id, Name, Address, Type], Driver), Driver};
 
 handle_call({update_staff_details, Id, Name, Address, Speciality}, _From, Driver) ->
-    {reply, Driver:update_staff_details(Id, Name, Address, Speciality), Driver};
+    {reply, update_if_already_exists(staff, [Id, Name, Address, Speciality], Driver), Driver};
 
 handle_call({update_prescription_medication, Id, Operation, Drugs}, _From, Driver) ->
-    {reply, Driver:update_prescription_medication(Id, Operation, Drugs), Driver};
+    {ok, Txn} = Driver:start_transaction([]),
+    {Result, Txn3} =
+      case execute_get_op(prescription, Id, Driver, Txn) of
+          {{error, not_found}, Txn1} -> {{error, no_such_prescription}, Txn1};
+          {{ok, Prescription}, Txn2} -> update_prescription_w_obj(Txn2, Prescription, Operation, Drugs, Driver)
+      end,
+    Driver:commit_transaction(Txn3),
+    {reply, Result, Driver};
 
 handle_call({process_prescription, Id, Date}, _From, Driver) ->
-    {reply, Driver:process_prescription(Id, Date), Driver}.
+    {ok, Txn} = Driver:start_transaction([]),
+    {Result, Txn3} =
+      case execute_get_op(prescription, Id, Driver, Txn) of
+          {{error, not_found}, Txn1} -> {{error, no_such_prescription}, Txn1};
+          {{ok, Prescription}, Txn2} -> process_prescription_w_obj(Txn2, Prescription, Date, Driver)
+      end,
+    Driver:commit_transaction(Txn3),
+    {reply, Result, Driver}.
 
 create_if_not_exists(Entity, Fields, Driver) ->
-    Txn = Driver:start_transaction([]),
+    {ok, Txn} = Driver:start_transaction([]),
     Id = hd(Fields),
     {Result, Txn3} =
       case check_id(Entity, Id, Txn, Driver) of
@@ -148,9 +167,23 @@ create_if_not_exists(Entity, Fields, Driver) ->
     Driver:commit_transaction(Txn3),
     Result.
 
+%% same as create_if_not_exists/2, but with transactional context
+create_if_not_exists(Entity, Fields, Driver, Txn) ->
+    Id = hd(Fields),
+    {Result, Txn3} =
+      case check_id(Entity, Id, Txn, Driver) of
+        {taken, Txn1} ->
+            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Txn1};
+        {free, Txn2} ->
+            EntityKey = gen_key(Entity, Id),
+            EntityUpdate = gen_entity_update(Entity,Fields),
+            execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
+      end,
+    {Result, Txn3}.
+
 %% Does kind of the opposite of create_if_not_exists/2
 update_if_already_exists(Entity, Fields, Driver) ->
-    Txn = Driver:start_transaction([]),
+    {ok, Txn} = Driver:start_transaction([]),
     Id = hd(Fields),
     {Result, Txn3} =
       case check_id(Entity, Id, Txn, Driver) of
@@ -176,51 +209,49 @@ execute_create_op(Entity, Key, Op, Context, Driver) ->
     {ok, _Context2} = Driver:put(Key, Entity, Op, Context).
 
 execute_get_op(Entity, Id, Driver) ->
-    Txn = Driver:start_transaction([]),
+    {ok, Txn} = Driver:start_transaction([]),
     Key = gen_key(Entity, Id),
     {Result, Txn1} = Driver:get(Key, Entity, Txn),
     Driver:commit_transaction(Txn1),
-    Result.
+    case Result of
+      {ok, Object} -> Object;
+      Error -> Error
+    end.
 
-create_prescription(Context,PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
-    PatientKey = gen_patient_key(PatientId),
-    PharmacyKey = gen_pharmacy_key(PharmacyId),
-    PrescriberKey = gen_staff_key(PrescriberId),
+execute_get_op(Entity, Id, Driver, Txn) ->
+    Key = gen_key(Entity, Id),
+    {_Result, _Txn1} = Driver:get(Key, Entity, Txn).
 
+create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs, Driver) ->
+    PatientKey = gen_key(patient, PatientId),
+    PharmacyKey = gen_key(pharmacy, PharmacyId),
+    PrescriberKey = gen_key(staff, PrescriberId),
+
+    {ok, Txn} = Driver:start_transaction([]),
     %% Check if multiple keys are taken
-    [
-      {taken,{PatientKey,patient}},
-      {taken,{PharmacyKey,pharmacy}},
-      {taken,{PrescriberKey,staff}}
-    ] = check_keys(Context,[{PatientKey,patient},{PharmacyKey,pharmacy},{PrescriberKey,staff}]),
+    [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
+        = check_keys(Txn,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}], Driver),
 
     %% Create top level prescription if key does not exist.
     PrescriptionFields = [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs],
-    HandleCreateOpResult = handle_get_result_for_create_op(prescription,PrescriptionFields,
-      get_prescription_by_id(Context,PrescriptionId)),
+    {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Driver, Txn),
 
-    case HandleCreateOpResult of
-        {ok, Context1} ->
+    {Result, Context5} = case HandleCreateOpResult of
+        ok ->
             %% creating top level prescription was successful, create nested objects
             PatientUpdate = [gen_nested_entity_update(prescription,?PATIENT_PRESCRIPTIONS_KEY,PrescriptionFields)],
             PharmacyUpdate = [gen_nested_entity_update(prescription,?PHARMACY_PRESCRIPTIONS_KEY,PrescriptionFields)],
             PrescriberUpdate = [gen_nested_entity_update(prescription,?STAFF_PRESCRIPTIONS_KEY,PrescriptionFields)],
-            {ok, Context2} = (?KV_IMPLEMENTATION()):put(PatientKey,patient,PatientUpdate,Context1),
-            {ok, Context3} = (?KV_IMPLEMENTATION()):put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
-            {ok, Context4} = (?KV_IMPLEMENTATION()):put(PrescriberKey,staff,PrescriberUpdate,Context3),
+            {ok, Context2} = Driver:put(PatientKey,patient,PatientUpdate,Txn2),
+            {ok, Context3} = Driver:put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
+            {ok, Context4} = Driver:put(PrescriberKey,staff,PrescriberUpdate,Context3),
             {ok, Context4};
-        ErrorMessage -> ErrorMessage
-    end.
+        ErrorMessage -> {ErrorMessage, Txn2}
+    end,
+    Driver:commit_transaction(Context5),
+    Result.
 
-process_prescription(Context,PrescriptionId,DateProcessed) ->
-    case get_prescription_by_id(Context,PrescriptionId) of
-        {{error,not_found},Context1} ->
-            {{error,no_such_prescription},Context1};
-        {{ok,PrescriptionObject},Context2} ->
-            process_prescription_w_obj(Context2,PrescriptionObject,DateProcessed)
-    end.
-
-process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed) ->
+process_prescription_w_obj(Context, Prescription = #prescription{}, DateProcessed, Driver) ->
     case Prescription#prescription.is_processed of
         ?PRESCRIPTION_PROCESSED_VALUE ->
             {{error, prescription_already_processed},Context};
@@ -250,74 +281,26 @@ process_prescription_w_obj(Context,Prescription = #prescription{},DateProcessed)
                 {PrescriberKey,staff,PrescriberUpdate}
             ],
 
-            run_updates(Context,Operations,false)
+            run_updates(Context, Operations, false, Driver)
       end.
 
--spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean()) ->
+-spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean(), Driver :: atom()) ->
     {ok,context()} | {{error, term()},context()}.
-run_updates(Context,_ListOps,true) ->
+run_updates(Context, _ListOps, true, _Driver) ->
     %% TODO not calling abort on driver, might be useful to do it in some KVS
     {{error,txn_aborted},Context};
-run_updates(Context,[],false) ->
+run_updates(Context,[],false, _Driver) ->
     {ok, Context};
-run_updates(Context,[H|T],false) ->
+run_updates(Context, [H|T], false, Driver) ->
     {Key,KeyType,Update} = H,
-    case execute_create_op(Context,Key,KeyType,Update) of
+    case execute_create_op(KeyType, Key, Update, Context, Driver) of
         {ok, Context2} ->
-            run_updates(Context2,T,false);
+            run_updates(Context2, T, false, Driver);
         {_Error,Context3} ->
-            run_updates(Context3,T,true)
+            run_updates(Context3, T, true, Driver)
     end.
 
-update_patient_details(Context,Id,Name,Address) ->
-    case get_patient_by_id(Context,Id) of
-        {{error,not_found},Context1} ->
-            {{error,no_such_patient},Context1};
-        {{ok,_Object},Context2} ->
-            PatientKey = gen_key(patient,Id),
-            PatientUpdate = lists:sublist(gen_entity_update(patient,[Id,Name,Address]),2,2),
-            execute_create_op(Context2,PatientKey,patient,PatientUpdate)
-    end.
-
-update_pharmacy_details(Context,Id,Name,Address) ->
-    case get_pharmacy_by_id(Context,Id) of
-        {{error,not_found},Context1} ->
-            {{error,no_such_pharmacy},Context1};
-        {{ok,_Object},Context2} ->
-            PharmacyKey = gen_key(pharmacy,Id),
-            PharmacyUpdate = lists:sublist(gen_entity_update(pharmacy,[Id,Name,Address]),2,2),
-            execute_create_op(Context2,PharmacyKey,pharmacy,PharmacyUpdate)
-    end.
-
-update_facility_details(Context,Id,Name,Address,Type) ->
-    case get_facility_by_id(Context,Id) of
-        {{error,not_found},Context1} ->
-            {{error,no_such_facility},Context1};
-        {{ok,_Object},Context2} ->
-            FacilityKey = gen_key(facility,Id),
-            FacilityUpdate = lists:sublist(gen_entity_update(facility,[Id,Name,Address,Type]),2,3),
-            execute_create_op(Context2,FacilityKey,facility,FacilityUpdate)
-    end.
-
-update_staff_details(Context,Id,Name,Address,Speciality) ->
-    case get_staff_by_id(Context,Id) of
-        {{error,not_found},Context1} ->
-            {{error,no_such_staff},Context1};
-        {{ok,_Object},Context2} ->
-            StaffKey = gen_key(staff,Id),
-            StaffUpdate = lists:sublist(gen_entity_update(staff,[Id,Name,Address,Speciality]),2,3),
-            execute_create_op(Context2,StaffKey,staff,StaffUpdate)
-    end.
-
-update_prescription_medication(Context,PrescriptionId,Operation,Drugs) ->
-    case get_prescription_by_id(Context,PrescriptionId) of
-        {{error,not_found},Context1} ->
-            {{error,not_found},Context1};
-        {{ok,PrescriptionObject},Context2} ->
-            update_prescription_w_obj(Context2,PrescriptionObject,Operation,Drugs)
-    end.
-
-update_prescription_w_obj(Context,Prescription = #prescription{},Operation,Drugs) ->
+update_prescription_w_obj(Context, Prescription = #prescription{}, Operation, Drugs, Driver) ->
     case Prescription#prescription.is_processed of
         ?PRESCRIPTION_PROCESSED_VALUE ->
             {{error, prescription_already_processed},Context};
@@ -343,12 +326,12 @@ update_prescription_w_obj(Context,Prescription = #prescription{},Operation,Drugs
                 {PrescriberKey,staff,PrescriberUpdate}
             ],
 
-            run_update_prescription_ops(Context,Operation,ListUpdates)
+            run_update_prescription_ops(Context, Operation, ListUpdates, Driver)
     end.
 
-run_update_prescription_ops(Context, add_drugs, Updates) ->
-    run_updates(Context,Updates,false);
-run_update_prescription_ops(Context, _OtherOp, _Updates) ->
+run_update_prescription_ops(Context, add_drugs, Updates, Driver) ->
+    run_updates(Context, Updates, false, Driver);
+run_update_prescription_ops(Context, _OtherOp, _Updates, _Driver) ->
     {{error,invalid_update_operation},Context}.
 
 %%-----------------------------------------------------------------------------
@@ -533,24 +516,13 @@ gen_nested_entity_update(prescription, TopLevelKey, EntityFields) ->
     ],
     update_map_op(TopLevelKey,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]).
 
-
-handle_get_result_for_create_op(Entity,EntityFields,{{error,not_found},Context})
-        when is_atom(Entity), is_list(EntityFields) ->
-    Id = hd(EntityFields), %% Assumes ID is always the first field in the field list.
-    EntityKey = gen_key(Entity,Id),
-    EntityUpdate = gen_entity_update(Entity,EntityFields),
-    execute_create_op(Context,EntityKey,Entity,EntityUpdate);
-
-handle_get_result_for_create_op(Entity,EntityFields,{{ok, _Object}, Context})
-        when is_atom(Entity), is_list(EntityFields) ->
-    {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Context}.
-
-check_keys(_Context,[]) ->
+check_keys(_Context, [], _Driver) ->
     [];
-check_keys(Context, [H|T]) ->
-    case execute_get_op(Context,H) of
-        {{error, not_found}, Context1} -> [{free, H}] ++ check_keys(Context1,T);
-        {{ok, _Object}, Context2} -> [{taken, H}] ++ check_keys(Context2,T)
+check_keys(Context, [H|T], Driver) ->
+    {Entity, Id} = H,
+    case execute_get_op(Entity, Id, Driver, Context) of
+        {{error, not_found}, Context1} -> [{free, H}] ++ check_keys(Context1, T, Driver);
+        {{ok, _Object}, Context2} -> [{taken, H}] ++ check_keys(Context2, T, Driver)
     end.
 
 update_map_op(Key,NestedOps) ->
@@ -567,21 +539,3 @@ create_set_op(Key, Elements) ->
 
 gen_key(Entity,Id) ->
     list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
-
-gen_patient_key(Id) ->
-    gen_key(patient,Id).
-
-gen_pharmacy_key(Id) ->
-    gen_key(pharmacy,Id).
-
-gen_event_key(Id) ->
-    gen_key(event,Id).
-
-gen_staff_key(Id) ->
-    gen_key(staff,Id).
-
-gen_facility_key(Id) ->
-    gen_key(facility,Id).
-
-gen_prescription_key(Id) ->
-    gen_key(prescription,Id).
