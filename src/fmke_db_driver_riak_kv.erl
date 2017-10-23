@@ -21,12 +21,12 @@
 -include("fmke.hrl").
 -include("fmk_kv.hrl").
 
--behaviour(fmke_gen_kv_driver).
+-behaviour(fmke_gen_simplified_kv_driver).
 
 %% API
 -export([
     %% Setup and teardown functions
-    init/1,
+    start/1,
     stop/1,
 
     %% Transactional context functions
@@ -43,7 +43,7 @@
 %% -------------------------------------------------------------------
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
-init(Params) ->
+start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error
@@ -274,10 +274,7 @@ get_bucket_from_entity(Entity) ->
 %% Riak transaction related exports (Transactional API)
 %% -------------------------------------------------------------------
 
-start_transaction(_Context = {_Pid}) ->
-    erlang:error(transaction_already_started);
-
-start_transaction(_Context = {}) ->
+start_transaction(_Context) ->
     Pid = poolboy:checkout(fmke_db_connection_pool),
     {ok, {Pid}}.
 
