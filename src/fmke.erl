@@ -52,7 +52,7 @@ stop() ->
 
 init(InitParams) ->
     Driver = proplists:get_value(driver, InitParams),
-    Driver:init(InitParams),
+    Driver:start(InitParams),
     {ok, Driver}.
 
 handle_cast(_Msg, State) ->

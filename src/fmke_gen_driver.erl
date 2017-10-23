@@ -23,7 +23,7 @@
 -type context() :: term().
 -type crdt() :: term().
 
--callback init(State::term()) -> {ok, term()} | {error, term()}.
+-callback start(State::term()) -> {ok, term()} | {error, term()}.
 -callback stop(State::term()) -> {ok, term()} | {error, term()}.
 
 %%-----------------------------------------------------------------------------

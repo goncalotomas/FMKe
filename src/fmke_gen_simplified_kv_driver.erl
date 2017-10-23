@@ -34,7 +34,7 @@
 -type app_record() :: #patient{} | #pharmacy{} | #facility{} | #staff{} | #prescription{}.
 
 %% callbacks
--callback init(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
+-callback start(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
 -callback stop(term()) -> term().
 
 %% Transactions
