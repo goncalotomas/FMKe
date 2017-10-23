@@ -24,7 +24,7 @@
 -behaviour(fmke_gen_simplified_kv_driver).
 
 -export([
-    init/1,
+    start/1,
     stop/1,
 
     start_transaction/1,
@@ -37,7 +37,7 @@
 %% -------------------------------------------------------------------
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
-init(Params) ->
+start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
        _Error -> _Error
