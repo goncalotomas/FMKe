@@ -283,13 +283,10 @@ fetch_prescription(FmkeNode, staff, ExpectedPrescription) ->
     look_for_prescription(PrescriptionList,prescription,ExpectedPrescription).
 
 look_for_prescription(PrescriptionList,TypePrescriptions,ExpectedPrescription) ->
-            io:format("EXPECTED Prescription: ~p~n", [ExpectedPrescription]),
-            io:format("PRESCRIPTIONS LISTS HAS ~p elements~n", [length(PrescriptionList)]),
     Results = lists:map(
         fun(Prescription) ->
-            %% if database is using normalised model then each prescription will just be a pointer
-            io:format("Prescription: ~p~n", [Prescription]),
-            PrescriptionKey = gen_key(prescription, ExpectedPrescription#prescription.id),
+            %% if database is using normalised model then we're expecting just a list of prescription keys, not objects.
+            PrescriptionKey = gen_key(prescription, binary_to_integer(ExpectedPrescription#prescription.id)),
             Prescription =:= PrescriptionKey orelse cmp_presc_fields(TypePrescriptions,Prescription,ExpectedPrescription)
         end
     ,PrescriptionList),

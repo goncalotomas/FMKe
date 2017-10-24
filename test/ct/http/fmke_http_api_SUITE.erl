@@ -486,20 +486,27 @@ get_existing_prescription(Config) ->
     BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
 
     %% check for same prescription inside patient, pharmacy and staff
+    PrescriptionKey = gen_key(prescription, Id),
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    true = lists:member(PrescriptionObject, PatientPrescriptions)
+            orelse lists:member(PrescriptionKey, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
+            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"staffPrescriptions">>, StaffObject).
+    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
+    true = lists:member(PrescriptionObject, StaffPrescriptions)
+            orelse lists:member(PrescriptionKey, StaffPrescriptions).
 
 add_existing_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -570,20 +577,27 @@ get_prescription_after_updates(Config) ->
     BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
 
     %% check for same prescription inside patient, pharmacy and staff
+    PrescriptionKey = gen_key(prescription, Id),
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    true = lists:member(PrescriptionObject, PatientPrescriptions)
+            orelse lists:member(PrescriptionKey, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
+            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    [PrescriptionObject] = proplists:get_value(<<"staffPrescriptions">>, StaffObject).
+    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
+    true = lists:member(PrescriptionObject, StaffPrescriptions)
+            orelse lists:member(PrescriptionKey, StaffPrescriptions).
 
 
 %%%-------------------------------------------------------------------
@@ -738,3 +752,6 @@ build_generic_props([], [], Accum) ->
     Accum;
 build_generic_props([H1|T1], [H2|T2], Accum) ->
     build_generic_props(T1, T2, lists:append(Accum, [{H1,H2}])).
+
+gen_key(Entity,Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
