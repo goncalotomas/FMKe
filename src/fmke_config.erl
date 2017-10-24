@@ -46,18 +46,18 @@ read_config_file() ->
     {ok, ParsedPortList} = parse_db_port_list(DbPortList),
     true = supported_db(TargetDatabase),
 
-    {DriverType, DriverImpl} = get_driver_setup(TargetDatabase),
+    {Driver, DriverImpl} = get_driver_setup(TargetDatabase),
 
     %% set application variables from config file
     set(http_port,HttpPort),
     set(connection_pool_size,ConnPoolSize),
-    set(driver,DriverType),
+    set(driver,Driver),
     set(simplified_driver,DriverImpl),
     set(db_conn_hostnames,ParsedAddressList),
     set(db_conn_ports,ParsedPortList),
 
     [
-        {driver, DriverType},
+        {driver, Driver},
         {simplified_driver, DriverImpl},
         {db_conn_hostnames, ParsedAddressList},
         {db_conn_ports, ParsedPortList},
@@ -76,7 +76,7 @@ get_driver_setup(Database) when is_atom(Database) ->
     %% TODO maybe I should find a better way to do this... later.
     DriverSetups = #{
       antidote => {fmke_kv_driver, fmke_db_driver_antidote},
-      antidote_norm => {fmke_db_driver_antidote, undefined},
+      antidote_norm => {fmke_db_driver_antidote_norm, undefined},
       redis => {fmke_kv_driver, fmke_db_driver_redis},
       riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
       riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv}

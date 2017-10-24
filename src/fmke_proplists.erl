@@ -81,6 +81,8 @@ encode_object(prescription, Object = #prescription{}) ->
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
     ];
 
+encode_object(prescription_key, Key) -> Key;
+
 %% TODO unused
 encode_object(event, Object) ->
     EventId = event:id(Object),
@@ -123,7 +125,10 @@ encode_object(treatment, Object) ->
 
 
 encode_object(list_prescriptions, NestedObject) ->
-    encode_list(prescription, NestedObject);
+    case is_list(NestedObject) andalso (length(NestedObject)>0) andalso is_binary(hd(NestedObject)) of
+        true -> encode_list(prescription_key, NestedObject);
+        false -> encode_list(prescription, NestedObject)
+    end;
 
 encode_object(list_drugs, NestedObject) ->
     encode_string_list(NestedObject);
@@ -134,14 +139,9 @@ encode_object(list_events, NestedObject) ->
 encode_object(list_treatments, NestedObject) ->
     encode_list(treatment, NestedObject).
 
-
-
 encode_string_list(not_found) -> [];
 encode_string_list(List) -> List.
 
-encode_list(_Type, not_found) ->
-    [];
-encode_list(_Type, []) ->
-    [];
-encode_list(Type, List) ->
-    [encode_object(Type, X) || X <- List].
+encode_list(_Type, not_found) ->    [];
+encode_list(_Type, []) ->           [];
+encode_list(Type, List) ->          lists:map(fun(Elem) -> encode_object(Type, Elem) end, List).

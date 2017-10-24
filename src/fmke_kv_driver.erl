@@ -455,13 +455,6 @@ process_prescription(Id,Date) ->
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions
 %%-----------------------------------------------------------------------------
-% execute_create_op(Context,Key,KeyType,Operation) ->
-%     {ok, _Context2} = (?KV_IMPLEMENTATION()):put(Key,KeyType,Operation,Context).
-% TODO delete this
-% execute_get_op(Context,{Key,RecordType}) ->
-%       execute_get_op(Context,RecordType,Key).
-% execute_get_op(Context,RecordType,Key) ->
-%     (?KV_IMPLEMENTATION()):get(Key,RecordType,Context).
 
 gen_entity_update(pharmacy,EntityFields) ->
     [Id,Name,Address] = EntityFields,

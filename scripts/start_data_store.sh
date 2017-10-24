@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 echo "trying to load $1 docker image..."
-if [ $1 = "antidote" ]; then
+if [[ $1 = "antidote" || $1 = "antidote_norm" ]]; then
     docker pull mweber/antidotedb
     if docker inspect antidote &> /dev/null; then
         set -e
