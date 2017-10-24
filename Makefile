@@ -32,13 +32,22 @@ console: rel
 	./_build/default/rel/fmke/bin/env console
 
 ct: all
-	./scripts/config/change_db.sh antidote
-	./scripts/start_data_store.sh antidote
-	make rel
-	./scripts/start_fmke.sh
-	rebar3 ct
-	./scripts/stop_fmke.sh
-	./scripts/stop_data_store.sh antidote
+	./travis.sh ct antidote
+	./travis.sh ct antidote_norm
+	./travis.sh ct redis
+	./travis.sh ct riak
+
+ct-antidote: rel
+	./travis.sh ct antidote
+
+ct-antidote-norm: rel
+	./travis.sh ct antidote_norm
+
+ct-redis: rel
+	./travis.sh ct redis
+
+ct-riak: rel
+	./travis.sh ct riak
 
 dialyzer:
 	${REBAR} dialyzer
