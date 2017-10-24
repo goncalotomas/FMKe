@@ -33,9 +33,10 @@ Firstly, separating the application server from the workload generation componen
 We have a generic interface for key-value stores (implemented as an Erlang behaviour) that is well specified, which makes supporting a new database as simple as writing a driver for it. Furthermore, pull requests with new drivers or optimizations for existing ones are accepted and welcomed.
 
 ## Supported data stores
-- AntidoteDB
-- Riak
-- Redis
+- AntidoteDB (using nested CRDTs)
+- AntidoteDB (with a normalized data model)
+- Riak (using nested CRDTs)
+- Redis (with a normalized data model)
 ### In a future release
 - Lasp
 
