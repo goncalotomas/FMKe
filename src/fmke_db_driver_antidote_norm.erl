@@ -334,27 +334,36 @@ get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_prescriptions(PharmacyId) ->
-    %% TODO this is not returning the processed prescriptions
     PharmacyKey = gen_key(pharmacy,PharmacyId),
-    TxId = txn_start(),
-    {set, PrescriptionIds} = txn_read_object(pharmacy:prescriptions_key(PharmacyKey), TxId),
-    {set, _ProcessedPrescriptionIds} = txn_read_object(pharmacy:prescriptions_processed_key(PharmacyKey), TxId),
-    PrescriptionObjects = [create_bucket(Id, ?MAP) || Id <- PrescriptionIds],
-    Result = txn_read_objects(PrescriptionObjects, TxId),
-    txn_commit(TxId),
-    Result2 = [crdt_json_encoder:encode_object(prescription, P) || {map, P} <- Result],
-    Result2.
+    Txn = txn_start(),
+    [Prescriptions, ProcessedPrescriptions] = multi_read([
+      create_bucket(<<PharmacyKey/binary, "_prescriptions">>, ?ORSET),
+      create_bucket(<<PharmacyKey/binary, "_prescriptions_processed">>, ?ORSET)
+    ], Txn),
+    Result =
+      case {Prescriptions, ProcessedPrescriptions} of
+          {{error, not_found}, {error, not_found}} -> [];
+          {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+          {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+          {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+      end,
+    txn_commit(Txn),
+    Result.
 
 -spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_processed_pharmacy_prescriptions(PharmacyId) ->
     PharmacyKey = gen_key(pharmacy,PharmacyId),
-    TxId = txn_start(),
-    {set, PrescriptionIds} = txn_read_object(pharmacy:prescriptions_processed_key(PharmacyKey), TxId),
-    PrescriptionObjects = [create_bucket(Id, ?MAP) || Id <- PrescriptionIds],
-    Result = txn_read_objects(PrescriptionObjects, TxId),
-    txn_commit(TxId),
-    Result2 = [crdt_json_encoder:encode_object(prescription, P) || {map, P} <- Result],
-    Result2.
+    Txn = txn_start(),
+    [ProcessedPrescriptions] = multi_read([
+      create_bucket(<<PharmacyKey/binary, "_prescriptions_processed">>, ?ORSET)
+    ], Txn),
+    Result =
+      case ProcessedPrescriptions of
+          {error, not_found} -> [];
+          PrescriptionKeys1 ->  PrescriptionKeys1
+      end,
+    txn_commit(Txn),
+    Result.
 
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
@@ -364,18 +373,16 @@ get_prescription_by_id(Id) ->
 %% Fetches prescription medication by ID.
 -spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
 get_prescription_medication(Id) ->
-  Prescription = process_get_request(gen_key(prescription,Id), ?MAP),
-  case Prescription of
-    {error, _} ->
-      {error, no_such_prescription};
-    PrescriptionObject ->
-      prescription:drugs(PrescriptionObject)
-  end.
+    Prescription = get_prescription_by_id(Id),
+    case Prescription of
+      {error, _} -> {error, no_such_prescription};
+      _ -> Prescription#prescription.drugs
+    end.
 
 %% Alternative to get_prescription_by_id/1, which includes a transactional context.
 -spec get_prescription_by_id(id(), txid()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id, Txn) ->
-  build_app_record(prescription, process_get_request(gen_key(prescription,Id), ?MAP, Txn)).
+    build_app_record(prescription, process_get_request(gen_key(prescription,Id), ?MAP, Txn)).
 
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
@@ -388,14 +395,18 @@ get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_staff_prescriptions(StaffId) ->
-  StaffKey = gen_key(staff,StaffId),
-  TxId = txn_start(),
-  {set, PrescriptionIds} = txn_read_object(staff:prescriptions_key(StaffKey), TxId),
-  PrescriptionObjects = [prescription:key(Id) || Id <- PrescriptionIds],
-  Result = txn_read_objects(PrescriptionObjects, TxId),
-  txn_commit(TxId),
-  Result2 = [crdt_json_encoder:encode_object(prescription, P) || {map, P} <- Result],
-  Result2.
+    StaffKey = gen_key(staff,StaffId),
+    Txn = txn_start(),
+    [Prescriptions, ProcessedPrescriptions] = multi_read([
+      create_bucket(<<StaffKey/binary, "_prescriptions">>, ?ORSET),
+      create_bucket(<<StaffKey/binary, "_prescriptions_processed">>, ?ORSET)
+    ], Txn),
+    case {Prescriptions, ProcessedPrescriptions} of
+        {{error, not_found}, {error, not_found}} -> [];
+        {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+        {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+        {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+    end.
 
 %% Fetches a list of treatments given a certain staff member ID.
 -spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
@@ -427,7 +438,6 @@ update_facility_details(Id, Name, Address, Type) ->
 update_staff_details(Id, Name, Address, Speciality) ->
   update_if_already_exists(staff, [Id, Name, Address, Speciality]).
 
-%% TODO FETCH ADD DRUGS OPERATION AND ADD IT TO gen_entity_update
 -spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
 update_prescription_medication(Id, add_drugs, Drugs) ->
   Txn = txn_start(),
@@ -547,25 +557,6 @@ process_prescription(Id, Date) ->
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
 
--spec concatenate_id(atom(), integer()) -> list().
-concatenate_id(patient, Id) ->
-  concatenate_list_with_id("patient_~p", Id);
-concatenate_id(pharmacy, Id) ->
-  concatenate_list_with_id("pharmacy_~p", Id);
-concatenate_id(facility, Id) ->
-  concatenate_list_with_id("facility_~p", Id);
-concatenate_id(staff, Id) ->
-  concatenate_list_with_id("staff_member_~p", Id);
-concatenate_id(prescription, Id) ->
-  concatenate_list_with_id("prescription_~p", Id);
-concatenate_id(treatment, Id) ->
-  concatenate_list_with_id("treatment_~p", Id);
-concatenate_id(event, Id) ->
-  concatenate_list_with_id("event_~p", Id).
-
-concatenate_list_with_id(List, Id) ->
-  lists:flatten(io_lib:format(List, [Id])).
-
 process_get_request(Key, Type) ->
   ReadResult = get(Key, Type),
   case ReadResult of
@@ -581,27 +572,6 @@ process_get_request(Key, Type, Txn) ->
     {_Crdt, Object} -> Object;
     _SomethingElse -> _SomethingElse
   end.
-
-%%filter_processed_prescriptions(PharmacyPrescriptions) ->
-%%  [Prescription || {_PrescriptionHeader, Prescription} <- PharmacyPrescriptions, prescription:is_processed(Prescription) == ?PRESCRIPTION_PROCESSED].
-
-%
-% check_refs(Checks, Txn) ->
-%   Keys = [create_bucket(Key, antidote_crdt_gmap) || {_, Key} <- Checks],
-%   Objects = txn_read_objects(Keys, Txn),
-%   try
-%     [case {Exp, Obj} of
-%        {taken, []} -> error({key_does_not_exist, Key});
-%        {taken, _} ->  ok;
-%        {free, []} ->  ok;
-%        {free, _} ->   error({key_not_free, Key})
-%      end
-%       || {{_Crdt, Obj}, {Exp, Key}} <- lists:zip(Objects, Checks)],
-%     true
-%   catch
-%     error:Reason -> {error, Reason}
-%   end.
-
 
 error_to_binary(Reason) -> list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
 
