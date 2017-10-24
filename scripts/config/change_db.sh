@@ -4,7 +4,7 @@ set -e
 show_supported_dbs()
 {
   echo "FMKe supports the following data stores:"
-  for value in "antidote" "riak" "redis" ; do
+  for value in "antidote" "antidote_norm" "riak" "redis" ; do
       echo "-$value"
   done
 }
@@ -19,7 +19,7 @@ fi
 TARGETDB=$1
 
 ./scripts/config/set_param.sh "target_database" $TARGETDB
-if [[ $TARGETDB = "antidote" ]]; then
+if [[ $TARGETDB = "antidote" || $TARGETDB = "antidote_norm" ]]; then
     ./scripts/config/change_db_ports.sh "[8087]"
 elif [[ $TARGETDB = "redis" ]]; then
     ./scripts/config/change_db_ports.sh "[6379]"
