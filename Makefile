@@ -7,22 +7,25 @@ attach:
 	./_build/default/rel/fmke/bin/env attach
 
 bench: compile
-	./travis.sh bench antidote
-	./travis.sh bench antidote_norm
-	./travis.sh bench redis
-	./travis.sh bench riak
+	./travis.sh bench short antidote
+	./travis.sh bench short antidote_norm
+	./travis.sh bench short redis
+	./travis.sh bench short riak
 
 bench-antidote: rel
-	./travis.sh bench antidote
+	./travis.sh bench normal antidote
 
 bench-antidote-norm: rel
-	./travis.sh bench antidote_norm
+	./travis.sh bench normal antidote_norm
+
+bench-results:
+	Rscript --vanilla _build/test/lib/lasp_bench/priv/summary.r -i tests/current
 
 bench-redis: rel
-	./travis.sh bench redis
+	./travis.sh bench normal redis
 
 bench-riak: rel
-	./travis.sh bench riak
+	./travis.sh bench normal riak
 
 compile:
 	${REBAR} as test compile
