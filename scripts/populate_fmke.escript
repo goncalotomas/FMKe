@@ -3,8 +3,8 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 1).
-
+-define(NUMTHREADS, 30).
+-define(MAX_RETRIES, 10).
 
 -record(fmkeconfig, {
   numpatients,
@@ -160,12 +160,18 @@ run_op(FmkNode, create_prescription, Params) ->
   run_rpc_op(FmkNode, create_prescription, Params).
 
 run_rpc_op(FmkNode, Op, Params) ->
-  ok = case rpc:call(FmkNode, fmke, Op, Params) of
-         {error, Reason} ->
-           io:format("Error in ~p with params ~p\n", [Op, Params]),
-           {error, Reason};
-         ok -> ok
-       end.
+  run_rpc_op(FmkNode, Op, Params, 0, ?MAX_RETRIES).
+
+run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries) ->
+    io:format("Error calling ~p(~p), tried ~p times\n", [Op, Params, MaxTries]),
+    {error, exceeded_num_tries};
+run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries) ->
+    case rpc:call(FmkNode, fmke, Op, Params) of
+      {error, Reason} ->
+         io:format("Error ~p in ~p with params ~p\n", [Reason, Op, Params]),
+         run_rpc_op(FmkNode, Op, Params, CurrentTry + 1, MaxTries);
+       ok -> ok
+     end.
 
 gen_sequence(Size, Skew, SequenceSize) ->
   Bottom = 1 / (lists:foldl(fun(X, Sum) -> Sum + (1 / math:pow(X, Skew)) end, 0, lists:seq(1, Size))),
