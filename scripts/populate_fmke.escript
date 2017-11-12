@@ -41,7 +41,7 @@ main([Database, ConfigFile, FmkNodeRef]) ->
   io:format("-~p prescriptions~n",[FmkConfig#fmkeconfig.numprescriptions]),
   net_kernel:start([MyNodeName, longnames]),
   erlang:set_cookie(node(), fmke),
-  %% check if fmkeis running
+  %% check if fmke is running and reachable via distributed erlang
   case net_adm:ping(FmkNode) of
     pang ->
       io:format("[Fatal]: Cannot connect to FMKe.\n");
@@ -78,7 +78,7 @@ parallel_create(Name, Amount, Fun) ->
   spawn_workers(self(), NumProcs, Divisions, Fun),
   supervisor_loop(Name, 0, Amount).
 
-spawn_workers(Pid, 0, [], Fun) -> ok;
+spawn_workers(_Pid, 0, [], _Fun) -> ok;
 spawn_workers(Pid, ProcsLeft, [H|T], Fun) ->
   spawn(fun() -> lists:map(fun(Id) -> create(Pid, Id, Fun) end, H) end),
   spawn_workers(Pid, ProcsLeft - 1, T, Fun).
@@ -100,7 +100,7 @@ supervisor_loop(Name, NumOps, Total, {Suc, Err}) ->
           ok
       end,
       supervisor_loop(Name, NumOps + 1, Total, {Suc + 1, Err});
-    {done, {error, Reason}, SeqNumber} ->
+    {done, {error, _Reason}, _SeqNumber} ->
       % io:format("Error creating ~p #~p...~n~p~n", [Name, SeqNumber, Reason]),
       supervisor_loop(Name, NumOps + 1, Total, {Suc, Err + 1})
   end.
