@@ -57,8 +57,8 @@ prescription_operations_test_() ->
 start() ->
     Task = rand:uniform(100),
     Pname = build_generic_op("test_ops_travis_~p@127.0.0.1",[Task]),
-    net_kernel:start([Pname,longnames]),
-    erlang:set_cookie(node(),fmke),
+    {ok, _Pid} = net_kernel:start([Pname, longnames]),
+    true = erlang:set_cookie(Pname, fmke),
     'fmke@127.0.0.1'.
 
 stop(_FmkeNode) ->
