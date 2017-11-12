@@ -18,9 +18,8 @@ start(_StartType, _StartArgs) ->
     InitParams = fmke_config:read_config_file(),
 
     HttpPort = proplists:get_value(http_port, InitParams),
-    DriverType = proplists:get_value(driver_type, InitParams),
+    % Driver = proplists:get_value(driver, InitParams),
 
-    Result = DriverType:init(InitParams),
     Dispatch = cowboy_router:compile([
       {'_', [
         {"/", fmke_http_handler_app, []},
@@ -40,9 +39,11 @@ start(_StartType, _StartArgs) ->
     {ok, _} = cowboy:start_clear(fmke_http_listener, [{port, HttpPort}],
       #{env => #{dispatch => Dispatch}}
     ),
-    Result.
+
+    %%TODO properly initialize app.
+    fmke:start(InitParams).
 
 %%--------------------------------------------------------------------
 stop(_State) ->
-    (fmke_config:get(driver_type)):stop([]),
+    (fmke_config:get(driver)):stop([]),
     cowboy:stop_listener(fmke_http_listener).

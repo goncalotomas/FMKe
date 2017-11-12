@@ -18,7 +18,7 @@
 %%
 %% -------------------------------------------------------------------
 
--module(fmke_gen_kv_driver).
+-module(fmke_gen_simplified_kv_driver).
 -include ("fmke.hrl").
 
 %% Types TODO: refine type defs
@@ -34,7 +34,7 @@
 -type app_record() :: #patient{} | #pharmacy{} | #facility{} | #staff{} | #prescription{}.
 
 %% callbacks
--callback init(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
+-callback start(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
 -callback stop(term()) -> term().
 
 %% Transactions

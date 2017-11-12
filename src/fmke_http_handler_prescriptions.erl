@@ -75,7 +75,7 @@ perform_operation(<<"PUT">>, Req, [{id, BinaryId}], {incomplete, [{drugs, Drugs}
 						ok -> {true, ok};
 						{error, txn_aborted} -> {false, <<"txn_aborted">>};
 						{error, prescription_already_processed} -> {false, <<"prescription_already_processed">>};
-						{error, Reason} -> {false, fmke:error_to_binary(Reason)}
+						{error, Reason} -> {false, list_to_binary(lists:flatten(io_lib:format("~p", [Reason])))}
 				end,
 				fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
 		catch error:ErrReason ->

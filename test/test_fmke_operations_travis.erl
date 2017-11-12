@@ -205,18 +205,18 @@ run_prescription_operations(FmkeNode) ->
     %% assumes that data store already contains basic entities such as patients,
     %% hospitals, doctors and pharmacies.
     %% get unexistant first prescription
-    ?_assertEqual({error,not_found},get_static_prescription(FmkeNode,?STATIC_ID))
+    ?_assertEqual({error,not_found},get_static_prescription(FmkeNode, ?STATIC_ID))
     %% normal create for first prescription
-    ,?_assertEqual(ok,create_static_prescription(FmkeNode,?STATIC_ID,DatePrescribed1,Drugs1))
+    ,?_assertEqual(ok,create_static_prescription(FmkeNode, ?STATIC_ID,DatePrescribed1,Drugs1))
     %% create when record already exists (purposely passing in details of prescription 2...)
-    ,?_assertEqual({error,prescription_id_taken},create_static_prescription(FmkeNode,?STATIC_ID,DatePrescribed2,Drugs2))
+    ,?_assertEqual({error,prescription_id_taken},create_static_prescription(FmkeNode, ?STATIC_ID,DatePrescribed2,Drugs2))
     %% normal get for first prescription
-    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+    ,?_assert(verify_prescription_fields(FmkeNode, prescription,[
       ?STATIC_ID,DatePrescribed1,?UNDEFINED_FIELD,Drugs1,?PRESCRIPTION_NOT_PROCESSED_VALUE
       ]))
     %% check that prescription is present inside each basic entity
     %% check if prescription is inside the patient record
-    ,?_assert(fetch_prescription(FmkeNode,patient,#prescription{
+    ,?_assert(fetch_prescription(FmkeNode, patient, #prescription{
         id = BinStaticId
         ,patient_id = BinStaticId
         ,pharmacy_id = BinStaticId
@@ -227,7 +227,7 @@ run_prescription_operations(FmkeNode) ->
         ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
     }))
     %% check if prescription is inside the pharmacy record
-    ,?_assert(fetch_prescription(FmkeNode,pharmacy,#prescription{
+    ,?_assert(fetch_prescription(FmkeNode, pharmacy, #prescription{
         id = BinStaticId
         ,patient_id = BinStaticId
         ,pharmacy_id = BinStaticId
@@ -238,7 +238,7 @@ run_prescription_operations(FmkeNode) ->
         ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
     }))
     %% check if prescription is inside the staff record
-    ,?_assert(fetch_prescription(FmkeNode,staff,#prescription{
+    ,?_assert(fetch_prescription(FmkeNode, staff, #prescription{
         id = BinStaticId
         ,patient_id = BinStaticId
         ,pharmacy_id = BinStaticId
@@ -248,56 +248,58 @@ run_prescription_operations(FmkeNode) ->
         ,drugs = BinDrugs1
         ,is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE
     }))
-    ,?_assertEqual({error,invalid_update_operation},update_presc_drugs_w_non_valid_op(FmkeNode,remove_drugs,?STATIC_ID,NewDrugs1))
-    ,?_assertEqual(ok,add_static_prescription_drugs(FmkeNode,?STATIC_ID,NewDrugs1))
-    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+    ,?_assertEqual({error,invalid_update_operation},update_presc_drugs_w_non_valid_op(FmkeNode, remove_drugs,?STATIC_ID,NewDrugs1))
+    ,?_assertEqual(ok,add_static_prescription_drugs(FmkeNode, ?STATIC_ID,NewDrugs1))
+    ,?_assert(verify_prescription_fields(FmkeNode, prescription,[
       ?STATIC_ID,DatePrescribed1,?UNDEFINED_FIELD,NewDrugList1,?PRESCRIPTION_NOT_PROCESSED_VALUE
       ]))
-    ,?_assertEqual(ok,process_static_prescription(FmkeNode,?STATIC_ID,DateProcessed1))
-    ,?_assert(verify_prescription_fields(FmkeNode,prescription,[
+    ,?_assertEqual(ok,process_static_prescription(FmkeNode, ?STATIC_ID,DateProcessed1))
+    ,?_assert(verify_prescription_fields(FmkeNode, prescription,[
       ?STATIC_ID,DatePrescribed1,DateProcessed1,NewDrugList1,?PRESCRIPTION_PROCESSED_VALUE
       ]))
-    ,?_assertEqual({error,prescription_already_processed},add_static_prescription_drugs(FmkeNode,?STATIC_ID,NewDrugs1))
-    ,?_assertEqual({error,prescription_already_processed},process_static_prescription(FmkeNode,?STATIC_ID,DateProcessed1))
+    ,?_assertEqual({error,prescription_already_processed},add_static_prescription_drugs(FmkeNode, ?STATIC_ID,NewDrugs1))
+    ,?_assertEqual({error,prescription_already_processed},process_static_prescription(FmkeNode, ?STATIC_ID,DateProcessed1))
     ].
 
-add_static_prescription_drugs(FmkeNode,PrescriptionId,ListDrugs) ->
-    run_rpc_op(FmkeNode,update_prescription_medication,[PrescriptionId,add_drugs,ListDrugs]).
+add_static_prescription_drugs(FmkeNode, PrescriptionId,ListDrugs) ->
+    run_rpc_op(FmkeNode, update_prescription_medication,[PrescriptionId,add_drugs,ListDrugs]).
 
-update_presc_drugs_w_non_valid_op(FmkeNode,Operation,PrescriptionId,ListDrugs) ->
-    run_rpc_op(FmkeNode,update_prescription_medication,[PrescriptionId,Operation,ListDrugs]).
+update_presc_drugs_w_non_valid_op(FmkeNode, Operation,PrescriptionId,ListDrugs) ->
+    run_rpc_op(FmkeNode, update_prescription_medication,[PrescriptionId,Operation,ListDrugs]).
 
-process_static_prescription(FmkeNode,PrescriptionId,DateProcessed) ->
-    run_rpc_op(FmkeNode,process_prescription,[PrescriptionId,DateProcessed]).
+process_static_prescription(FmkeNode, PrescriptionId,DateProcessed) ->
+    run_rpc_op(FmkeNode, process_prescription,[PrescriptionId,DateProcessed]).
 
-fetch_prescription(FmkeNode,patient,ExpectedPrescription) ->
+fetch_prescription(FmkeNode, patient, ExpectedPrescription) ->
     PrescriptionList = (get_static_patient(FmkeNode))#patient.prescriptions,
     look_for_prescription(PrescriptionList,prescription,ExpectedPrescription);
 
-fetch_prescription(FmkeNode,pharmacy,ExpectedPrescription) ->
+fetch_prescription(FmkeNode, pharmacy, ExpectedPrescription) ->
     PrescriptionList = (get_static_pharmacy(FmkeNode))#pharmacy.prescriptions,
     look_for_prescription(PrescriptionList,prescription,ExpectedPrescription);
 
-fetch_prescription(FmkeNode,staff,ExpectedPrescription) ->
+fetch_prescription(FmkeNode, staff, ExpectedPrescription) ->
     PrescriptionList = (get_static_staff(FmkeNode))#staff.prescriptions,
     look_for_prescription(PrescriptionList,prescription,ExpectedPrescription).
 
 look_for_prescription(PrescriptionList,TypePrescriptions,ExpectedPrescription) ->
     Results = lists:map(
         fun(Prescription) ->
-            cmp_presc_fields(TypePrescriptions,Prescription,ExpectedPrescription)
+            %% if database is using normalised model then we're expecting just a list of prescription keys, not objects.
+            PrescriptionKey = gen_key(prescription, binary_to_integer(ExpectedPrescription#prescription.id)),
+            Prescription =:= PrescriptionKey orelse cmp_presc_fields(TypePrescriptions,Prescription,ExpectedPrescription)
         end
     ,PrescriptionList),
     lists:member(true, Results).
 
-verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DatePrescribed) ->
-    verify_prescription_fields(FmkeNode,PrescriptionType,[Id,list_to_binary(DatePrescribed),DateProcessed,Drugs,IsProcessed]);
+verify_prescription_fields(FmkeNode, PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DatePrescribed) ->
+    verify_prescription_fields(FmkeNode, PrescriptionType,[Id,list_to_binary(DatePrescribed),DateProcessed,Drugs,IsProcessed]);
 
-verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DateProcessed) ->
-    verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,list_to_binary(DateProcessed),Drugs,IsProcessed]);
+verify_prescription_fields(FmkeNode, PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) when is_list(DateProcessed) ->
+    verify_prescription_fields(FmkeNode, PrescriptionType,[Id,DatePrescribed,list_to_binary(DateProcessed),Drugs,IsProcessed]);
 
-verify_prescription_fields(FmkeNode,PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) ->
-    DBPrescription = get_static_prescription(FmkeNode,Id),
+verify_prescription_fields(FmkeNode, PrescriptionType,[Id,DatePrescribed,DateProcessed,Drugs,IsProcessed]) ->
+    DBPrescription = get_static_prescription(FmkeNode, Id),
     %% static id is used for the basic entities key
     BinStaticId = integer_to_binary(?STATIC_ID),
     cmp_presc_fields(PrescriptionType,DBPrescription, #prescription{
@@ -325,61 +327,61 @@ cmp_drug_list(List1, List2) ->
     lists:sort(List1) =:= lists:sort(List2).
 
 create_static_patient(FmkeNode) ->
-    run_generic_create_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME,?STATIC_ADDRESS]).
+    run_generic_create_op(FmkeNode, patient,[?STATIC_ID,?STATIC_PATIENT_NAME,?STATIC_ADDRESS]).
 
 create_static_pharmacy(FmkeNode) ->
-    run_generic_create_op(FmkeNode,pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME,?STATIC_ADDRESS]).
+    run_generic_create_op(FmkeNode, pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME,?STATIC_ADDRESS]).
 
 create_static_facility(FmkeNode) ->
-    run_generic_create_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME,?STATIC_ADDRESS,?STATIC_FACILITY_TYPE]).
+    run_generic_create_op(FmkeNode, facility,[?STATIC_ID,?STATIC_FACILITY_NAME,?STATIC_ADDRESS,?STATIC_FACILITY_TYPE]).
 
 create_static_staff(FmkeNode) ->
-    run_generic_create_op(FmkeNode,staff,[?STATIC_ID,?STATIC_STAFF_NAME,?STATIC_ADDRESS,?STATIC_STAFF_SPECIALITY]).
+    run_generic_create_op(FmkeNode, staff,[?STATIC_ID,?STATIC_STAFF_NAME,?STATIC_ADDRESS,?STATIC_STAFF_SPECIALITY]).
 
-create_static_prescription(FmkeNode,Id,Date,Drugs) ->
-    run_generic_create_op(FmkeNode,prescription,[Id,?STATIC_ID,?STATIC_ID,?STATIC_ID,Date,Drugs]).
+create_static_prescription(FmkeNode, Id,Date,Drugs) ->
+    run_generic_create_op(FmkeNode, prescription,[Id,?STATIC_ID,?STATIC_ID,?STATIC_ID,Date,Drugs]).
 
 get_static_patient(FmkeNode) ->
-    run_generic_get_op(FmkeNode,patient).
+    run_generic_get_op(FmkeNode, patient).
 
 get_static_pharmacy(FmkeNode) ->
-    run_generic_get_op(FmkeNode,pharmacy).
+    run_generic_get_op(FmkeNode, pharmacy).
 
 get_static_facility(FmkeNode) ->
-    run_generic_get_op(FmkeNode,facility).
+    run_generic_get_op(FmkeNode, facility).
 
 get_static_staff(FmkeNode) ->
-    run_generic_get_op(FmkeNode,staff).
+    run_generic_get_op(FmkeNode, staff).
 
-get_static_prescription(FmkeNode,Id) ->
-    run_get_op(FmkeNode,prescription,Id).
+get_static_prescription(FmkeNode, Id) ->
+    run_get_op(FmkeNode, prescription,Id).
 
 update_static_patient(FmkeNode) ->
-    run_generic_update_op(FmkeNode,patient,[?STATIC_ID,?STATIC_PATIENT_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
+    run_generic_update_op(FmkeNode, patient,[?STATIC_ID,?STATIC_PATIENT_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
 
 update_static_pharmacy(FmkeNode) ->
-    run_generic_update_op(FmkeNode,pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
+    run_generic_update_op(FmkeNode, pharmacy,[?STATIC_ID,?STATIC_PHARMACY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED]).
 
 update_static_facility(FmkeNode) ->
-    run_generic_update_op(FmkeNode,facility,[?STATIC_ID,?STATIC_FACILITY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_FACILITY_TYPE_UPDATED]).
+    run_generic_update_op(FmkeNode, facility,[?STATIC_ID,?STATIC_FACILITY_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_FACILITY_TYPE_UPDATED]).
 
 update_static_staff(FmkeNode) ->
-    run_generic_update_op(FmkeNode,staff,[?STATIC_ID,?STATIC_STAFF_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_STAFF_SPECIALITY_UPDATED]).
+    run_generic_update_op(FmkeNode, staff,[?STATIC_ID,?STATIC_STAFF_NAME_UPDATED,?STATIC_ADDRESS_UPDATED,?STATIC_STAFF_SPECIALITY_UPDATED]).
 
-run_generic_create_op(FmkeNode,Entity,Args) ->
+run_generic_create_op(FmkeNode, Entity,Args) ->
     OpAtom = build_create_op(Entity),
-    run_rpc_op(FmkeNode,OpAtom,Args).
+    run_rpc_op(FmkeNode, OpAtom,Args).
 
-run_generic_update_op(FmkeNode,Entity,Args) ->
+run_generic_update_op(FmkeNode, Entity,Args) ->
     OpAtom = build_update_op(Entity),
-    run_rpc_op(FmkeNode,OpAtom,Args).
+    run_rpc_op(FmkeNode, OpAtom,Args).
 
-run_generic_get_op(FmkeNode,Entity) ->
-    run_get_op(FmkeNode,Entity,?STATIC_ID).
+run_generic_get_op(FmkeNode, Entity) ->
+    run_get_op(FmkeNode, Entity,?STATIC_ID).
 
-run_get_op(FmkeNode,Entity,Id) ->
+run_get_op(FmkeNode, Entity,Id) ->
     OpAtom = build_get_op(Entity),
-    run_rpc_op(FmkeNode,OpAtom,[Id]).
+    run_rpc_op(FmkeNode, OpAtom,[Id]).
 
 gen_rand_date() ->
     Day = rand:uniform(20)+10,
@@ -411,10 +413,13 @@ build_get_op(Entity) ->
 build_generic_op(List,Args) ->
     list_to_atom(format_list(List,Args)).
 
+gen_key(Entity,Id) ->
+    list_to_binary(format_list("~p_~p", [Entity, Id])).
+
 format_list(List,Args) ->
     lists:flatten(io_lib:format(List,Args)).
 
-run_rpc_op(FmkeNode, Op, Params) ->
-    rpc:block_call(FmkeNode, fmke, Op, Params).
+run_rpc_op(FmkeNode,  Op, Params) ->
+    rpc:block_call(FmkeNode,  fmke, Op, Params).
 
 -endif.

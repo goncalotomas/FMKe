@@ -10,8 +10,10 @@ if [ $1 = "test" ]; then
     else
         ./scripts/run_fmke_operations.sh $2
     fi
+elif [ $1 = "ct" ]; then
+          ./scripts/run_ct_suite.sh $2
 elif [ $1 = "bench" ]; then
-        ./scripts/run_benchmark_short.sh $2
+        ./scripts/run_benchmark.sh $2 $3
 else
     echo "fatal: unknown operation."
     exit 1

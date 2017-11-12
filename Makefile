@@ -7,18 +7,28 @@ attach:
 	./_build/default/rel/fmke/bin/env attach
 
 bench: compile
-	./travis.sh bench antidote
-	./travis.sh bench redis
-	./travis.sh bench riak
+	./travis.sh bench short antidote
+	./travis.sh bench short antidote_norm
+	./travis.sh bench short redis
+	./travis.sh bench short riak
 
 bench-antidote: rel
-	./travis.sh bench antidote
+	./travis.sh bench normal antidote
+
+bench-antidote-norm: rel
+	./travis.sh bench normal antidote_norm
+
+bench-results:
+	Rscript --vanilla _build/test/lib/lasp_bench/priv/summary.r -i tests/current
+
+bench-antidote-norm: rel
+	./travis.sh bench antidote_norm
 
 bench-redis: rel
-	./travis.sh bench redis
+	./travis.sh bench normal redis
 
 bench-riak: rel
-	./travis.sh bench riak
+	./travis.sh bench normal riak
 
 compile:
 	${REBAR} as test compile
@@ -28,23 +38,37 @@ console: rel
 	./_build/default/rel/fmke/bin/env console
 
 ct: all
-	./scripts/config/change_db.sh antidote
-	./scripts/start_data_store.sh antidote
-	./scripts/start_fmke.sh
-	rebar3 ct
-	./scripts/stop_fmke.sh
-	./scripts/stop_data_store.sh antidote
+	./travis.sh ct antidote
+	./travis.sh ct antidote_norm
+	./travis.sh ct redis
+	./travis.sh ct riak
+
+ct-antidote: rel
+	./travis.sh ct antidote
+
+ct-antidote-norm: rel
+	./travis.sh ct antidote_norm
+
+ct-redis: rel
+	./travis.sh ct redis
+
+ct-riak: rel
+	./travis.sh ct riak
 
 dialyzer:
 	${REBAR} dialyzer
 
 eunit: compile
 	./travis.sh test antidote
+	./travis.sh test antidote_norm
 	./travis.sh test redis
 	./travis.sh test riak
 
 eunit-antidote: compile
 	./travis.sh test antidote
+
+eunit-antidote-norm: compile
+	./travis.sh test antidote_norm
 
 eunit-redis: compile
 	./travis.sh test redis
@@ -119,10 +143,10 @@ test-multiple-releases:
 	./scripts/config/change_http_port.sh 9090
 	./scripts/config/change_db.sh antidote
 	${REBAR} release -n fmke
-	${REBAR} release -n fmke_test
 	./_build/default/rel/fmke/bin/env start
 	sleep 10
 	./scripts/config/change_http_port.sh 9190
+	${REBAR} release -n fmke_test
 	./_build/default/rel/fmke_test/bin/env_test start
 	sleep 10
 	./scripts/populate_fmke.escript "antidote" "../config/benchmark_short.config" "fmke_test@127.0.0.1"

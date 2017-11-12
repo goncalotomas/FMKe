@@ -1,3 +1,14 @@
+%% ---------------------------------------------------------------------------------------------------------------------
+%% This module is responsible for maintaining application state using the fmke_mochiglobal module, as well as
+%% reading the configuration file and determining a series of parameters to connect to the target database.
+%%
+%% The following parameters are read from the config file:
+%% - http_port (determines the HTTP port where FMKe will listen for HTTP requests)
+%% - connection_pool_size (determines the number of connections that FMKe will keep open to the target database)
+%% - database_addresses (a list of IP addresses to which FMKe will connect)
+%% - database_ports (a list of port numbers that matches the addresses provided above)
+%% - target_database (the name of the target database, provided to load the correct database driver)
+%% ---------------------------------------------------------------------------------------------------------------------
 -module (fmke_config).
 -include ("fmke.hrl").
 -export ([
@@ -35,19 +46,19 @@ read_config_file() ->
     {ok, ParsedPortList} = parse_db_port_list(DbPortList),
     true = supported_db(TargetDatabase),
 
-    {DriverType, DriverImpl} = get_driver_setup(TargetDatabase),
+    {Driver, DriverImpl} = get_driver_setup(TargetDatabase),
 
     %% set application variables from config file
     set(http_port,HttpPort),
     set(connection_pool_size,ConnPoolSize),
-    set(driver_type,DriverType),
-    set(driver_implementation,DriverImpl),
+    set(driver,Driver),
+    set(simplified_driver,DriverImpl),
     set(db_conn_hostnames,ParsedAddressList),
     set(db_conn_ports,ParsedPortList),
 
     [
-        {driver_type, DriverType},
-        {driver_implementation, DriverImpl},
+        {driver, Driver},
+        {simplified_driver, DriverImpl},
         {db_conn_hostnames, ParsedAddressList},
         {db_conn_ports, ParsedPortList},
         {db_conn_pool_size, ConnPoolSize},
@@ -62,15 +73,17 @@ get_driver_setup(Database) when is_list(Database) ->
     get_driver_setup(list_to_atom(Database));
 
 get_driver_setup(Database) when is_atom(Database) ->
-    case lists:member(Database, ?SUPPORTED_KVS) of
-        true -> {fmke_kv_driver, list_to_atom("fmke_db_driver_" ++ atom_to_list(Database))};
-        false ->
-            case is_alias_of_database(Database) of
-                {true,ValidDbHandle} ->
-                    {fmke_kv_driver, list_to_atom("fmke_db_driver_" ++ atom_to_list(ValidDbHandle))};
-                false ->
-                    {error, not_supported, Database}
-            end
+    %% TODO maybe I should find a better way to do this... later.
+    DriverSetups = #{
+      antidote => {fmke_kv_driver, fmke_db_driver_antidote},
+      antidote_norm => {fmke_db_driver_antidote_norm, undefined},
+      redis => {fmke_kv_driver, fmke_db_driver_redis},
+      riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
+      riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv}
+    },
+    case maps:find(Database, DriverSetups) of
+        {ok, Value} -> Value;
+        error -> {error, not_supported, Database}
     end.
 
 is_alias_of_database(riak) ->
