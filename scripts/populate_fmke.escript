@@ -41,20 +41,22 @@ main([Database, ConfigFile, FmkNodeRef]) ->
   io:format("-~p prescriptions~n",[FmkConfig#fmkeconfig.numprescriptions]),
   net_kernel:start([MyNodeName, longnames]),
   erlang:set_cookie(node(), fmke),
-  %% check if fmkeis running
+  %% check if fmke is running and reachable via distributed erlang
   case net_adm:ping(FmkNode) of
     pang ->
-      io:format("Cannot connect to FMKe.\n", []);
+      io:format("[Fatal]: Cannot connect to FMKe.\n");
     pong ->
-      ok
-  end,
-  io:format("Populating ~p...\n", [Database]),
-  add_patients(FmkNode, FmkConfig#fmkeconfig.numpatients),
-  add_pharmacies(FmkNode, FmkConfig#fmkeconfig.numpharmacies),
-  add_facilities(FmkNode, FmkConfig#fmkeconfig.numfacilities),
-  add_staff(FmkNode, FmkConfig#fmkeconfig.numstaff),
-  add_prescription(FmkNode, FmkConfig#fmkeconfig.numprescriptions, FmkConfig),
-  io:format("Successfully populated ~p.\n", [Database]);
+      io:format("Populating ~p...\n", [Database]),
+      case populate_db(FmkNode, FmkConfig) of
+        {ok, 0, _} ->
+          io:format("Population unsuccessful, please check if the database already contains records from previous benchmarks.~n"),
+          halt(1);
+        {ok, NumOkOps, NumUnsuccessfulOps} ->
+          io:format("Successfully populated ~p (~p insertions out of ~p).~n",
+          [Database, NumOkOps, NumOkOps+NumUnsuccessfulOps])
+      end
+  end;
+
 main(_) ->
   usage().
 
@@ -62,86 +64,106 @@ usage() ->
   io:format("usage: data_store config_file fmke_node\n"),
   halt(1).
 
+populate_db(FmkNode, FmkConfig) ->
+  {ok, S1, E1} = add_patients(FmkNode, FmkConfig#fmkeconfig.numpatients),
+  {ok, S2, E2} = add_pharmacies(FmkNode, FmkConfig#fmkeconfig.numpharmacies),
+  {ok, S3, E3} = add_facilities(FmkNode, FmkConfig#fmkeconfig.numfacilities),
+  {ok, S4, E4} = add_staff(FmkNode, FmkConfig#fmkeconfig.numstaff),
+  {ok, S5, E5} = add_prescriptions(FmkNode, FmkConfig#fmkeconfig.numprescriptions, FmkConfig),
+  {ok, S1 + S2 + S3 + S4 + S5, E1 + E2 + E3 + E4 + E5}.
 
-parallel_create(Name, First, Last, NumThreads, Fun) ->
-  Count = 1 + Last - First,
-  PerDivision = Count div NumThreads,
-  NumDivisions = Count div PerDivision,
-  Divisions = [{First + I * PerDivision, case I + 1 of NumDivisions -> Last; _ ->
-    First + (I + 1) * PerDivision - 1 end} || I <- lists:seq(0, NumDivisions - 1)],
-  [{F1, L1} | OtherDivisions] = Divisions,
-  parallel_create_h(Name, F1, L1, self(), Fun),
-  [parallel_create_h(F, L, self(), Fun) || {F, L} <- OtherDivisions],
-  [receive {done, F, L} -> ok end || {F, L} <- Divisions],
-  ok.
+parallel_create(Name, Amount, Fun) ->
+  NumProcs = ?NUMTHREADS,
+  Divisions = calculate_divisions(Amount, NumProcs),
+  spawn_workers(self(), NumProcs, Divisions, Fun),
+  supervisor_loop(Name, 0, Amount).
 
-parallel_create_h(Name, First, Last, Pid, Fun) ->
-  Count = (1 + Last - First),
-  case Count > 0 of
-    false -> ok;
-    true ->
-      spawn(
-        fun() ->
-          Fun2 =
-            fun(I) ->
-              case (I - First) rem max(1, Count div 100) of
-                0 ->
-                  io:format("Creating ~p ~p%~n", [Name, 100 * (I - First) / Count]);
-                _ ->
-                  ok
-              end,
-              Fun(I)
-            end,
-          lists:map(Fun2, lists:seq(First, Last)),
-          Pid ! {done, First, Last}
-        end)
+spawn_workers(_Pid, 0, [], _Fun) -> ok;
+spawn_workers(Pid, ProcsLeft, [H|T], Fun) ->
+  spawn(fun() -> lists:map(fun(Id) -> create(Pid, Id, Fun) end, H) end),
+  spawn_workers(Pid, ProcsLeft - 1, T, Fun).
+
+supervisor_loop(Name, NumOps, Total) ->
+  supervisor_loop(Name, NumOps, Total, {0, 0}).
+
+supervisor_loop(_Name, Total, Total, {Suc, Err}) -> {ok, Suc, Err};
+supervisor_loop(Name, NumOps, Total, {Suc, Err}) ->
+  receive
+    {done, ok, SeqNumber} ->
+      CurrentProgress = 100 * SeqNumber / Total,
+      CurrentProgTrunc = trunc(CurrentProgress),
+      case CurrentProgress == CurrentProgTrunc andalso CurrentProgTrunc rem 10 =:= 0 of
+        true ->
+          io:format("Creating ~p... ~p%~n", [Name, CurrentProgTrunc]),
+          ok;
+        false ->
+          ok
+      end,
+      supervisor_loop(Name, NumOps + 1, Total, {Suc + 1, Err});
+    {done, {error, _Reason}, _SeqNumber} ->
+      % io:format("Error creating ~p #~p...~n~p~n", [Name, SeqNumber, Reason]),
+      supervisor_loop(Name, NumOps + 1, Total, {Suc, Err + 1})
   end.
 
-parallel_create_h(First, Last, Pid, Fun) ->
-  spawn(
-    fun() ->
-      lists:map(Fun, lists:seq(First, Last)),
-      Pid ! {done, First, Last}
-    end).
+create(Pid, Id, Fun) ->
+  Result = Fun(Id),
+  Pid ! {done, Result, Id}.
 
+calculate_divisions(Amount, NumProcs) ->
+  AmountPerProc = Amount div NumProcs,
+  lists:map(
+    fun(ProcNum) ->
+      Start = (ProcNum-1) * AmountPerProc + 1,
+      End = case ProcNum =:= NumProcs of
+        true -> Amount;
+        false -> Start + AmountPerProc - 1
+      end,
+      lists:seq(Start, End)
+    end,
+    lists:seq(1, NumProcs)).
 
 
 add_pharmacies(FmkNode, Amount) ->
-  parallel_create(pharmacies, 1, Amount, ?NUMTHREADS,
+  parallel_create(pharmacies, Amount,
     fun(I) ->
       run_op(FmkNode, create_pharmacy, [I, gen_random_name(), gen_random_address()])
     end).
 
 add_facilities(FmkNode, Amount) ->
-  parallel_create(facilities, 1, Amount, ?NUMTHREADS,
+  parallel_create(facilities, Amount,
     fun(I) ->
       run_op(FmkNode, create_facility, [I, gen_random_name(), gen_random_address(), gen_random_type()])
     end).
 
 add_patients(FmkNode, Amount) ->
-  parallel_create(patient, 1, Amount, 10,
+  parallel_create(patient, Amount,
     fun(I) ->
       run_op(FmkNode, create_patient, [I, gen_random_name(), gen_random_address()])
     end).
 
 add_staff(FmkNode, Amount) ->
-  parallel_create(staff, 1, Amount, ?NUMTHREADS,
+  parallel_create(staff, Amount,
     fun(I) ->
       run_op(FmkNode, create_staff, [I, gen_random_name(), gen_random_address(), gen_random_type()])
     end).
 
-add_prescription(_FmkNode, 0, _FmkConfig) -> ok;
-add_prescription(FmkNode, Amount, FmkConfig) when Amount > 0 ->
+add_prescriptions(_FmkNode, 0, _FmkConfig) -> ok;
+add_prescriptions(FmkNode, Amount, FmkConfig) when Amount > 0 ->
+  io:format("Creating prescriptions...~n"),
   ListPatientIds = gen_sequence(FmkConfig#fmkeconfig.numpatients, ?ZIPF_SKEW, FmkConfig#fmkeconfig.numprescriptions),
-  add_prescription_rec(FmkNode, Amount, ListPatientIds, FmkConfig).
+  add_prescription_rec(FmkNode, Amount, ListPatientIds, FmkConfig, {0, 0}).
 
-add_prescription_rec(_FmkNode, 0, _ListPatients, _FmkConfig) -> ok;
-add_prescription_rec(FmkNode, PrescriptionId, ListPatientIds, FmkConfig) ->
+add_prescription_rec(_FmkNode, 0, _ListPatients, _FmkConfig, {Suc, Err}) -> {ok, Suc, Err};
+add_prescription_rec(FmkNode, PrescriptionId, ListPatientIds, FmkConfig, {Suc, Err}) ->
   [CurrentId | Tail] = ListPatientIds,
   PharmacyId = rand:uniform(FmkConfig#fmkeconfig.numpharmacies),
   PrescriberId = rand:uniform(FmkConfig#fmkeconfig.numstaff),
-  run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()]),
-  add_prescription_rec(FmkNode, PrescriptionId - 1, Tail, FmkConfig).
+  Result = run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()]),
+  {Suc2, Err2} = case Result of
+    ok -> {Suc + 1, Err};
+    {error, _Reason} -> {Suc, Err + 1}
+  end,
+  add_prescription_rec(FmkNode, PrescriptionId - 1, Tail, FmkConfig, {Suc2, Err2}).
 
 run_op(FmkNode, create_pharmacy, Params) ->
   [_Id, _Name, _Address] = Params,
@@ -164,13 +186,15 @@ run_rpc_op(FmkNode, Op, Params) ->
 
 run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries) ->
     io:format("Error calling ~p(~p), tried ~p times\n", [Op, Params, MaxTries]),
-    {error, exceeded_num_tries};
+    {error, exceeded_num_retries};
 run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries) ->
     case rpc:call(FmkNode, fmke, Op, Params) of
+      {badrpc,timeout} ->
+        run_rpc_op(FmkNode, Op, Params, CurrentTry + 1, MaxTries);
       {error, Reason} ->
-         io:format("Error ~p in ~p with params ~p\n", [Reason, Op, Params]),
-         run_rpc_op(FmkNode, Op, Params, CurrentTry + 1, MaxTries);
-       ok -> ok
+        % io:format("Error ~p in ~p with params ~p\n", [Reason, Op, Params]),
+        {error, Reason};
+      ok -> ok
      end.
 
 gen_sequence(Size, Skew, SequenceSize) ->
