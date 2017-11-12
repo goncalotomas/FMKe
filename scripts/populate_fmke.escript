@@ -49,7 +49,7 @@ main([Database, ConfigFile, FmkNodeRef]) ->
       io:format("Populating ~p...\n", [Database]),
       case populate_db(FmkNode, FmkConfig) of
         {ok, 0, _} ->
-          io:format("Population unsuccessful, please check connectivity to the FMKe server and if the database already contains records from previous benchmarks.~n"),
+          io:format("Population unsuccessful, please check if the database already contains records from previous benchmarks.~n"),
           halt(1);
         {ok, NumOkOps, NumUnsuccessfulOps} ->
           io:format("Successfully populated ~p (~p insertions out of ~p).~n",
