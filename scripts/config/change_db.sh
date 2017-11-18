@@ -19,12 +19,6 @@ fi
 TARGETDB=$1
 
 ./scripts/config/set_param.sh "target_database" $TARGETDB
-if [[ $TARGETDB = "antidote" || $TARGETDB = "antidote_norm" ]]; then
-    ./scripts/config/change_db_ports.sh "[8087]"
-elif [[ $TARGETDB = "redis" ]]; then
-    ./scripts/config/change_db_ports.sh "[6379]"
-elif [[ $TARGETDB = "riak" ]]; then
-    ./scripts/config/change_db_ports.sh "[8087]"
+if [[ $? -eq 0 ]]; then
+  echo "success"
 fi
-
-echo "success"

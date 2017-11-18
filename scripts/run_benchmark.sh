@@ -10,6 +10,7 @@ white="\033[37m"
 
 printf "$green> Setting up FMKe to benchmark $2...$reset\n"
 ./scripts/config/change_db.sh $2
+./scripts/config/change_db_ports.sh $2
 make rel
 ./scripts/start_data_store.sh $2
 ./scripts/start_fmke.sh
