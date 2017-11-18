@@ -11,6 +11,7 @@ white="\033[37m"
 echo ""
 printf "$cyan===> Running Common Test unit tests with $1 back end...$reset\n"
 ./scripts/config/change_db.sh $1
+./scripts/config/change_db_ports $1
 ./scripts/start_data_store.sh $1
 printf "$cyan===> Generating FMKe release...$reset\n"
 make rel

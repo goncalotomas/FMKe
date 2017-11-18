@@ -142,6 +142,7 @@ test-multiple-releases:
 	./scripts/start_data_store.sh antidote
 	./scripts/config/change_http_port.sh 9090
 	./scripts/config/change_db.sh antidote
+	./scripts/config/change_db_ports.sh antidote
 	${REBAR} release -n fmke
 	./_build/default/rel/fmke/bin/env start
 	sleep 10
