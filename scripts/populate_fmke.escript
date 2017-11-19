@@ -14,48 +14,11 @@
   numprescriptions
 }).
 
-main([Database, ConfigFile, FmkNodeRef]) ->
-  io:format("Running population script with ~p backend.~n",[Database]),
-  {ok, Cwd} = file:get_cwd(),
-  Filename = Cwd ++ "/config/" ++ ConfigFile,
-  io:format("Reading configuration file from ~p...~n",[Filename]),
-  FmkNode = list_to_atom(FmkNodeRef),
-  io:format("Sending FMKe population ops to ~p.\n", [FmkNode]),
-  {ok, FmkConfigProps} = file:consult(Filename),
-  FmkConfig = #fmkeconfig{
-    numpatients = proplists:get_value(numpatients, FmkConfigProps),
-    numpharmacies = proplists:get_value(numpharmacies, FmkConfigProps),
-    numfacilities = proplists:get_value(numfacilities, FmkConfigProps),
-    numstaff = proplists:get_value(numstaff, FmkConfigProps),
-    numprescriptions = proplists:get_value(numprescriptions, FmkConfigProps)
-  },
+main([Database, ConfigFile, Node | []]) ->
+  populate(Database, ConfigFile, [Node]);
 
-  MyNodeName = "fmke_populator@127.0.0.1",
-
-  io:format("Node name set to ~p.\n", [MyNodeName]),
-  io:format("The population script is going to create the following entities:~n",[]),
-  io:format("-~p patients~n",[FmkConfig#fmkeconfig.numpatients]),
-  io:format("-~p pharmacies~n",[FmkConfig#fmkeconfig.numpharmacies]),
-  io:format("-~p hospitals~n",[FmkConfig#fmkeconfig.numfacilities]),
-  io:format("-~p doctors~n",[FmkConfig#fmkeconfig.numstaff]),
-  io:format("-~p prescriptions~n",[FmkConfig#fmkeconfig.numprescriptions]),
-  net_kernel:start([MyNodeName, longnames]),
-  erlang:set_cookie(node(), fmke),
-  %% check if fmke is running and reachable via distributed erlang
-  case net_adm:ping(FmkNode) of
-    pang ->
-      io:format("[Fatal]: Cannot connect to FMKe.\n");
-    pong ->
-      io:format("Populating ~p...\n", [Database]),
-      case populate_db(FmkNode, FmkConfig) of
-        {ok, 0, _} ->
-          io:format("Population unsuccessful, please check if the database already contains records from previous benchmarks.~n"),
-          halt(1);
-        {ok, NumOkOps, NumUnsuccessfulOps} ->
-          io:format("Successfully populated ~p (~p insertions out of ~p).~n",
-          [Database, NumOkOps, NumOkOps+NumUnsuccessfulOps])
-      end
-  end;
+main([Database, ConfigFile | Nodes = [_H|_T]]) ->
+  populate(Database, ConfigFile, Nodes);
 
 main(_) ->
   usage().
@@ -64,12 +27,62 @@ usage() ->
   io:format("usage: data_store config_file fmke_node\n"),
   halt(1).
 
-populate_db(FmkNode, FmkConfig) ->
-  {ok, S1, E1} = add_patients(FmkNode, FmkConfig#fmkeconfig.numpatients),
-  {ok, S2, E2} = add_pharmacies(FmkNode, FmkConfig#fmkeconfig.numpharmacies),
-  {ok, S3, E3} = add_facilities(FmkNode, FmkConfig#fmkeconfig.numfacilities),
-  {ok, S4, E4} = add_staff(FmkNode, FmkConfig#fmkeconfig.numstaff),
-  {ok, S5, E5} = add_prescriptions(FmkNode, FmkConfig#fmkeconfig.numprescriptions, FmkConfig),
+populate(Database, ConfigFile, FMKeNodes) ->
+  io:format("Running population script with ~p backend.~n",[Database]),
+  {ok, Cwd} = file:get_cwd(),
+  Filename = Cwd ++ "/config/" ++ ConfigFile,
+  io:format("Reading configuration file from ~p...~n",[Filename]),
+  Nodes = lists:map(fun(Node) -> list_to_atom(Node) end, FMKeNodes),
+  io:format("Sending FMKe population ops to the following nodes:~n~p~n", [Nodes]),
+  {ok, ConfigProps} = file:consult(Filename),
+  Config = #fmkeconfig{
+    numpatients = proplists:get_value(numpatients, ConfigProps),
+    numpharmacies = proplists:get_value(numpharmacies, ConfigProps),
+    numfacilities = proplists:get_value(numfacilities, ConfigProps),
+    numstaff = proplists:get_value(numstaff, ConfigProps),
+    numprescriptions = proplists:get_value(numprescriptions, ConfigProps)
+  },
+
+  MyNodeName = "fmke_populator@127.0.0.1",
+
+  io:format("Node name set to ~p.\n", [MyNodeName]),
+  io:format("The population script is going to create the following entities:~n",[]),
+  io:format("-~p patients~n",[Config#fmkeconfig.numpatients]),
+  io:format("-~p pharmacies~n",[Config#fmkeconfig.numpharmacies]),
+  io:format("-~p hospitals~n",[Config#fmkeconfig.numfacilities]),
+  io:format("-~p doctors~n",[Config#fmkeconfig.numstaff]),
+  io:format("-~p prescriptions~n",[Config#fmkeconfig.numprescriptions]),
+  net_kernel:start([MyNodeName, longnames]),
+  erlang:set_cookie(node(), fmke),
+  %% check if all nodes are running and reachable via distributed erlang
+  case multi_ping(Nodes) of
+    pang ->
+      io:format("[Fatal]: Cannot connect to FMKe.\n");
+    pong ->
+      io:format("Populating ~p...\n", [Database]),
+      case populate_db(Nodes, Config) of
+        {ok, 0, _} ->
+          io:format("Population unsuccessful, please check if the database already contains records from previous benchmarks.~n"),
+          halt(1);
+        {ok, NumOkOps, NumUnsuccessfulOps} ->
+          io:format("Successfully populated ~p (~p insertions out of ~p).~n",
+          [Database, NumOkOps, NumOkOps+NumUnsuccessfulOps])
+      end
+  end.
+
+multi_ping([]) -> pong;
+multi_ping([H|T]) ->
+  case net_adm:ping(H) of
+    pang -> pang;
+    pong -> multi_ping(T)
+  end.
+
+populate_db(Nodes, Config) ->
+  {ok, S1, E1} = add_patients(Nodes, Config#fmkeconfig.numpatients),
+  {ok, S2, E2} = add_pharmacies(Nodes, Config#fmkeconfig.numpharmacies),
+  {ok, S3, E3} = add_facilities(Nodes, Config#fmkeconfig.numfacilities),
+  {ok, S4, E4} = add_staff(Nodes, Config#fmkeconfig.numstaff),
+  {ok, S5, E5} = add_prescriptions(Nodes, Config#fmkeconfig.numprescriptions, Config),
   {ok, S1 + S2 + S3 + S4 + S5, E1 + E2 + E3 + E4 + E5}.
 
 parallel_create(Name, Amount, Fun) ->
@@ -89,8 +102,8 @@ supervisor_loop(Name, NumOps, Total) ->
 supervisor_loop(_Name, Total, Total, {Suc, Err}) -> {ok, Suc, Err};
 supervisor_loop(Name, NumOps, Total, {Suc, Err}) ->
   receive
-    {done, ok, SeqNumber} ->
-      CurrentProgress = 100 * SeqNumber / Total,
+    {done, ok, _SeqNumber} ->
+      CurrentProgress = 100 * (NumOps + 1) / Total,
       CurrentProgTrunc = trunc(CurrentProgress),
       case CurrentProgress == CurrentProgTrunc andalso CurrentProgTrunc rem 10 =:= 0 of
         true ->
@@ -122,48 +135,52 @@ calculate_divisions(Amount, NumProcs) ->
     end,
     lists:seq(1, NumProcs)).
 
-
-add_pharmacies(FmkNode, Amount) ->
+add_pharmacies(Nodes, Amount) ->
   parallel_create(pharmacies, Amount,
     fun(I) ->
-      run_op(FmkNode, create_pharmacy, [I, gen_random_name(), gen_random_address()])
+      Node = lists:nth(I rem length(Nodes) + 1, Nodes),
+      run_op(Node, create_pharmacy, [I, gen_random_name(), gen_random_address()])
     end).
 
-add_facilities(FmkNode, Amount) ->
+add_facilities(Nodes, Amount) ->
   parallel_create(facilities, Amount,
     fun(I) ->
-      run_op(FmkNode, create_facility, [I, gen_random_name(), gen_random_address(), gen_random_type()])
+      Node = lists:nth(I rem length(Nodes) + 1, Nodes),
+      run_op(Node, create_facility, [I, gen_random_name(), gen_random_address(), gen_random_type()])
     end).
 
-add_patients(FmkNode, Amount) ->
-  parallel_create(patient, Amount,
+add_patients(Nodes, Amount) ->
+  parallel_create(patients, Amount,
     fun(I) ->
-      run_op(FmkNode, create_patient, [I, gen_random_name(), gen_random_address()])
+      Node = lists:nth(I rem length(Nodes) + 1, Nodes),
+      run_op(Node, create_patient, [I, gen_random_name(), gen_random_address()])
     end).
 
-add_staff(FmkNode, Amount) ->
+add_staff(Nodes, Amount) ->
   parallel_create(staff, Amount,
     fun(I) ->
-      run_op(FmkNode, create_staff, [I, gen_random_name(), gen_random_address(), gen_random_type()])
+      Node = lists:nth(I rem length(Nodes) + 1, Nodes),
+      run_op(Node, create_staff, [I, gen_random_name(), gen_random_address(), gen_random_type()])
     end).
 
-add_prescriptions(_FmkNode, 0, _FmkConfig) -> ok;
-add_prescriptions(FmkNode, Amount, FmkConfig) when Amount > 0 ->
+add_prescriptions(_Nodes, 0, _Config) -> ok;
+add_prescriptions(Nodes, Amount, Config) when Amount > 0 ->
   io:format("Creating prescriptions...~n"),
-  ListPatientIds = gen_sequence(FmkConfig#fmkeconfig.numpatients, ?ZIPF_SKEW, FmkConfig#fmkeconfig.numprescriptions),
-  add_prescription_rec(FmkNode, Amount, ListPatientIds, FmkConfig, {0, 0}).
+  ListPatientIds = gen_sequence(Config#fmkeconfig.numpatients, ?ZIPF_SKEW, Config#fmkeconfig.numprescriptions),
+  add_prescription_rec(Nodes, Amount, ListPatientIds, Config, {0, 0}).
 
-add_prescription_rec(_FmkNode, 0, _ListPatients, _FmkConfig, {Suc, Err}) -> {ok, Suc, Err};
-add_prescription_rec(FmkNode, PrescriptionId, ListPatientIds, FmkConfig, {Suc, Err}) ->
+add_prescription_rec(_Nodes, 0, _PatientIds, _Config, {Suc, Err}) -> {ok, Suc, Err};
+add_prescription_rec(Nodes, PrescriptionId, ListPatientIds, FmkConfig, {Suc, Err}) ->
   [CurrentId | Tail] = ListPatientIds,
   PharmacyId = rand:uniform(FmkConfig#fmkeconfig.numpharmacies),
   PrescriberId = rand:uniform(FmkConfig#fmkeconfig.numstaff),
-  Result = run_op(FmkNode, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()]),
+  Node = lists:nth(PrescriptionId rem length(Nodes) + 1, Nodes),
+  Result = run_op(Node, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()]),
   {Suc2, Err2} = case Result of
     ok -> {Suc + 1, Err};
     {error, _Reason} -> {Suc, Err + 1}
   end,
-  add_prescription_rec(FmkNode, PrescriptionId - 1, Tail, FmkConfig, {Suc2, Err2}).
+  add_prescription_rec(Nodes, PrescriptionId - 1, Tail, FmkConfig, {Suc2, Err2}).
 
 run_op(FmkNode, create_pharmacy, Params) ->
   [_Id, _Name, _Address] = Params,
