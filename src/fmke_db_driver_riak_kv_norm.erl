@@ -1,0 +1,674 @@
+%% ---------------------------------------------------------------------------------------------------------------------
+%% Database driver for Riak KV, featuring a normalized data model (no CRDT nesting).
+%% ---------------------------------------------------------------------------------------------------------------------
+-module (fmke_db_driver_riak_kv_norm).
+
+-behaviour (fmke_gen_driver).
+
+-include ("fmke.hrl").
+-include ("fmk_kv.hrl").
+
+-export([
+  start/1,
+  stop/1,
+  create_patient/3,
+  create_pharmacy/3,
+  create_facility/4,
+  create_staff/4,
+  create_prescription/6,
+  create_event/5,
+  create_treatment/5,
+  create_treatment/6,
+  get_event_by_id/1,
+  get_facility_by_id/1,
+  get_patient_by_id/1,
+  get_patient_by_id/2,
+  get_pharmacy_by_id/1,
+  get_pharmacy_by_id/2,
+  get_processed_pharmacy_prescriptions/1,
+  get_pharmacy_prescriptions/1,
+  get_prescription_by_id/1,
+  get_prescription_by_id/2,
+  get_prescription_medication/1,
+  get_staff_by_id/1,
+  get_staff_by_id/2,
+  get_staff_prescriptions/1,
+  get_staff_treatments/1,
+  get_treatment_by_id/1,
+  process_prescription/2,
+  update_patient_details/3,
+  update_pharmacy_details/3,
+  update_facility_details/4,
+  update_staff_details/4,
+  update_prescription_medication/3
+  , error_to_binary/1
+]).
+
+start(Params) ->
+    case fmke_sup:start_link() of
+       {ok, Pid} -> start_conn_pool(Pid, Params);
+       _Error -> _Error
+    end.
+
+start_conn_pool(Pid, Params) ->
+    Hostnames = proplists:get_value(db_conn_hostnames, Params),
+    Ports = proplists:get_value(db_conn_ports, Params),
+    ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
+    {ok,_} = fmke_db_conn_pool:start([
+        {db_conn_hostnames, Hostnames},
+        {db_conn_ports, Ports},
+        {db_conn_module, riakc_pb_socket},
+        {db_conn_pool_size, ConnPoolSize}
+    ]),
+    {ok,Pid}.
+
+stop(_) ->
+  ok.
+
+get_riak_props(Entity, Id) when is_atom(Entity), is_integer(Id) ->
+    BucketType = get_bucket_type(Entity),
+    BucketName = get_bucket(Entity),
+    Key = get_key(Entity, Id),
+    {Key, {BucketType, BucketName}}.
+
+get_bucket_type(_Entity) -> <<"maps">>.
+
+get_bucket(event) -> <<"events">>;
+get_bucket(facility) -> <<"facilities">>;
+get_bucket(patient) -> <<"patients">>;
+get_bucket(pharmacy) -> <<"pharmacies">>;
+get_bucket(prescription) -> <<"prescriptions">>;
+get_bucket(staff) -> <<"staff">>;
+get_bucket(treatment) -> <<"treatments">>.
+
+create_if_not_exists(Entity, Fields) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = create_if_not_exists(Pid, Entity, Fields),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+create_if_not_exists(Pid, Entity, Fields) ->
+    Id = hd(Fields),
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    case check_key(Pid, Key, BucketType, BucketName) of
+        taken ->
+            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))};
+        free ->
+            LocalObject = gen_entity(Entity, Fields),
+            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
+    end.
+
+%% Does kind of the opposite of create_if_not_exists/2
+update_if_already_exists(Entity, Fields) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = update_if_already_exists(Pid, Entity, Fields),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+update_if_already_exists(Pid, Entity, Fields) ->
+    Id = hd(Fields),
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    Result =
+      case check_key(Pid, Key, BucketType, BucketName) of
+        free ->
+            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p",[Entity])))};
+        taken ->
+            EntityUpdate = gen_entity(Entity,Fields),
+            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(EntityUpdate))
+      end,
+    Result.
+
+%% Checks if an entity exists
+check_key(Pid, Key, BucketType, BucketName) ->
+  case riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key) of
+    {error, {notfound, _Type}} -> free;
+    {ok, _Map} -> taken
+  end.
+
+get_key(Entity,Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
+
+gen_entity(patient, [Id, Name, Address]) ->
+    Map = riakc_map:new(),
+    Map1 = riakc_map:update({?PATIENT_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(Id)), R) end,
+                        Map),
+    Map2 = riakc_map:update({?PATIENT_NAME_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Name), R) end,
+                        Map1),
+    Map3 = riakc_map:update({?PATIENT_ADDRESS_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Address), R) end,
+                        Map2),
+    Map3;
+gen_entity(pharmacy, [Id, Name, Address]) ->
+    Map = riakc_map:new(),
+    Map1 = riakc_map:update({?PHARMACY_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(Id)), R) end,
+                        Map),
+    Map2 = riakc_map:update({?PHARMACY_NAME_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Name), R) end,
+                        Map1),
+    Map3 = riakc_map:update({?PHARMACY_ADDRESS_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Address), R) end,
+                        Map2),
+    Map3;
+gen_entity(facility, [Id, Name, Address, Type]) ->
+    Map = riakc_map:new(),
+    Map1 = riakc_map:update({?FACILITY_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(Id)), R) end,
+                        Map),
+    Map2 = riakc_map:update({?FACILITY_NAME_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Name), R) end,
+                        Map1),
+    Map3 = riakc_map:update({?FACILITY_ADDRESS_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Address), R) end,
+                        Map2),
+    Map4 = riakc_map:update({?FACILITY_TYPE_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Type), R) end,
+                        Map3),
+    Map4;
+gen_entity(prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]) ->
+    Map = riakc_map:new(),
+    Map1 = riakc_map:update({?PRESCRIPTION_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(Id)), R) end,
+                        Map),
+    Map2 = riakc_map:update({?PRESCRIPTION_PATIENT_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(PatientId)), R) end,
+                        Map1),
+    Map3 = riakc_map:update({?PRESCRIPTION_PHARMACY_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(PharmacyId)), R) end,
+                        Map2),
+    Map4 = riakc_map:update({?PRESCRIPTION_PRESCRIBER_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(PrescriberId)), R) end,
+                        Map3),
+    Map5 = riakc_map:update({?PRESCRIPTION_DATE_PRESCRIBED_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(DatePrescribed), R) end,
+                        Map4),
+    Map6 = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set},
+                        fun(S) -> riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S) end,
+                        Map5),
+    Map7 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+                        fun(R) -> riakc_register:set(?PRESCRIPTION_NOT_PROCESSED_VALUE, R) end,
+                        Map6),
+    Map7;
+gen_entity(staff, [Id, Name, Address, Speciality]) ->
+    Map = riakc_map:new(),
+    Map1 = riakc_map:update({?STAFF_ID_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(integer_to_list(Id)), R) end,
+                        Map),
+    Map2 = riakc_map:update({?STAFF_NAME_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Name), R) end,
+                        Map1),
+    Map3 = riakc_map:update({?STAFF_ADDRESS_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Address), R) end,
+                        Map2),
+    Map4 = riakc_map:update({?STAFF_SPECIALITY_KEY, register},
+                        fun(R) -> riakc_register:set(list_to_binary(Speciality), R) end,
+                        Map3),
+    Map4.
+% gen_entity(remove_entity_prescription, [EntityKey, PrescriptionKey]) ->
+%     {create_bucket(<<EntityKey/binary, "_prescriptions">>, set), remove, PrescriptionKey};
+% gen_entity(add_entity_processed_prescription, [EntityKey, PrescriptionKey]) ->
+%     {create_bucket(<<EntityKey/binary, "_prescriptions_processed">>, set), add, PrescriptionKey};
+% gen_entity(add_entity_prescription, [EntityKey, PrescriptionKey]) ->
+%     {create_bucket(<<EntityKey/binary, "_prescriptions">>, set), add, PrescriptionKey}.
+
+tryfetch(Key,KeyType,Map,DefaultVal) ->
+    try
+        riakc_map:fetch({Key, KeyType}, Map)
+    catch
+        _:_ -> DefaultVal
+    end.
+
+build_app_record(_, {error, not_found}) ->
+    {error, not_found};
+build_app_record(facility,Object) ->
+    Id = riakc_map:fetch({?FACILITY_ID_KEY, register}, Object),
+    Name = riakc_map:fetch({?FACILITY_NAME_KEY, register}, Object),
+    Address = riakc_map:fetch({?FACILITY_ADDRESS_KEY, register}, Object),
+    Type = riakc_map:fetch({?FACILITY_TYPE_KEY, register}, Object),
+    #facility{id=Id,name=Name,address=Address,type=Type};
+build_app_record(patient,Object) ->
+    io:format("GOT HOHOHO ~p~n", [Object]),
+    Id = riakc_map:fetch({?PATIENT_ID_KEY, register}, Object),
+    Name = riakc_map:fetch({?PATIENT_NAME_KEY, register}, Object),
+    Address = riakc_map:fetch({?PATIENT_ADDRESS_KEY, register}, Object),
+    Prescriptions = riakc_set:value(tryfetch(?PATIENT_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    #patient{
+        id=Id
+        ,name=Name
+        ,address=Address
+        ,prescriptions=Prescriptions
+    };
+build_app_record(pharmacy,Object) ->
+    Id = riakc_map:fetch({?PHARMACY_ID_KEY, register}, Object),
+    Name = riakc_map:fetch({?PHARMACY_NAME_KEY, register}, Object),
+    Address = riakc_map:fetch({?PHARMACY_ADDRESS_KEY, register}, Object),
+    Prescriptions = riakc_set:value(tryfetch(?PHARMACY_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    #pharmacy{
+        id=Id
+        ,name=Name
+        ,address=Address
+        ,prescriptions=Prescriptions
+    };
+build_app_record(prescription,Object) ->
+    Id = tryfetch(?PRESCRIPTION_ID_KEY, register, Object, -1),
+    PatientId = tryfetch(?PRESCRIPTION_PATIENT_ID_KEY,register,Object,-1),
+    PrescriberId = tryfetch(?PRESCRIPTION_PRESCRIBER_ID_KEY,register,Object,-1),
+    PharmacyId = tryfetch(?PRESCRIPTION_PHARMACY_ID_KEY,register,Object,-1),
+    DatePrescribed = riakc_map:fetch({?PRESCRIPTION_DATE_PRESCRIBED_KEY, register}, Object),
+    IsProcessed = tryfetch(?PRESCRIPTION_IS_PROCESSED_KEY,register,Object,?PRESCRIPTION_NOT_PROCESSED_VALUE),
+    DateProcessed = tryfetch(?PRESCRIPTION_DATE_PROCESSED_KEY,register,Object,<<"undefined">>),
+    Drugs = riakc_map:fetch({?PRESCRIPTION_DRUGS_KEY, set}, Object),
+    #prescription{
+        id=Id
+        ,patient_id=PatientId
+        ,pharmacy_id=PharmacyId
+        ,prescriber_id=PrescriberId
+        ,date_prescribed=DatePrescribed
+        ,date_processed=DateProcessed
+        ,drugs=Drugs
+        ,is_processed=IsProcessed
+    };
+build_app_record(staff,Object) ->
+    Id = riakc_map:fetch({?STAFF_ID_KEY, register}, Object),
+    Name = riakc_map:fetch({?STAFF_NAME_KEY, register}, Object),
+    Address = riakc_map:fetch({?STAFF_ADDRESS_KEY, register}, Object),
+    Speciality = riakc_map:fetch({?STAFF_SPECIALITY_KEY, register}, Object),
+    Prescriptions = riakc_set:value(tryfetch(?STAFF_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    #staff{
+        id=Id
+        ,name=Name
+        ,address=Address
+        ,speciality=Speciality
+        ,prescriptions=Prescriptions
+        }.
+
+get_entity_with_prescriptions(Entity, Id) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = get_entity_with_prescriptions(Pid, Entity, Id),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+get_entity_with_prescriptions(Pid, Entity, Id) ->
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    BinaryEntity = list_to_binary(atom_to_list(Entity)),
+    [EntityObject, Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
+      {Key, BucketType, BucketName},
+      {Key, <<"sets">>, <<"prescriptions">>},
+      {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    case {Prescriptions, ProcessedPrescriptions} of
+        {{error, not_found}, {error, not_found}} -> build_app_record(Entity, EntityObject);
+        {{error, not_found}, PrescriptionKeys} ->
+            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
+                                fun(S) -> riakc_set:add_elements(riakc_set:value(PrescriptionKeys), S) end,
+                                EntityObject),
+            build_app_record(Entity, NewMap);
+        {PrescriptionKeys, {error, not_found}} ->
+            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
+                                fun(S) -> riakc_set:add_elements(riakc_set:value(PrescriptionKeys), S) end,
+                                EntityObject),
+            build_app_record(Entity, NewMap);
+        {PrescriptionKeys1, PrescriptionKeys2} ->
+            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
+                        fun(S) -> riakc_set:add_elements(lists:append(riakc_set:value(PrescriptionKeys1), riakc_set:value(PrescriptionKeys2)), S) end,
+                    EntityObject),
+            build_app_record(Entity, NewMap)
+
+    end.
+
+multi_read(Pid, Objects) ->
+    Results = lists:map(
+                fun({Key, BucketType, BucketName}) ->
+                    riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key)
+                end, Objects),
+    lists:map(
+        fun(ReadResult) ->
+            case ReadResult of
+              {error, {notfound, _Type}} -> {error, not_found};
+              {ok, Object} -> Object;
+              _SomethingElse -> _SomethingElse
+            end
+        end, Results).
+
+-spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
+create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
+
+-spec create_pharmacy(id(), string(), string()) -> ok | {error, reason()}.
+create_pharmacy(Id, Name, Address) -> create_if_not_exists(pharmacy, [Id, Name, Address]).
+
+-spec create_facility(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_facility(Id, Name, Address, Type) -> create_if_not_exists(facility, [Id, Name, Address, Type]).
+
+-spec create_staff(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_staff(Id, Name, Address, Speciality) -> create_if_not_exists(staff, [Id, Name, Address, Speciality]).
+
+-spec get_event_by_id(id()) -> [crdt()] | {error, reason()}.
+get_event_by_id(_Id) -> erlang:error(not_implemented).
+
+-spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
+get_facility_by_id(Id) -> build_app_record(facility, process_get_request(facility, Id)).
+
+-spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_by_id(Id) -> get_entity_with_prescriptions(pharmacy, Id).
+
+-spec get_pharmacy_by_id(id(), any()) -> [crdt()] | {error, reason()}.
+get_pharmacy_by_id(Id, Txn) -> get_entity_with_prescriptions(pharmacy, Id, Txn).
+
+-spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
+get_patient_by_id(Id) -> get_entity_with_prescriptions(patient, Id).
+
+-spec get_patient_by_id(id(), any()) -> [crdt()] | {error, reason()}.
+get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
+
+%% Fetches a list of prescriptions given a certain pharmacy ID.
+-spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_pharmacy_prescriptions(Id) ->
+    Key = get_key(pharmacy, Id),
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
+        {Key, <<"sets">>, <<"prescriptions">>},
+        {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    case {Prescriptions, ProcessedPrescriptions} of
+        {{error, not_found}, {error, not_found}} -> [];
+        {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+        {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+        {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+    end.
+
+-spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_processed_pharmacy_prescriptions(Id) ->
+    PharmacyKey = get_key(pharmacy, Id),
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    [ProcessedPrescriptions] = multi_read(Pid, [
+        {PharmacyKey, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    case ProcessedPrescriptions of
+        {error, not_found} -> [];
+        PrescriptionKeys ->  PrescriptionKeys
+    end.
+
+%% Fetches a prescription by ID.
+-spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
+get_prescription_by_id(Id) ->
+    build_app_record(prescription, process_get_request(prescription, Id)).
+
+%% Fetches a prescription by ID.
+-spec get_prescription_by_id(pid(), id()) -> [crdt()] | {error, reason()}.
+get_prescription_by_id(Pid, Id) ->
+    build_app_record(prescription, process_get_request(Pid, prescription, Id)).
+
+%% Fetches prescription medication by ID.
+-spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
+get_prescription_medication(Id) ->
+    Prescription = get_prescription_by_id(Id),
+    case Prescription of
+      {error, _} -> {error, no_such_prescription};
+      _ -> Prescription#prescription.drugs
+    end.
+
+%% Fetches a staff member by ID.
+-spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
+get_staff_by_id(Id) -> get_entity_with_prescriptions(staff, Id).
+
+%% Alternative to get_staff_by_id/1, which includes a transactional context.
+-spec get_staff_by_id(id(), any()) -> [crdt()] | {error, reason()}.
+get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
+
+%% Fetches a list of prescriptions given a certain staff member ID.
+-spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
+get_staff_prescriptions(Id) ->
+    Key = get_key(staff, Id),
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
+        {Key, <<"sets">>, <<"prescriptions">>},
+        {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    case {Prescriptions, ProcessedPrescriptions} of
+        {{error, not_found}, {error, not_found}} -> [];
+        {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+        {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+        {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+    end.
+
+%% Fetches a list of treatments given a certain staff member ID.
+-spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
+get_staff_treatments(_StaffId) ->
+  erlang:error(not_implemented).
+
+%% Fetches a treatment by ID.
+-spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
+get_treatment_by_id(_Id) ->
+  erlang:error(not_implemented).
+
+%% Updates the personal details of a patient with a certain ID.
+-spec update_patient_details(id(), string(), string()) -> ok | {error, reason()}.
+update_patient_details(Id, Name, Address) ->
+  update_if_already_exists(patient, [Id, Name, Address]).
+
+%% Updates the details of a pharmacy with a certain ID.
+-spec update_pharmacy_details(id(), string(), string()) -> ok | {error, reason()}.
+update_pharmacy_details(Id, Name, Address) ->
+  update_if_already_exists(pharmacy, [Id, Name, Address]).
+
+%% Updates the details of a facility with a certain ID.
+-spec update_facility_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_facility_details(Id, Name, Address, Type) ->
+  update_if_already_exists(facility, [Id, Name, Address, Type]).
+
+%% Updates the details of a staff member with a certain ID.
+-spec update_staff_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_staff_details(Id, Name, Address, Speciality) ->
+  update_if_already_exists(staff, [Id, Name, Address, Speciality]).
+
+-spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
+update_prescription_medication(Id, add_drugs, Drugs) ->
+    {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = case get_prescription_by_id(Id) of
+        {error, not_found} ->
+            {error, no_such_prescription};
+        Prescription ->
+            case Prescription#prescription.is_processed of
+                ?PRESCRIPTION_PROCESSED_VALUE ->
+                    {error, prescription_already_processed};
+                _Other ->
+                    Map = riakc_map:new(),
+                    Map1 = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set},
+                                        fun(S) -> riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S) end,
+                                        Map),
+                    ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(Map1))
+            end
+      end,
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result;
+
+update_prescription_medication(_Id, _Op, _Drugs) -> {error, invalid_update_operation}.
+
+%% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
+%% pharmacy and treatment facility (hospital). The prescription also includes the prescription date
+%% and the list of drugs that should be administered.
+-spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
+create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
+    %% gather required keys
+    PrescriptionKey = get_key(prescription, PrescriptionId),
+    PatientKey = get_key(patient, PatientId),
+    PharmacyKey = get_key(pharmacy, PharmacyId),
+    PrescriberKey = get_key(staff, PrescriberId),
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    %% check required pre-conditions
+    [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
+      = check_keys(Pid,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}]),
+
+    PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+    HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
+
+    Result = case HandleCreateOpResult of
+        ok ->
+            %% build updates for patients, pharmacies, facilities and the prescriber
+            %% these are already generated as buckets
+            %% TODO finish
+            Prescriptions = riakc_set:new(),
+            Prescriptions1 = riakc_set:add_element(PrescriptionKey, Prescriptions),
+            BucketType = <<"sets">>,
+            BucketName = <<"prescriptions">>,
+            lists:map(fun(Key) ->
+                          riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_set:to_op(Prescriptions1))
+                      end, [PatientKey, PharmacyKey, PrescriberKey]),
+            ok;
+        ErrorMessage -> ErrorMessage
+    end,
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+check_keys(_Pid, []) ->
+    [];
+check_keys(Pid, [H|T]) ->
+    {Entity, Id} = H,
+    case process_get_request(Pid, Entity, Id) of
+        {error, not_found} -> [{free, H}] ++ check_keys(Pid, T);
+        _Object -> [{taken, H}] ++ check_keys(Pid, T)
+    end.
+
+%% Creates a treatment event, with information about the staff member that registered it,
+%% along with a timestamp and description.
+-spec create_event(id(), id(), id(), string(), string()) -> ok | {error, reason()}.
+create_event(_EventId, _TreatmentId, _StaffMemberId, _Timestamp, _Description) ->
+  erlang:error(not_implemented).
+
+%% Creates a treatment with information about the patient, the staff member that iniciated it,
+%% and also the facility ID and date when the treatment started.
+-spec create_treatment(id(), id(), id(), id(), string()) -> ok | {error, reason()}.
+create_treatment(_TreatmentId, _PatientId, _StaffId, _FacilityId, _DateStarted) ->
+  erlang:error(not_implemented).
+
+%% Same as create_treatment/5, but includes an ending date for the treatment.
+-spec create_treatment(id(), id(), id(), id(), string(), string()) -> ok | {error, reason()}.
+create_treatment(_TreatmentId, _PatientId, _StaffId, _FacilityId, _DateStarted, _DateEnded) ->
+  erlang:error(not_implemented).
+
+process_prescription(Id, Date) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = process_prescription(Pid, Id, Date),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+process_prescription(Pid, Id, Date) ->
+   %  case get_prescription_by_id(Id) of
+   %      {error, not_found} ->
+   %          {error, no_such_prescription};
+   %      Prescription ->
+   %          case Prescription#prescription.is_processed of
+   %              ?PRESCRIPTION_PROCESSED_VALUE ->
+   %                  {error, prescription_already_processed};
+   %              ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
+   %              PharmacyKey =      get_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
+   %              PatientKey =       get_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
+   %              StaffKey =         get_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
+   %              PrescriptionKey =  get_key(prescription, Id),
+   %
+   %              IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, flag, ?PRESCRIPTION_PROCESSED_VALUE),
+   %              ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, register, Date),
+   %              PrescriptionUpdate = {create_bucket(PrescriptionKey, map), update, [IsProcessedOp, ProcessedOp]},
+   %
+   %              PharmacyOp1 =  gen_entity(remove_entity_prescription, [PharmacyKey, PrescriptionKey]),
+   %              PharmacyOp2 =  gen_entity(add_entity_processed_prescription, [PharmacyKey, PrescriptionKey]),
+   %              PatientOp1 =   gen_entity(remove_entity_prescription, [PatientKey, PrescriptionKey]),
+   %              PatientOp2 =   gen_entity(add_entity_processed_prescription, [PatientKey, PrescriptionKey]),
+   %              StaffOp1 =     gen_entity(remove_entity_prescription, [StaffKey, PrescriptionKey]),
+   %              StaffOp2 =     gen_entity(add_entity_processed_prescription, [StaffKey, PrescriptionKey]),
+   %
+   %              txn_update_objects([
+   %                PrescriptionUpdate, PharmacyOp1, PharmacyOp2, PatientOp1, PatientOp2, StaffOp1, StaffOp2
+   %              ], Txn),
+   %              ok
+   %         end
+   % end.
+   % TODO finish
+   ok.
+
+
+%%-----------------------------------------------------------------------------
+%% Internal auxiliary functions - simplifying calls to external modules
+%%-----------------------------------------------------------------------------
+
+process_get_request(Entity, Id) ->
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    ReadResult = get(Key, BucketType, BucketName),
+    case ReadResult of
+        {error, {notfound, _Type}} -> {error, not_found};
+        {ok, Object} -> Object;
+        _SomethingElse -> _SomethingElse
+    end.
+
+process_get_request(Pid, Entity, Id) ->
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    ReadResult = get(Pid, Key, BucketType, BucketName),
+    case ReadResult of
+        {error, {notfound, _Type}} -> {error, not_found};
+        {ok, Object} -> Object;
+        _SomethingElse -> _SomethingElse
+    end.
+
+get(Key, BucketType, BucketName) ->
+    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Result = riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key),
+    poolboy:checkin(fmke_db_connection_pool, Pid),
+    Result.
+
+get(Pid, Key, BucketType, BucketName) ->
+    riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key).
+
+
+error_to_binary(Reason) -> list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
+
+%% ------------------------------------------------------------------------------------------------
+%% Simple API - Recommended way to interact with Antidote
+%% ------------------------------------------------------------------------------------------------
+% TODO DELETE
+% %% Creates an Antidote bucket of a certain type.
+% -spec create_bucket(field(), crdt()) -> object_bucket().
+% create_bucket(Key,Type) ->
+%   {Key,Type,<<"bucket">>}.
+%
+% %% A simple way of getting information from antidote, just requiring a key and key-type.
+% -spec get(field(), crdt()) -> term().
+% get(Key,Type) ->
+%   Bucket = create_bucket(Key,Type),
+%   TxnDetails = txn_start(),
+%   ReadResult = txn_read_object(Bucket,TxnDetails),
+%   ok = txn_commit(TxnDetails),
+%   ReadResult.
+%
+% %% Alternative to get/2, using an already existing transaction ID.
+% %% NOTE: This does not commit the ongoing transaction!
+% -spec get(field(), crdt(), any()) -> term().
+% get(Key,Type,Txn) ->
+%   Bucket = create_bucket(Key,Type),
+%   txn_read_object(Bucket,Txn).
+%
+% %% Similar to put/4, but with transactional context.
+% -spec put(field(), crdt(), crdt_op(), op_param(), any()) -> ok | {error, reason()}.
+% put(Key,Type,Op,Param,Txn) ->
+%   Bucket = create_bucket(Key,Type),
+%   ok = txn_update_object({Bucket,Op,Param},Txn).
+
+% TODO delete
+% %%-----------------------------------------------------------------------------
+% %% Internal auxiliary functions - simplifying constructing CRDT operations
+% %%-----------------------------------------------------------------------------
+% %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
+% -spec build_map_op(field(), term(), term()) -> term().
+% build_map_op(Key,Type,Op) ->
+%   {{Key,Type}, Op}.
+%
+% build_id_op(Key,KeyType,Id) ->
+%   build_lwwreg_op(Key,KeyType,integer_to_list(Id)).
+%
+% build_lwwreg_op(Key,KeyType,Value) ->
+%   build_map_op(Key,KeyType,{assign, Value}).
