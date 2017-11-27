@@ -79,13 +79,17 @@ get_driver_setup(Database) when is_atom(Database) ->
       antidote_norm => {fmke_db_driver_antidote_norm, undefined},
       redis => {fmke_kv_driver, fmke_db_driver_redis},
       riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
-      riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv}
+      riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv},
+      riak_norm => {fmke_db_driver_riak_kv_norm, undefined},
+      riak_kv_norm => {fmke_db_driver_riak_kv_norm, undefined}
     },
     case maps:find(Database, DriverSetups) of
         {ok, Value} -> Value;
         error -> {error, not_supported, Database}
     end.
 
+is_alias_of_database(riak_norm) ->
+    {true, riak_kv_norm};
 is_alias_of_database(riak) ->
     {true, riak_kv};
 is_alias_of_database(_DatabaseName) ->
