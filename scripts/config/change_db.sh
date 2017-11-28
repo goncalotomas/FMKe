@@ -4,12 +4,12 @@ set -e
 show_supported_dbs()
 {
   echo "FMKe supports the following data stores:"
-  for value in "antidote" "antidote_norm" "riak" "redis" ; do
+  for value in "antidote" "antidote_norm" "riak" "riak_norm" "redis" ; do
       echo "-$value"
   done
 }
 
-if [ "$#" -ne 1 ]; then
+if [ "$#" -lt 1 ]; then
     echo "Error: no data store name supplied"
     show_supported_dbs
     echo "error"
