@@ -11,6 +11,7 @@ bench: compile
 	./travis.sh bench short antidote_norm
 	./travis.sh bench short redis
 	./travis.sh bench short riak
+	./travis.sh bench short riak_norm
 
 bench-antidote: rel
 	./travis.sh bench normal antidote
@@ -30,6 +31,9 @@ bench-redis: rel
 bench-riak: rel
 	./travis.sh bench normal riak
 
+bench-riak-norm: rel
+	./travis.sh bench normal riak_norm
+
 compile:
 	${REBAR} as test compile
 	cd ./_build/test/lib/lasp_bench && rebar3 escriptize
@@ -42,6 +46,7 @@ ct: all
 	./travis.sh ct antidote_norm
 	./travis.sh ct redis
 	./travis.sh ct riak
+	./travis.sh ct riak_norm
 
 ct-antidote: rel
 	./travis.sh ct antidote
@@ -55,6 +60,9 @@ ct-redis: rel
 ct-riak: rel
 	./travis.sh ct riak
 
+ct-riak-norm: rel
+	./travis.sh ct riak_norm
+
 dialyzer:
 	${REBAR} dialyzer
 
@@ -63,6 +71,7 @@ eunit: compile
 	./travis.sh test antidote_norm
 	./travis.sh test redis
 	./travis.sh test riak
+	./travis.sh test riak_norm
 
 eunit-antidote: compile
 	./travis.sh test antidote
@@ -75,6 +84,9 @@ eunit-redis: compile
 
 eunit-riak: compile
 	./travis.sh test riak
+
+eunit-riak-norm: compile
+	./travis.sh test riak_norm
 
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
