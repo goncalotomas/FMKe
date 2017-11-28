@@ -41,7 +41,6 @@
   update_facility_details/4,
   update_staff_details/4,
   update_prescription_medication/3
-  , error_to_binary/1
 ]).
 
 start(Params) ->
@@ -120,10 +119,10 @@ update_if_already_exists(Pid, Entity, Fields) ->
 
 %% Checks if an entity exists
 check_key(Pid, Key, BucketType, BucketName) ->
-  case riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key) of
-    {error, {notfound, _Type}} -> free;
-    {ok, _Map} -> taken
-  end.
+    case riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key) of
+        {error, {notfound, _Type}} -> free;
+        {ok, _Map} -> taken
+    end.
 
 get_key(Entity,Id) ->
     list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
@@ -206,12 +205,17 @@ gen_entity(staff, [Id, Name, Address, Speciality]) ->
                         fun(R) -> riakc_register:set(list_to_binary(Speciality), R) end,
                         Map3),
     Map4.
-% gen_entity(remove_entity_prescription, [EntityKey, PrescriptionKey]) ->
-%     {create_bucket(<<EntityKey/binary, "_prescriptions">>, set), remove, PrescriptionKey};
-% gen_entity(add_entity_processed_prescription, [EntityKey, PrescriptionKey]) ->
-%     {create_bucket(<<EntityKey/binary, "_prescriptions_processed">>, set), add, PrescriptionKey};
-% gen_entity(add_entity_prescription, [EntityKey, PrescriptionKey]) ->
-%     {create_bucket(<<EntityKey/binary, "_prescriptions">>, set), add, PrescriptionKey}.
+
+%% Searches for a Value within a map that is associated with a specific key.
+%% All riakc_map entries are of type {{key_name,key_type},Value}. This function is only used when fake updates are
+%% produced locally.
+find_key({map, Values, _, _, _}, Key, KeyType, FallbackValue) ->
+  try orddict:fetch({Key, KeyType}, Values) of
+    false -> FallbackValue;
+    [Value] -> Value
+  catch
+    _:_ -> FallbackValue
+  end.
 
 tryfetch(Key,KeyType,Map,DefaultVal) ->
     try
@@ -229,11 +233,10 @@ build_app_record(facility,Object) ->
     Type = riakc_map:fetch({?FACILITY_TYPE_KEY, register}, Object),
     #facility{id=Id,name=Name,address=Address,type=Type};
 build_app_record(patient,Object) ->
-    io:format("GOT HOHOHO ~p~n", [Object]),
     Id = riakc_map:fetch({?PATIENT_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?PATIENT_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?PATIENT_ADDRESS_KEY, register}, Object),
-    Prescriptions = riakc_set:value(tryfetch(?PATIENT_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, set, []),
     #patient{
         id=Id
         ,name=Name
@@ -244,7 +247,7 @@ build_app_record(pharmacy,Object) ->
     Id = riakc_map:fetch({?PHARMACY_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?PHARMACY_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?PHARMACY_ADDRESS_KEY, register}, Object),
-    Prescriptions = riakc_set:value(tryfetch(?PHARMACY_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    Prescriptions = find_key(Object, ?PHARMACY_PRESCRIPTIONS_KEY, set, []),
     #pharmacy{
         id=Id
         ,name=Name
@@ -275,7 +278,7 @@ build_app_record(staff,Object) ->
     Name = riakc_map:fetch({?STAFF_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?STAFF_ADDRESS_KEY, register}, Object),
     Speciality = riakc_map:fetch({?STAFF_SPECIALITY_KEY, register}, Object),
-    Prescriptions = riakc_set:value(tryfetch(?STAFF_PRESCRIPTIONS_KEY,set,Object,riakc_set:new())),
+    Prescriptions = find_key(Object, ?STAFF_PRESCRIPTIONS_KEY, set, []),
     #staff{
         id=Id
         ,name=Name
@@ -292,31 +295,27 @@ get_entity_with_prescriptions(Entity, Id) ->
 
 get_entity_with_prescriptions(Pid, Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    BinaryEntity = list_to_binary(atom_to_list(Entity)),
     [EntityObject, Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
       {Key, BucketType, BucketName},
       {Key, <<"sets">>, <<"prescriptions">>},
       {Key, <<"sets">>, <<"processed_prescriptions">>}
     ]),
-    case {Prescriptions, ProcessedPrescriptions} of
-        {{error, not_found}, {error, not_found}} -> build_app_record(Entity, EntityObject);
-        {{error, not_found}, PrescriptionKeys} ->
-            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
-                                fun(S) -> riakc_set:add_elements(riakc_set:value(PrescriptionKeys), S) end,
-                                EntityObject),
-            build_app_record(Entity, NewMap);
-        {PrescriptionKeys, {error, not_found}} ->
-            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
-                                fun(S) -> riakc_set:add_elements(riakc_set:value(PrescriptionKeys), S) end,
-                                EntityObject),
-            build_app_record(Entity, NewMap);
-        {PrescriptionKeys1, PrescriptionKeys2} ->
-            NewMap = riakc_map:update({<<BinaryEntity/binary, "_prescriptions">>, set},
-                        fun(S) -> riakc_set:add_elements(lists:append(riakc_set:value(PrescriptionKeys1), riakc_set:value(PrescriptionKeys2)), S) end,
-                    EntityObject),
-            build_app_record(Entity, NewMap)
-
+    case get_prescs_from_sets(Prescriptions, ProcessedPrescriptions) of
+        [] -> build_app_record(Entity, EntityObject);
+        Prescs ->
+            {map, Values, Updates, Removals, Context} = EntityObject,
+            NewValues = orddict:append({get_prescriptions_key(Entity), set}, Prescs, Values),
+            build_app_record(Entity, {map, NewValues, Updates, Removals, Context})
     end.
+
+get_prescriptions_key(patient) -> ?PATIENT_PRESCRIPTIONS_KEY;
+get_prescriptions_key(pharmacy) -> ?PHARMACY_PRESCRIPTIONS_KEY;
+get_prescriptions_key(staff) -> ?STAFF_PRESCRIPTIONS_KEY.
+
+get_prescs_from_sets({error, not_found}, {error, not_found}) -> [];
+get_prescs_from_sets({error, not_found}, Keys) -> riakc_set:value(Keys);
+get_prescs_from_sets(Keys, {error, not_found}) -> riakc_set:value(Keys);
+get_prescs_from_sets(KeysL, KeysR) -> lists:flatten(riakc_set:value(KeysL), riakc_set:value(KeysR)).
 
 multi_read(Pid, Objects) ->
     Results = lists:map(
@@ -510,9 +509,6 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
 
     Result = case HandleCreateOpResult of
         ok ->
-            %% build updates for patients, pharmacies, facilities and the prescriber
-            %% these are already generated as buckets
-            %% TODO finish
             Prescriptions = riakc_set:new(),
             Prescriptions1 = riakc_set:add_element(PrescriptionKey, Prescriptions),
             BucketType = <<"sets">>,
@@ -559,39 +555,53 @@ process_prescription(Id, Date) ->
     Result.
 
 process_prescription(Pid, Id, Date) ->
-   %  case get_prescription_by_id(Id) of
-   %      {error, not_found} ->
-   %          {error, no_such_prescription};
-   %      Prescription ->
-   %          case Prescription#prescription.is_processed of
-   %              ?PRESCRIPTION_PROCESSED_VALUE ->
-   %                  {error, prescription_already_processed};
-   %              ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
-   %              PharmacyKey =      get_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
-   %              PatientKey =       get_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
-   %              StaffKey =         get_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
-   %              PrescriptionKey =  get_key(prescription, Id),
-   %
-   %              IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, flag, ?PRESCRIPTION_PROCESSED_VALUE),
-   %              ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, register, Date),
-   %              PrescriptionUpdate = {create_bucket(PrescriptionKey, map), update, [IsProcessedOp, ProcessedOp]},
-   %
-   %              PharmacyOp1 =  gen_entity(remove_entity_prescription, [PharmacyKey, PrescriptionKey]),
-   %              PharmacyOp2 =  gen_entity(add_entity_processed_prescription, [PharmacyKey, PrescriptionKey]),
-   %              PatientOp1 =   gen_entity(remove_entity_prescription, [PatientKey, PrescriptionKey]),
-   %              PatientOp2 =   gen_entity(add_entity_processed_prescription, [PatientKey, PrescriptionKey]),
-   %              StaffOp1 =     gen_entity(remove_entity_prescription, [StaffKey, PrescriptionKey]),
-   %              StaffOp2 =     gen_entity(add_entity_processed_prescription, [StaffKey, PrescriptionKey]),
-   %
-   %              txn_update_objects([
-   %                PrescriptionUpdate, PharmacyOp1, PharmacyOp2, PatientOp1, PatientOp2, StaffOp1, StaffOp2
-   %              ], Txn),
-   %              ok
-   %         end
-   % end.
-   % TODO finish
-   ok.
+    case process_get_request(Pid, prescription, Id) of
+        {error, not_found} ->
+            {error, no_such_prescription};
+        Prescription ->
+            case riakc_map:fetch({?PRESCRIPTION_IS_PROCESSED_KEY, register}, Prescription) of
+                ?PRESCRIPTION_PROCESSED_VALUE ->
+                    {error, prescription_already_processed};
+                ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
+                    Object = build_app_record(prescription, Prescription),
+                    PharmacyKey =      get_key(pharmacy, binary_to_integer(Object#prescription.pharmacy_id)),
+                    PatientKey =       get_key(patient, binary_to_integer(Object#prescription.patient_id)),
+                    StaffKey =         get_key(staff, binary_to_integer(Object#prescription.prescriber_id)),
+                    PrescriptionKey =  get_key(prescription, Id),
 
+                    NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+                                        fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
+                                    Prescription),
+                    NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
+                                        fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
+                                    NewMap1),
+
+                    [OpenPatPrescs, OpenPharmPrescs, OpenStaffPrescs] = multi_read(Pid, [
+                        {PatientKey, <<"sets">>, <<"prescriptions">>},
+                        {PharmacyKey, <<"sets">>, <<"prescriptions">>},
+                        {StaffKey, <<"sets">>, <<"prescriptions">>}
+                    ]),
+
+                    RemFromSetPat = riakc_set:del_element(PrescriptionKey, OpenPatPrescs),
+                    RemFromSetPharm = riakc_set:del_element(PrescriptionKey, OpenPharmPrescs),
+                    RemFromSetStaff = riakc_set:del_element(PrescriptionKey, OpenStaffPrescs),
+
+                    ProcPrescsLocal = riakc_set:add_element(PrescriptionKey, riakc_set:new()),
+
+                    DelBuckName = <<"prescriptions">>,
+                    AddBuckName = <<"processed_prescriptions">>,
+                    BucketType = <<"sets">>,
+
+                    riakc_pb_socket:update_type(Pid, {<<"maps">>, <<"prescriptions">>}, PrescriptionKey, riakc_map:to_op(NewMap)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PatientKey, riakc_set:to_op(RemFromSetPat)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, StaffKey, riakc_set:to_op(RemFromSetStaff)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
+                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
+                    ok
+           end
+   end.
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
@@ -623,52 +633,3 @@ get(Key, BucketType, BucketName) ->
 
 get(Pid, Key, BucketType, BucketName) ->
     riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key).
-
-
-error_to_binary(Reason) -> list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
-
-%% ------------------------------------------------------------------------------------------------
-%% Simple API - Recommended way to interact with Antidote
-%% ------------------------------------------------------------------------------------------------
-% TODO DELETE
-% %% Creates an Antidote bucket of a certain type.
-% -spec create_bucket(field(), crdt()) -> object_bucket().
-% create_bucket(Key,Type) ->
-%   {Key,Type,<<"bucket">>}.
-%
-% %% A simple way of getting information from antidote, just requiring a key and key-type.
-% -spec get(field(), crdt()) -> term().
-% get(Key,Type) ->
-%   Bucket = create_bucket(Key,Type),
-%   TxnDetails = txn_start(),
-%   ReadResult = txn_read_object(Bucket,TxnDetails),
-%   ok = txn_commit(TxnDetails),
-%   ReadResult.
-%
-% %% Alternative to get/2, using an already existing transaction ID.
-% %% NOTE: This does not commit the ongoing transaction!
-% -spec get(field(), crdt(), any()) -> term().
-% get(Key,Type,Txn) ->
-%   Bucket = create_bucket(Key,Type),
-%   txn_read_object(Bucket,Txn).
-%
-% %% Similar to put/4, but with transactional context.
-% -spec put(field(), crdt(), crdt_op(), op_param(), any()) -> ok | {error, reason()}.
-% put(Key,Type,Op,Param,Txn) ->
-%   Bucket = create_bucket(Key,Type),
-%   ok = txn_update_object({Bucket,Op,Param},Txn).
-
-% TODO delete
-% %%-----------------------------------------------------------------------------
-% %% Internal auxiliary functions - simplifying constructing CRDT operations
-% %%-----------------------------------------------------------------------------
-% %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
-% -spec build_map_op(field(), term(), term()) -> term().
-% build_map_op(Key,Type,Op) ->
-%   {{Key,Type}, Op}.
-%
-% build_id_op(Key,KeyType,Id) ->
-%   build_lwwreg_op(Key,KeyType,integer_to_list(Id)).
-%
-% build_lwwreg_op(Key,KeyType,Value) ->
-%   build_map_op(Key,KeyType,{assign, Value}).
