@@ -19,14 +19,11 @@ bench-antidote: rel
 bench-antidote-norm: rel
 	./travis.sh bench normal antidote_norm
 
-bench-results:
-	Rscript --vanilla _build/test/lib/lasp_bench/priv/summary.r -i tests/current
-
-bench-antidote-norm: rel
-	./travis.sh bench antidote_norm
-
 bench-redis: rel
 	./travis.sh bench normal redis
+
+bench-results:
+	Rscript --vanilla _build/test/lib/lasp_bench/priv/summary.r -i tests/current
 
 bench-riak: rel
 	./travis.sh bench normal riak
