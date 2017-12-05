@@ -8,7 +8,6 @@ services:
 install:
   - make all
 script:
-  - make eunit
   - make ct
   - make bench
   - make test-multiple-releases

@@ -63,28 +63,6 @@ ct-riak-norm: rel
 dialyzer:
 	${REBAR} dialyzer
 
-eunit: compile
-	./travis.sh test antidote
-	./travis.sh test antidote_norm
-	./travis.sh test redis
-	./travis.sh test riak
-	./travis.sh test riak_norm
-
-eunit-antidote: compile
-	./travis.sh test antidote
-
-eunit-antidote-norm: compile
-	./travis.sh test antidote_norm
-
-eunit-redis: compile
-	./travis.sh test redis
-
-eunit-riak: compile
-	./travis.sh test riak
-
-eunit-riak-norm: compile
-	./travis.sh test riak_norm
-
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
 
@@ -101,11 +79,17 @@ relclean:
 select-antidote:
 	./scripts/config/change_db.sh antidote
 
+select-antidote-norm:
+	./scripts/config/change_db.sh antidote_norm
+
 select-redis:
 	./scripts/config/change_db.sh redis
 
 select-riak:
 	./scripts/config/change_db.sh riak
+
+select-riak-norm:
+	./scripts/config/change_db.sh riak_norm
 
 shell:
 	${REBAR} shell --apps fmke --name fmke@127.0.0.1 --setcookie fmke
@@ -128,10 +112,16 @@ start:
 start-antidote: select-antidote
 	./scripts/start_data_store.sh antidote
 
+start-antidote-norm: select-antidote-norm
+	./scripts/start_data_store.sh antidote
+
 start-redis: select-redis
 	./scripts/start_data_store.sh redis
 
 start-riak: select-riak
+	./scripts/start_data_store.sh riak
+
+start-riak-norm: select-riak-norm
 	./scripts/start_data_store.sh riak
 
 stop:
