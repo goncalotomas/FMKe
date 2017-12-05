@@ -477,8 +477,8 @@ get_existing_prescription(Config) ->
 
     BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
     BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
     BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
     <<"prescription_not_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
     <<"undefined">> = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
@@ -566,8 +566,8 @@ get_prescription_after_updates(Config) ->
 
     BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
     BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
     BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
     <<"prescription_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
     BinDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
