@@ -101,11 +101,17 @@ relclean:
 select-antidote:
 	./scripts/config/change_db.sh antidote
 
+select-antidote-norm:
+	./scripts/config/change_db.sh antidote_norm
+
 select-redis:
 	./scripts/config/change_db.sh redis
 
 select-riak:
 	./scripts/config/change_db.sh riak
+
+select-riak-norm:
+	./scripts/config/change_db.sh riak_norm
 
 shell:
 	${REBAR} shell --apps fmke --name fmke@127.0.0.1 --setcookie fmke
@@ -128,10 +134,16 @@ start:
 start-antidote: select-antidote
 	./scripts/start_data_store.sh antidote
 
+start-antidote-norm: select-antidote-norm
+	./scripts/start_data_store.sh antidote
+
 start-redis: select-redis
 	./scripts/start_data_store.sh redis
 
 start-riak: select-riak
+	./scripts/start_data_store.sh riak
+
+start-riak-norm: select-riak-norm
 	./scripts/start_data_store.sh riak
 
 stop:
