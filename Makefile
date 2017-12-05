@@ -63,28 +63,6 @@ ct-riak-norm: rel
 dialyzer:
 	${REBAR} dialyzer
 
-eunit: compile
-	./travis.sh test antidote
-	./travis.sh test antidote_norm
-	./travis.sh test redis
-	./travis.sh test riak
-	./travis.sh test riak_norm
-
-eunit-antidote: compile
-	./travis.sh test antidote
-
-eunit-antidote-norm: compile
-	./travis.sh test antidote_norm
-
-eunit-redis: compile
-	./travis.sh test redis
-
-eunit-riak: compile
-	./travis.sh test riak
-
-eunit-riak-norm: compile
-	./travis.sh test riak_norm
-
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
 
