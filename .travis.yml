@@ -9,7 +9,7 @@ install:
   - make all
 script:
   - make ct
-  - make bench
+  - make bench-short
   - make test-multiple-releases
 cache:
   directories:
