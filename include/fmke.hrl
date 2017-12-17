@@ -3,8 +3,8 @@
 -define (CONFIG_FILE_PATH, "/config/fmke.config").
 
 %% TODO move this to an ETS table
--define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
--define(SUPPORTED_KVS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
+-define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, riak_kv_norm_mg, redis]).
+-define(SUPPORTED_KVS, [antidote, antidote_norm, riak_kv, riak_kv_norm, riak_kv_norm_mg, redis]).
 
 -type id() :: non_neg_integer().
 -type field() :: binary().

@@ -7,11 +7,38 @@ attach:
 	./_build/default/rel/fmke/bin/env attach
 
 bench: compile
+	./travis.sh bench normal antidote
+	./travis.sh bench normal antidote_norm
+	./travis.sh bench normal redis
+	./travis.sh bench normal riak
+	./travis.sh bench normal riak_norm
+	./travis.sh bench normal riak_norm_mg
+
+bench-short: compile
 	./travis.sh bench short antidote
 	./travis.sh bench short antidote_norm
 	./travis.sh bench short redis
 	./travis.sh bench short riak
 	./travis.sh bench short riak_norm
+	./travis.sh bench short riak_norm_mg
+
+bench-short-antidote: rel
+	./travis.sh bench short antidote
+
+bench-short-antidote-norm: rel
+	./travis.sh bench short antidote_norm
+
+bench-short-redis: rel
+	./travis.sh bench short redis
+
+bench-short-riak: rel
+	./travis.sh bench short riak
+
+bench-short-riak-norm: rel
+	./travis.sh bench short riak_norm
+
+bench-short-riak-norm-mg: rel
+	./travis.sh bench short riak_norm_mg
 
 bench-antidote: rel
 	./travis.sh bench normal antidote
@@ -31,6 +58,9 @@ bench-riak: rel
 bench-riak-norm: rel
 	./travis.sh bench normal riak_norm
 
+bench-riak-norm-mg: rel
+	./travis.sh bench normal riak_norm_mg
+
 compile:
 	${REBAR} as test compile
 	cd ./_build/test/lib/lasp_bench && rebar3 escriptize
@@ -44,6 +74,7 @@ ct: all
 	./travis.sh ct redis
 	./travis.sh ct riak
 	./travis.sh ct riak_norm
+	./travis.sh ct riak_norm_mg
 
 ct-antidote: rel
 	./travis.sh ct antidote
@@ -59,6 +90,9 @@ ct-riak: rel
 
 ct-riak-norm: rel
 	./travis.sh ct riak_norm
+
+ct-riak-norm-mg: rel
+	./travis.sh ct riak_norm_mg
 
 dialyzer:
 	${REBAR} dialyzer
@@ -90,6 +124,9 @@ select-riak:
 
 select-riak-norm:
 	./scripts/config/change_db.sh riak_norm
+
+select-riak-norm-mg:
+	./scripts/config/change_db.sh riak_norm_mg
 
 shell:
 	${REBAR} shell --apps fmke --name fmke@127.0.0.1 --setcookie fmke
@@ -124,6 +161,9 @@ start-riak: select-riak
 start-riak-norm: select-riak-norm
 	./scripts/start_data_store.sh riak
 
+start-riak-norm-mg: select-riak-norm-mg
+	./scripts/start_data_store.sh riak
+
 stop:
 	./scripts/stop_fmke.sh
 
@@ -135,6 +175,10 @@ stop-redis:
 
 stop-riak:
 	./scripts/stop_data_store.sh riak
+
+stop-riak-norm: stop-riak
+
+stop-riak-norm-mg: stop-riak
 
 test-multiple-releases:
 	rm -rf _build/default/rel
