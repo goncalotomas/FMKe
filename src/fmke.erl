@@ -125,29 +125,29 @@ handle_call({process_prescription, Id, Date}, _From, Driver) ->
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
 %% A check is done to determine if a patient with the given ID already exists,
 %% and if so the operation fails.
--spec create_patient(id(),string(),string()) -> ok | {error, reason()}.
-create_patient(Id,Name,Address) ->
+-spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
+create_patient(Id, Name, Address) ->
     gen_server:call(?MODULE, {create_patient, Id, Name, Address}).
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet been seen.
--spec create_pharmacy(id(),string(),string()) -> ok | {error, reason()}.
-create_pharmacy(Id,Name,Address) ->
+-spec create_pharmacy(id(), string(), string()) -> ok | {error, reason()}.
+create_pharmacy(Id, Name, Address) ->
     gen_server:call(?MODULE, {create_pharmacy, Id, Name, Address}).
 
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet been seen.
--spec create_facility(id(),string(),string(),string()) -> ok | {error, reason()}.
-create_facility(Id,Name,Address,Type) ->
+-spec create_facility(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_facility(Id, Name, Address, Type) ->
     gen_server:call(?MODULE, {create_facility, Id, Name, Address, Type}).
 
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet been seen.
--spec create_staff(id(),string(),string(),string()) -> ok | {error, reason()}.
-create_staff(Id,Name,Address,Speciality) ->
+-spec create_staff(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_staff(Id, Name, Address, Speciality) ->
     gen_server:call(?MODULE, {create_staff, Id, Name, Address, Speciality}).
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy. The prescription also includes the prescription date and the list of drugs that should be administered.
 -spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
-create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
+create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
     gen_server:call(?MODULE,
         {create_prescription, PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}
     ).
@@ -210,28 +210,28 @@ get_staff_treatments(_Id) ->
 %%-----------------------------------------------------------------------------
 
 %% Updates the personal details of a patient with a certain ID.
--spec update_patient_details(id(),string(),string()) -> ok | {error, reason()}.
-update_patient_details(Id,Name,Address) ->
+-spec update_patient_details(id(), string(), string()) -> ok | {error, reason()}.
+update_patient_details(Id, Name, Address) ->
     gen_server:call(?MODULE, {update_patient_details, Id, Name, Address}).
 
 %% Updates the details of a pharmacy with a certain ID.
--spec update_pharmacy_details(id(),string(),string()) -> ok | {error, reason()}.
-update_pharmacy_details(Id,Name,Address) ->
+-spec update_pharmacy_details(id(), string(), string()) -> ok | {error, reason()}.
+update_pharmacy_details(Id, Name, Address) ->
     gen_server:call(?MODULE, {update_pharmacy_details, Id, Name, Address}).
 
 %% Updates the details of a facility with a certain ID.
--spec update_facility_details(id(),string(),string(),string()) -> ok | {error, reason()}.
-update_facility_details(Id,Name,Address,Type) ->
+-spec update_facility_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_facility_details(Id, Name, Address, Type) ->
     gen_server:call(?MODULE, {update_facility_details, Id, Name, Address, Type}).
 
 %% Updates the details of a staff member with a certain ID.
--spec update_staff_details(id(),string(),string(),string()) -> ok | {error, reason()}.
-update_staff_details(Id,Name,Address,Speciality) ->
+-spec update_staff_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_staff_details(Id, Name, Address, Speciality) ->
     gen_server:call(?MODULE, {update_staff_details, Id, Name, Address, Speciality}).
 
--spec update_prescription_medication(id(),atom(),[string()]) -> ok | {error, reason()}.
-update_prescription_medication(Id,Operation,Drugs) ->
+-spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
+update_prescription_medication(Id, Operation, Drugs) ->
     gen_server:call(?MODULE, {update_prescription_medication, Id, Operation, Drugs}).
 
-process_prescription(Id,Date) ->
+process_prescription(Id, Date) ->
     gen_server:call(?MODULE, {process_prescription, Id, Date}).

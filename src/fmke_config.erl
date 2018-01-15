@@ -49,12 +49,12 @@ read_config_file() ->
     {Driver, DriverImpl} = get_driver_setup(TargetDatabase),
 
     %% set application variables from config file
-    set(http_port,HttpPort),
-    set(connection_pool_size,ConnPoolSize),
-    set(driver,Driver),
-    set(simplified_driver,DriverImpl),
-    set(db_conn_hostnames,ParsedAddressList),
-    set(db_conn_ports,ParsedPortList),
+    set(http_port, HttpPort),
+    set(connection_pool_size, ConnPoolSize),
+    set(driver, Driver),
+    set(simplified_driver, DriverImpl),
+    set(db_conn_hostnames, ParsedAddressList),
+    set(db_conn_ports, ParsedPortList),
 
     [
         {driver, Driver},
@@ -98,7 +98,7 @@ is_alias_of_database(_DatabaseName) ->
 parse_db_address_list(DbAddressList) ->
     case io_lib:printable_unicode_list(DbAddressList) of
         false ->
-            parse_db_address_list_rec(DbAddressList,[]);
+            parse_db_address_list_rec(DbAddressList, []);
         true ->
             Split = string:split(DbAddressList, " "),
             case Split of
@@ -114,27 +114,27 @@ parse_db_address_list_rec([], Accum) ->
     end;
 parse_db_address_list_rec([H|T], Accum) ->
     case is_tuple(H) of
-        true -> parse_db_address_list_rec(T,lists:append(Accum,[read_tuple_address(H)]));
+        true -> parse_db_address_list_rec(T, lists:append(Accum, [read_tuple_address(H)]));
         false ->
             case io_lib:printable_unicode_list(H) of
                 false -> {error, invalid_format};
-                true -> parse_db_address_list_rec(T,lists:append(Accum,[H]))
+                true -> parse_db_address_list_rec( T, lists:append(Accum, [H]))
             end
     end.
 
-read_tuple_address({_1,_2,_3,_4}) when is_integer(_1) andalso is_integer(_2)
+read_tuple_address({_1, _2, _3, _4}) when is_integer(_1) andalso is_integer(_2)
     andalso is_integer(_3) andalso is_integer(_4) ->
         integer_to_list(_1) ++ "." ++ integer_to_list(_2) ++ "." ++
         integer_to_list(_3) ++ "." ++ integer_to_list(_4);
 
-read_tuple_address({_1,_2,_3,_4,_5,_6}) when is_integer(_1) andalso is_integer(_2)
+read_tuple_address({_1, _2, _3, _4, _5, _6}) when is_integer(_1) andalso is_integer(_2)
     andalso is_integer(_3) andalso is_integer(_4) andalso is_integer(_5) andalso is_integer(_6) ->
         integer_to_list(_1) ++ "." ++ integer_to_list(_2) ++ "." ++
         integer_to_list(_3) ++ "." ++ integer_to_list(_4) ++ "." ++
         integer_to_list(_5) ++ "." ++ integer_to_list(_6).
 
 parse_db_port_list(DbPortList) ->
-    parse_db_port_list_rec(DbPortList,[]).
+    parse_db_port_list_rec(DbPortList, []).
 
 parse_db_port_list_rec([], Accum) ->
     case length(Accum) > 0 of
@@ -143,11 +143,11 @@ parse_db_port_list_rec([], Accum) ->
     end;
 parse_db_port_list_rec([H|T], Accum) ->
     case is_integer(H) of
-        true -> parse_db_port_list_rec(T,lists:append(Accum,[H]));
+        true -> parse_db_port_list_rec(T, lists:append(Accum, [H]));
         false ->
             case io_lib:printable_unicode_list(H) of
                 false -> {error, invalid_format};
-                true -> parse_db_port_list_rec(T,lists:append(Accum,[list_to_integer(H)]))
+                true -> parse_db_port_list_rec(T, lists:append(Accum, [list_to_integer(H)]))
             end
     end.
 

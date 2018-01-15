@@ -32,10 +32,10 @@ with_connection(Fun) ->
 %%%===================================================================
 
 init([Params]) ->
-  ListConnHostnames = proplists:get_value(db_conn_hostnames,Params),
-  ListConnPorts = proplists:get_value(db_conn_ports,Params),
-  ConnModule = proplists:get_value(db_conn_module,Params),
-  ConnPoolSize = proplists:get_value(db_conn_pool_size,Params),
+  ListConnHostnames = proplists:get_value(db_conn_hostnames, Params),
+  ListConnPorts = proplists:get_value(db_conn_ports, Params),
+  ConnModule = proplists:get_value(db_conn_module, Params),
+  ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
   PoolArgs = [
     {name, {local, fmke_db_connection_pool}},
     {worker_module, ?MODULE},
@@ -43,15 +43,15 @@ init([Params]) ->
     {max_overflow, 0},
     {strategy, fifo}
   ],
-  WorkerArgs = [ConnModule,ListConnHostnames,ListConnPorts],
+  WorkerArgs = [ConnModule, ListConnHostnames, ListConnPorts],
   PoolSpec = poolboy:child_spec(fmke_db_connection_pool, PoolArgs, WorkerArgs),
   {ok, {{one_for_one, 10, 10}, [PoolSpec]}}.
 
-start_link([Module,ListHostnames,ListPorts]) ->
+start_link([Module, ListHostnames, ListPorts]) ->
   true = (Len = length(ListHostnames)) =< length(ListPorts),
   Index = rand:uniform(Len),
-  Hostname = lists:nth(Index,ListHostnames),
-  Port = lists:nth(Index,ListPorts),
+  Hostname = lists:nth(Index, ListHostnames),
+  Port = lists:nth(Index, ListPorts),
   try_connect(Module, Hostname, Port, 100).
 
 try_connect(Module, Hostname, Port, Timeout) when is_list(Port) ->

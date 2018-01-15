@@ -7,7 +7,7 @@
 encode(Type, Object) ->
     encode_object(Type, Object).
 
-encode_object(pharmacy,Object = #pharmacy{}) ->
+encode_object(pharmacy, Object = #pharmacy{}) ->
     PharmacyId = Object#pharmacy.id,
     PharmacyName = Object#pharmacy.name,
     PharmacyAddress = Object#pharmacy.address,

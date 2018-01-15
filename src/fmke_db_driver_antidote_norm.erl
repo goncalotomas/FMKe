@@ -107,13 +107,13 @@ start_conn_pool(Pid, Params) ->
     Hostnames = proplists:get_value(db_conn_hostnames, Params),
     Ports = proplists:get_value(db_conn_ports, Params),
     ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
-    {ok,_} = fmke_db_conn_pool:start([
+    {ok, _} = fmke_db_conn_pool:start([
         {db_conn_hostnames, Hostnames},
         {db_conn_ports, Ports},
         {db_conn_module, antidotec_pb_socket},
         {db_conn_pool_size, ConnPoolSize}
     ]),
-    {ok,Pid}.
+    {ok, Pid}.
 
 stop(_) ->
   ok.
@@ -129,10 +129,10 @@ create_if_not_exists(Entity, Fields, Txn) ->
     Result =
       case check_id(Entity, Id, Txn) of
         taken ->
-            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))};
+            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))};
         free ->
             EntityKey = gen_key(Entity, Id),
-            EntityUpdate = gen_entity_update(Entity,Fields),
+            EntityUpdate = gen_entity_update(Entity, Fields),
             execute_create_op(EntityKey, EntityUpdate, Txn)
       end,
     {Result, Txn}.
@@ -144,10 +144,10 @@ update_if_already_exists(Entity, Fields) ->
     Result =
       case check_id(Entity, Id, Txn) of
         free ->
-            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p",[Entity])))};
+            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p", [Entity])))};
         taken ->
             EntityKey = gen_key(Entity, Id),
-            EntityUpdate = gen_entity_update(Entity,Fields),
+            EntityUpdate = gen_entity_update(Entity, Fields),
             execute_create_op(EntityKey, EntityUpdate, Txn)
       end,
     ok = txn_commit(Txn),
@@ -155,19 +155,19 @@ update_if_already_exists(Entity, Fields) ->
 
 %% Checks if an entity exists
 check_id(Entity, Id, Txn) ->
-  OpName = list_to_atom(lists:flatten(io_lib:format("get_~p_by_id",[Entity]))),
+  OpName = list_to_atom(lists:flatten(io_lib:format("get_~p_by_id", [Entity]))),
   case erlang:apply(?MODULE, OpName, [Id, Txn]) of
     {error, not_found} -> free;
     _Map -> taken
   end.
 
-gen_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
+gen_key(Entity, Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).
 
 gen_entity_update(patient, [Id, Name, Address]) ->
-    IdOp = build_id_op(?PATIENT_ID_KEY,?PATIENT_ID_CRDT,Id),
-    NameOp = build_lwwreg_op(?PATIENT_NAME_KEY,?PATIENT_NAME_CRDT,Name),
-    AddressOp = build_lwwreg_op(?PATIENT_ADDRESS_KEY,?PATIENT_ADDRESS_CRDT,Address),
+    IdOp = build_id_op(?PATIENT_ID_KEY, ?PATIENT_ID_CRDT, Id),
+    NameOp = build_lwwreg_op(?PATIENT_NAME_KEY, ?PATIENT_NAME_CRDT, Name),
+    AddressOp = build_lwwreg_op(?PATIENT_ADDRESS_KEY, ?PATIENT_ADDRESS_CRDT, Address),
     [IdOp, NameOp, AddressOp];
 gen_entity_update(pharmacy, [Id, Name, Address]) ->
     IdOp = build_id_op(?PHARMACY_ID_KEY, ?PHARMACY_ID_CRDT, Id),
@@ -175,11 +175,11 @@ gen_entity_update(pharmacy, [Id, Name, Address]) ->
     AddressOp = build_lwwreg_op(?PHARMACY_ADDRESS_KEY, ?PHARMACY_ADDRESS_CRDT, Address),
     [IdOp, NameOp, AddressOp];
 gen_entity_update(facility, [Id, Name, Address, Type]) ->
-    IdOp = build_id_op(?FACILITY_ID_KEY,?FACILITY_ID_CRDT,Id),
-    NameOp = build_lwwreg_op(?FACILITY_NAME_KEY,?FACILITY_NAME_CRDT,Name),
-    AddressOp = build_lwwreg_op(?FACILITY_ADDRESS_KEY,?FACILITY_ADDRESS_CRDT,Address),
-    TypeOp = build_lwwreg_op(?FACILITY_TYPE_KEY,?FACILITY_TYPE_CRDT,Type),
-    [IdOp,NameOp,AddressOp,TypeOp];
+    IdOp = build_id_op(?FACILITY_ID_KEY, ?FACILITY_ID_CRDT, Id),
+    NameOp = build_lwwreg_op(?FACILITY_NAME_KEY, ?FACILITY_NAME_CRDT, Name),
+    AddressOp = build_lwwreg_op(?FACILITY_ADDRESS_KEY, ?FACILITY_ADDRESS_CRDT, Address),
+    TypeOp = build_lwwreg_op(?FACILITY_TYPE_KEY, ?FACILITY_TYPE_CRDT, Type),
+    [IdOp, NameOp, AddressOp, TypeOp];
 gen_entity_update(prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]) ->
     IdOp = build_id_op(?PRESCRIPTION_ID_KEY, ?PRESCRIPTION_ID_CRDT, Id),
     PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID_KEY, ?PRESCRIPTION_PATIENT_ID_CRDT, PatientId),
@@ -209,41 +209,41 @@ execute_create_op(Key, Op, Txn) ->
 %% All antidote_crdt_map entries are of type {{key_name,key_type},Value}. Having this function avoids
 %% repeating the following code numerous times when searching for an element within a map.
 find_key(Map, Key, KeyType, FallbackValue) ->
-  try lists:keyfind({Key,KeyType},1,Map) of
+  try lists:keyfind({Key, KeyType}, 1, Map) of
     false -> FallbackValue;
-    {{Key,KeyType},Value} -> Value
+    {{Key, KeyType}, Value} -> Value
   catch
     _:_ -> FallbackValue
   end.
 
 build_app_record(_, {error, not_found}) ->
   {error, not_found};
-build_app_record(patient,Object) ->
+build_app_record(patient, Object) ->
   Id = find_key(Object, ?PATIENT_ID_KEY, ?PATIENT_ID_CRDT, -1),
   Name = find_key(Object, ?PATIENT_NAME_KEY, ?PATIENT_NAME_CRDT, <<"undefined">>),
   Address = find_key(Object, ?PATIENT_ADDRESS_KEY, ?PATIENT_ADDRESS_CRDT, <<"undefined">>),
   Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, ?PATIENT_PRESCRIPTIONS_CRDT, []),
-  #patient{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
-build_app_record(pharmacy,Object) ->
+  #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
+build_app_record(pharmacy, Object) ->
   Id = find_key(Object, ?PHARMACY_ID_KEY, ?PHARMACY_ID_CRDT, -1),
   Name = find_key(Object, ?PHARMACY_NAME_KEY, ?PHARMACY_NAME_CRDT, <<"undefined">>),
   Address = find_key(Object, ?PHARMACY_ADDRESS_KEY, ?PHARMACY_ADDRESS_CRDT, <<"undefined">>),
   Prescriptions = find_key(Object, ?PHARMACY_PRESCRIPTIONS_KEY, ?PHARMACY_PRESCRIPTIONS_CRDT, []),
-  #pharmacy{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
-build_app_record(staff,Object) ->
+  #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
+build_app_record(staff, Object) ->
   Id = find_key(Object, ?STAFF_ID_KEY, ?STAFF_ID_CRDT, -1),
   Name = find_key(Object, ?STAFF_NAME_KEY, ?STAFF_NAME_CRDT, <<"undefined">>),
   Address = find_key(Object, ?STAFF_ADDRESS_KEY, ?STAFF_ADDRESS_CRDT, <<"undefined">>),
   Speciality = find_key(Object, ?STAFF_SPECIALITY_KEY, ?STAFF_SPECIALITY_CRDT, <<"undefined">>),
   Prescriptions = find_key(Object, ?STAFF_PRESCRIPTIONS_KEY, ?STAFF_PRESCRIPTIONS_CRDT, []),
-  #staff{id=Id,name=Name,address=Address,speciality=Speciality,prescriptions=Prescriptions};
-build_app_record(facility,Object) ->
+  #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions};
+build_app_record(facility, Object) ->
   Id = find_key(Object, ?FACILITY_ID_KEY, ?FACILITY_ID_CRDT, -1),
   Name = find_key(Object, ?FACILITY_NAME_KEY, ?FACILITY_NAME_CRDT, <<"undefined">>),
   Address = find_key(Object, ?FACILITY_ADDRESS_KEY, ?FACILITY_ADDRESS_CRDT, <<"undefined">>),
   Type = find_key(Object, ?FACILITY_TYPE_KEY, ?FACILITY_TYPE_CRDT, <<"undefined">>),
-  #facility{id=Id,name=Name,address=Address,type=Type};
-build_app_record(prescription,Object) ->
+  #facility{id = Id, name = Name, address = Address, type = Type};
+build_app_record(prescription, Object) ->
   Id = find_key(Object, ?PRESCRIPTION_ID_KEY, ?PRESCRIPTION_ID_CRDT, -1),
   PatientId = find_key(Object, ?PRESCRIPTION_PATIENT_ID_KEY, ?PRESCRIPTION_PATIENT_ID_CRDT, <<"undefined">>),
   PrescriberId = find_key(Object, ?PRESCRIPTION_PRESCRIBER_ID_KEY, ?PRESCRIPTION_PRESCRIBER_ID_CRDT, <<"undefined">>),
@@ -253,14 +253,14 @@ build_app_record(prescription,Object) ->
   DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?PRESCRIPTION_DATE_PROCESSED_CRDT, <<"undefined">>),
   Drugs = find_key(Object, ?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT, []),
   #prescription{
-      id=Id
-      ,patient_id=PatientId
-      ,pharmacy_id=PharmacyId
-      ,prescriber_id=PrescriberId
-      ,date_prescribed=DatePrescribed
-      ,date_processed=DateProcessed
-      ,drugs=Drugs
-      ,is_processed=IsProcessed
+      id = Id,
+      patient_id = PatientId,
+      pharmacy_id = PharmacyId,
+      prescriber_id = PrescriberId,
+      date_prescribed = DatePrescribed,
+      date_processed = DateProcessed,
+      drugs = Drugs,
+      is_processed = IsProcessed
   }.
 
 get_entity_with_prescriptions(Entity, Id) ->
@@ -334,7 +334,7 @@ get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_prescriptions(PharmacyId) ->
-    PharmacyKey = gen_key(pharmacy,PharmacyId),
+    PharmacyKey = gen_key(pharmacy, PharmacyId),
     Txn = txn_start(),
     [Prescriptions, ProcessedPrescriptions] = multi_read([
       create_bucket(<<PharmacyKey/binary, "_prescriptions">>, ?ORSET),
@@ -352,7 +352,7 @@ get_pharmacy_prescriptions(PharmacyId) ->
 
 -spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_processed_pharmacy_prescriptions(PharmacyId) ->
-    PharmacyKey = gen_key(pharmacy,PharmacyId),
+    PharmacyKey = gen_key(pharmacy, PharmacyId),
     Txn = txn_start(),
     [ProcessedPrescriptions] = multi_read([
       create_bucket(<<PharmacyKey/binary, "_prescriptions_processed">>, ?ORSET)
@@ -368,7 +368,7 @@ get_processed_pharmacy_prescriptions(PharmacyId) ->
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id) ->
-    build_app_record(prescription, process_get_request(gen_key(prescription,Id), ?MAP)).
+    build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP)).
 
 %% Fetches prescription medication by ID.
 -spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
@@ -382,7 +382,7 @@ get_prescription_medication(Id) ->
 %% Alternative to get_prescription_by_id/1, which includes a transactional context.
 -spec get_prescription_by_id(id(), txid()) -> [crdt()] | {error, reason()}.
 get_prescription_by_id(Id, Txn) ->
-    build_app_record(prescription, process_get_request(gen_key(prescription,Id), ?MAP, Txn)).
+    build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)).
 
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
@@ -395,7 +395,7 @@ get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_staff_prescriptions(StaffId) ->
-    StaffKey = gen_key(staff,StaffId),
+    StaffKey = gen_key(staff, StaffId),
     Txn = txn_start(),
     [Prescriptions, ProcessedPrescriptions] = multi_read([
       create_bucket(<<StaffKey/binary, "_prescriptions">>, ?ORSET),
@@ -472,7 +472,7 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
   Txn = txn_start(),
   %% check required pre-conditions
   [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-      = check_keys(Txn,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}]),
+      = check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
 
   PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
   {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
@@ -624,41 +624,41 @@ txn_commit({Pid, TxnDetails}) ->
 
 %% Creates an Antidote bucket of a certain type.
 -spec create_bucket(field(), crdt()) -> object_bucket().
-create_bucket(Key,Type) ->
-  {Key,Type,<<"bucket">>}.
+create_bucket(Key, Type) ->
+  {Key, Type, <<"bucket">>}.
 
 %% A simple way of getting information from antidote, just requiring a key and key-type.
 -spec get(field(), crdt()) -> term().
-get(Key,Type) ->
-  Bucket = create_bucket(Key,Type),
+get(Key, Type) ->
+  Bucket = create_bucket(Key, Type),
   TxnDetails = txn_start(),
-  ReadResult = txn_read_object(Bucket,TxnDetails),
+  ReadResult = txn_read_object(Bucket, TxnDetails),
   ok = txn_commit(TxnDetails),
   ReadResult.
 
 %% Alternative to get/2, using an already existing transaction ID.
 %% NOTE: This does not commit the ongoing transaction!
 -spec get(field(), crdt(), txid()) -> term().
-get(Key,Type,Txn) ->
-  Bucket = create_bucket(Key,Type),
-  txn_read_object(Bucket,Txn).
+get(Key, Type, Txn) ->
+  Bucket = create_bucket(Key, Type),
+  txn_read_object(Bucket, Txn).
 
 %% Similar to put/4, but with transactional context.
 -spec put(field(), crdt(), crdt_op(), op_param(), txid()) -> ok | {error, reason()}.
-put(Key,Type,Op,Param,Txn) ->
-  Bucket = create_bucket(Key,Type),
-  ok = txn_update_object({Bucket,Op,Param},Txn).
+put(Key, Type, Op, Param, Txn) ->
+  Bucket = create_bucket(Key, Type),
+  ok = txn_update_object({Bucket, Op, Param}, Txn).
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying constructing CRDT operations
 %%-----------------------------------------------------------------------------
 %% Builds an Antidote acceptable map operation, taking a key, key-type, and the actual operation.
 -spec build_map_op(field(), crdt(), crdt_op()) -> term().
-build_map_op(Key,Type,Op) ->
-  {{Key,Type}, Op}.
+build_map_op(Key, Type, Op) ->
+  {{Key, Type}, Op}.
 
-build_id_op(Key,KeyType,Id) ->
-  build_lwwreg_op(Key,KeyType,integer_to_list(Id)).
+build_id_op(Key, KeyType, Id) ->
+  build_lwwreg_op(Key, KeyType, integer_to_list(Id)).
 
-build_lwwreg_op(Key,KeyType,Value) ->
-  build_map_op(Key,KeyType,{assign, Value}).
+build_lwwreg_op(Key, KeyType, Value) ->
+  build_map_op(Key, KeyType, {assign, Value}).

@@ -39,7 +39,7 @@ handle_req(Mod, Method, Req, UrlParams, BodyParams) ->
         {ok, Body, Req1} = cowboy_req:read_body(Req),
         Bindings = cowboy_req:bindings(Req1),
         UrlParamsFound = lists:foldl(fun(Param, Accum) ->
-            case maps:get(Param,Bindings,undefined) of
+            case maps:get(Param, Bindings, undefined) of
                 undefined -> Accum;
                 Val -> lists:append(Accum, [{Param, Val}])
             end
@@ -51,14 +51,14 @@ handle_req(Mod, Method, Req, UrlParams, BodyParams) ->
                 Mod:perform_operation(Method, Req1, UrlParamsFound, BodyParamsFound);
             false ->
                 %% Some body parameters are missing, let Mod decide what to do
-                Mod:perform_operation(Method, Req1, UrlParamsFound, {incomplete,BodyParamsFound})
+                Mod:perform_operation(Method, Req1, UrlParamsFound, {incomplete, BodyParamsFound})
         end
     catch
-				error:ErrReason ->
+        error:ErrReason ->
             handle_reply(Mod, Req, {error, internal}, false, ErrReason);
-				_:ExReason ->
-						handle_reply(Mod, Req, {error, internal}, false, ExReason)
-		end.
+        _:ExReason ->
+            handle_reply(Mod, Req, {error, internal}, false, ExReason)
+    end.
 
 handle_reply(_Mod, Req, ok, Success, Result) ->
     cowboy_req:reply(200, ?CONT_TYPE_JSON, ?ENCODE_RESPONSE(Success, Result), Req);

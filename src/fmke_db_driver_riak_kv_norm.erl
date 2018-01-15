@@ -53,13 +53,13 @@ start_conn_pool(Pid, Params) ->
     Hostnames = proplists:get_value(db_conn_hostnames, Params),
     Ports = proplists:get_value(db_conn_ports, Params),
     ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
-    {ok,_} = fmke_db_conn_pool:start([
+    {ok,  _} = fmke_db_conn_pool:start([
         {db_conn_hostnames, Hostnames},
         {db_conn_ports, Ports},
         {db_conn_module, riakc_pb_socket},
         {db_conn_pool_size, ConnPoolSize}
     ]),
-    {ok,Pid}.
+    {ok, Pid}.
 
 stop(_) ->
   ok.
@@ -91,7 +91,7 @@ create_if_not_exists(Pid, Entity, Fields) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     case check_key(Pid, Key, BucketType, BucketName) of
         taken ->
-            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))};
+            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))};
         free ->
             LocalObject = gen_entity(Entity, Fields),
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
@@ -110,9 +110,9 @@ update_if_already_exists(Pid, Entity, Fields) ->
     Result =
       case check_key(Pid, Key, BucketType, BucketName) of
         free ->
-            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p",[Entity])))};
+            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p", [Entity])))};
         taken ->
-            EntityUpdate = gen_entity(Entity,Fields),
+            EntityUpdate = gen_entity(Entity, Fields),
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(EntityUpdate))
       end,
     Result.
@@ -124,8 +124,8 @@ check_key(Pid, Key, BucketType, BucketName) ->
         {ok, _Map} -> taken
     end.
 
-get_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
+get_key(Entity, Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).
 
 gen_entity(patient, [Id, Name, Address]) ->
     Map = riakc_map:new(),
@@ -217,7 +217,7 @@ find_key({map, Values, _, _, _}, Key, KeyType, FallbackValue) ->
     _:_ -> FallbackValue
   end.
 
-tryfetch(Key,KeyType,Map,DefaultVal) ->
+tryfetch(Key, KeyType, Map, DefaultVal) ->
     try
         riakc_map:fetch({Key, KeyType}, Map)
     catch
@@ -226,66 +226,71 @@ tryfetch(Key,KeyType,Map,DefaultVal) ->
 
 build_app_record(_, {error, not_found}) ->
     {error, not_found};
-build_app_record(facility,Object) ->
+build_app_record(facility, Object) ->
     Id = riakc_map:fetch({?FACILITY_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?FACILITY_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?FACILITY_ADDRESS_KEY, register}, Object),
     Type = riakc_map:fetch({?FACILITY_TYPE_KEY, register}, Object),
-    #facility{id=Id,name=Name,address=Address,type=Type};
-build_app_record(patient,Object) ->
+    #facility{
+        id = Id,
+        name = Name,
+        address = Address,
+        type = Type
+    };
+build_app_record(patient, Object) ->
     Id = riakc_map:fetch({?PATIENT_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?PATIENT_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?PATIENT_ADDRESS_KEY, register}, Object),
     Prescriptions = find_key(Object, ?PATIENT_PRESCRIPTIONS_KEY, set, []),
     #patient{
-        id=Id
-        ,name=Name
-        ,address=Address
-        ,prescriptions=Prescriptions
+        id = Id,
+        name = Name,
+        address = Address,
+        prescriptions = Prescriptions
     };
-build_app_record(pharmacy,Object) ->
+build_app_record(pharmacy, Object) ->
     Id = riakc_map:fetch({?PHARMACY_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?PHARMACY_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?PHARMACY_ADDRESS_KEY, register}, Object),
     Prescriptions = find_key(Object, ?PHARMACY_PRESCRIPTIONS_KEY, set, []),
     #pharmacy{
-        id=Id
-        ,name=Name
-        ,address=Address
-        ,prescriptions=Prescriptions
+        id = Id,
+        name = Name,
+        address = Address,
+        prescriptions = Prescriptions
     };
-build_app_record(prescription,Object) ->
+build_app_record(prescription, Object) ->
     Id = tryfetch(?PRESCRIPTION_ID_KEY, register, Object, -1),
-    PatientId = tryfetch(?PRESCRIPTION_PATIENT_ID_KEY,register,Object,-1),
-    PrescriberId = tryfetch(?PRESCRIPTION_PRESCRIBER_ID_KEY,register,Object,-1),
-    PharmacyId = tryfetch(?PRESCRIPTION_PHARMACY_ID_KEY,register,Object,-1),
+    PatientId = tryfetch(?PRESCRIPTION_PATIENT_ID_KEY, register, Object, -1),
+    PrescriberId = tryfetch(?PRESCRIPTION_PRESCRIBER_ID_KEY, register, Object, -1),
+    PharmacyId = tryfetch(?PRESCRIPTION_PHARMACY_ID_KEY, register, Object, -1),
     DatePrescribed = riakc_map:fetch({?PRESCRIPTION_DATE_PRESCRIBED_KEY, register}, Object),
-    IsProcessed = tryfetch(?PRESCRIPTION_IS_PROCESSED_KEY,register,Object,?PRESCRIPTION_NOT_PROCESSED_VALUE),
-    DateProcessed = tryfetch(?PRESCRIPTION_DATE_PROCESSED_KEY,register,Object,<<"undefined">>),
+    IsProcessed = tryfetch(?PRESCRIPTION_IS_PROCESSED_KEY, register, Object, ?PRESCRIPTION_NOT_PROCESSED_VALUE),
+    DateProcessed = tryfetch(?PRESCRIPTION_DATE_PROCESSED_KEY, register, Object, <<"undefined">>),
     Drugs = riakc_map:fetch({?PRESCRIPTION_DRUGS_KEY, set}, Object),
     #prescription{
-        id=Id
-        ,patient_id=PatientId
-        ,pharmacy_id=PharmacyId
-        ,prescriber_id=PrescriberId
-        ,date_prescribed=DatePrescribed
-        ,date_processed=DateProcessed
-        ,drugs=Drugs
-        ,is_processed=IsProcessed
+        id = Id,
+        patient_id = PatientId,
+        pharmacy_id = PharmacyId,
+        prescriber_id = PrescriberId,
+        date_prescribed = DatePrescribed,
+        date_processed = DateProcessed,
+        drugs = Drugs,
+        is_processed = IsProcessed
     };
-build_app_record(staff,Object) ->
+build_app_record(staff, Object) ->
     Id = riakc_map:fetch({?STAFF_ID_KEY, register}, Object),
     Name = riakc_map:fetch({?STAFF_NAME_KEY, register}, Object),
     Address = riakc_map:fetch({?STAFF_ADDRESS_KEY, register}, Object),
     Speciality = riakc_map:fetch({?STAFF_SPECIALITY_KEY, register}, Object),
     Prescriptions = find_key(Object, ?STAFF_PRESCRIPTIONS_KEY, set, []),
     #staff{
-        id=Id
-        ,name=Name
-        ,address=Address
-        ,speciality=Speciality
-        ,prescriptions=Prescriptions
-        }.
+        id = Id,
+        name = Name,
+        address = Address,
+        speciality = Speciality,
+        prescriptions = Prescriptions
+    }.
 
 get_entity_with_prescriptions(Entity, Id) ->
     Pid = poolboy:checkout(fmke_db_connection_pool),
@@ -502,7 +507,7 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
     Pid = poolboy:checkout(fmke_db_connection_pool),
     %% check required pre-conditions
     [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-      = check_keys(Pid,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}]),
+      = check_keys(Pid, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
 
     PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
     HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
