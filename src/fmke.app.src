@@ -12,7 +12,7 @@
     jsx,
     antidote_pb,
     riak_pb,
-    riakc,
+    riak_client,
     eredis
    ]},
 
