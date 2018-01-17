@@ -50,7 +50,7 @@
 
 -type context() :: term().
 
--define (build_nested_map_op(TopLevelKey, Key, Op), [update_map_op(TopLevelKey, [update_map_op(Key, Op)])]).
+-define (BUILD_NESTED_MAP_OP(TopLevelKey, Key, Op), [update_map_op(TopLevelKey, [update_map_op(Key, Op)])]).
 %% TODO switch to stateful modules
 -define (KV_IMPLEMENTATION(), fmke_config:get(simplified_driver)).
 
@@ -315,9 +315,9 @@ update_prescription_w_obj(Context, Prescription = #prescription{}, Operation, Dr
             PharmacyKey = gen_key(pharmacy, PharmacyId),
 
             NestedOp = [create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)],
-            PatientUpdate = ?build_nested_map_op(?PATIENT_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
-            PharmacyUpdate = ?build_nested_map_op(?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
-            PrescriberUpdate = ?build_nested_map_op(?STAFF_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+            PatientUpdate = ?BUILD_NESTED_MAP_OP(?PATIENT_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+            PharmacyUpdate = ?BUILD_NESTED_MAP_OP(?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+            PrescriberUpdate = ?BUILD_NESTED_MAP_OP(?STAFF_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
 
             ListUpdates = [
                 {PrescriptionKey, prescription, NestedOp},
