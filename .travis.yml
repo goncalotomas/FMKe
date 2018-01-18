@@ -8,6 +8,7 @@ services:
 install:
   - make all
 script:
+  - make lint
   - make ct
   - make bench
   - make test-multiple-releases
