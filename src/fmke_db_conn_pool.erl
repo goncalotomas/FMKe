@@ -60,10 +60,10 @@ try_connect(Module, Hostname, Port, Timeout) when is_list(Port) ->
 try_connect(Module, Hostname, Port, Timeout) ->
   case Module:start_link(Hostname, Port) of
     {ok, Pid} ->
-      % io:format("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),
+      lager:debug("Connected to ~p:~p --> ~p ~n", [Hostname, Port, Pid]),
       {ok, Pid};
     {error, Reason} ->
-      io:format("Could not connect to ~p:~p, Reason: ~p~n", [Hostname, Port, Reason]),
+      lager:error("Could not connect to ~p:~p, Reason: ~p~n", [Hostname, Port, Reason]),
       timer:sleep(Timeout),
       try_connect(Module, Hostname, Port, min(10000, Timeout*2))
   end.
