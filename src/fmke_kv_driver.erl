@@ -251,38 +251,33 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
     Driver:commit_transaction(Context5),
     Result.
 
-process_prescription_w_obj(Context, Prescription = #prescription{}, DateProcessed, Driver) ->
-    case Prescription#prescription.is_processed of
-        ?PRESCRIPTION_PROCESSED_VALUE ->
-            {{error, prescription_already_processed}, Context};
-        _Other ->
-            PrescriptionId = binary_to_integer(Prescription#prescription.id),
-            PatientId = binary_to_integer(Prescription#prescription.patient_id),
-            PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
-            PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
-            PrescriptionKey = gen_key(prescription, PrescriptionId),
-            PatientKey = gen_key(patient, PatientId),
-            PrescriberKey = gen_key(staff, PrescriberId),
-            PharmacyKey = gen_key(pharmacy, PharmacyId),
+process_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}, _DateProcessed,
+    _Driver) -> {{error, prescription_already_processed}, Context};
 
-            NestedOp = [
-                create_register_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_PROCESSED_VALUE),
-                create_register_op(?PRESCRIPTION_DATE_PROCESSED_KEY, DateProcessed)
-            ],
+process_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} = Prescription,
+    DateProcessed, Driver) ->
+        PrescriptionId = binary_to_integer(Prescription#prescription.id),
+        PatientId = binary_to_integer(Prescription#prescription.patient_id),
+        PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
+        PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
+        PrescriptionKey = gen_key(prescription, PrescriptionId),
+        PatientKey = gen_key(patient, PatientId),
+        PrescriberKey = gen_key(staff, PrescriberId),
+        PharmacyKey = gen_key(pharmacy, PharmacyId),
 
-            PatientUpdate = [update_map_op(?PATIENT_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
-            PharmacyUpdate = [update_map_op(?PHARMACY_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
-            PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
+        NestedOp = [
+            create_register_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_PROCESSED_VALUE),
+            create_register_op(?PRESCRIPTION_DATE_PROCESSED_KEY, DateProcessed)
+        ],
 
-            Operations = [
-                {PrescriptionKey, prescription, NestedOp},
-                {PatientKey, patient, PatientUpdate},
-                {PharmacyKey, pharmacy, PharmacyUpdate},
-                {PrescriberKey, staff, PrescriberUpdate}
-            ],
+        PatientUpdate = [update_map_op(?PATIENT_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
+        PharmacyUpdate = [update_map_op(?PHARMACY_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
+        PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
 
-            run_updates(Context, Operations, false, Driver)
-      end.
+        run_updates(Context, [
+            {PrescriptionKey, prescription, NestedOp}, {PatientKey, patient, PatientUpdate},
+            {PharmacyKey, pharmacy, PharmacyUpdate}, {PrescriberKey, staff, PrescriberUpdate}
+        ], false, Driver).
 
 -spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean(), Driver :: atom()) ->
     {ok, context()} | {{error, term()}, context()}.
@@ -300,39 +295,29 @@ run_updates(Context, [H|T], false, Driver) ->
             run_updates(Context3, T, true, Driver)
     end.
 
-update_prescription_w_obj(Context, Prescription = #prescription{}, Operation, Drugs, Driver) ->
-    case Prescription#prescription.is_processed of
-        ?PRESCRIPTION_PROCESSED_VALUE ->
-            {{error, prescription_already_processed}, Context};
-        _Other ->
-            PrescriptionId = binary_to_integer(Prescription#prescription.id),
-            PatientId = binary_to_integer(Prescription#prescription.patient_id),
-            PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
-            PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
-            PrescriptionKey = gen_key(prescription, PrescriptionId),
-            PatientKey = gen_key(patient, PatientId),
-            PrescriberKey = gen_key(staff, PrescriberId),
-            PharmacyKey = gen_key(pharmacy, PharmacyId),
+update_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}, add_drugs, _Drugs,
+    _Driver) -> {{error, prescription_already_processed}, Context};
 
-            NestedOp = [create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)],
-            PatientUpdate = ?BUILD_NESTED_MAP_OP(?PATIENT_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
-            PharmacyUpdate = ?BUILD_NESTED_MAP_OP(?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
-            PrescriberUpdate = ?BUILD_NESTED_MAP_OP(?STAFF_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+update_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} = Prescription,
+    add_drugs, Drugs, Driver) ->
+        PrescriptionId = binary_to_integer(Prescription#prescription.id),
+        PatientId = binary_to_integer(Prescription#prescription.patient_id),
+        PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
+        PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
+        PrescriptionKey = gen_key(prescription, PrescriptionId),
+        PatientKey = gen_key(patient, PatientId),
+        PrescriberKey = gen_key(staff, PrescriberId),
+        PharmacyKey = gen_key(pharmacy, PharmacyId),
 
-            ListUpdates = [
-                {PrescriptionKey, prescription, NestedOp},
-                {PatientKey, patient, PatientUpdate},
-                {PharmacyKey, pharmacy, PharmacyUpdate},
-                {PrescriberKey, staff, PrescriberUpdate}
-            ],
+        NestedOp = [create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)],
+        PatientUpdate = ?BUILD_NESTED_MAP_OP(?PATIENT_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+        PharmacyUpdate = ?BUILD_NESTED_MAP_OP(?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+        PrescriberUpdate = ?BUILD_NESTED_MAP_OP(?STAFF_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
 
-            run_update_prescription_ops(Context, Operation, ListUpdates, Driver)
-    end.
-
-run_update_prescription_ops(Context, add_drugs, Updates, Driver) ->
-    run_updates(Context, Updates, false, Driver);
-run_update_prescription_ops(Context, _OtherOp, _Updates, _Driver) ->
-    {{error, invalid_update_operation}, Context}.
+        run_updates(Context, [
+            {PrescriptionKey, prescription, NestedOp}, {PatientKey, patient, PatientUpdate},
+            {PharmacyKey, pharmacy, PharmacyUpdate}, {PrescriberKey, staff, PrescriberUpdate}
+        ], false, Driver).
 
 %%-----------------------------------------------------------------------------
 %% Create functions - no transactional context

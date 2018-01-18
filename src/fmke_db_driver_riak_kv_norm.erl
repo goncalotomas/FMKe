@@ -46,7 +46,7 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->
@@ -327,14 +327,7 @@ multi_read(Pid, Objects) ->
                 fun({Key, BucketType, BucketName}) ->
                     riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key)
                 end, Objects),
-    lists:map(
-        fun(ReadResult) ->
-            case ReadResult of
-              {error, {notfound, _Type}} -> {error, not_found};
-              {ok, Object} -> Object;
-              _SomethingElse -> _SomethingElse
-            end
-        end, Results).
+    lists:map(parse_read_result/1, Results).
 
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
@@ -371,10 +364,7 @@ get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
 get_pharmacy_prescriptions(Id) ->
     Key = get_key(pharmacy, Id),
     Pid = poolboy:checkout(fmke_db_connection_pool),
-    [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
-        {Key, <<"sets">>, <<"prescriptions">>},
-        {Key, <<"sets">>, <<"processed_prescriptions">>}
-    ]),
+    [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
     poolboy:checkin(fmke_db_connection_pool, Pid),
     case {Prescriptions, ProcessedPrescriptions} of
         {{error, not_found}, {error, not_found}} -> [];
@@ -428,10 +418,7 @@ get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
 get_staff_prescriptions(Id) ->
     Key = get_key(staff, Id),
     Pid = poolboy:checkout(fmke_db_connection_pool),
-    [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
-        {Key, <<"sets">>, <<"prescriptions">>},
-        {Key, <<"sets">>, <<"processed_prescriptions">>}
-    ]),
+    [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
     poolboy:checkin(fmke_db_connection_pool, Pid),
     case {Prescriptions, ProcessedPrescriptions} of
         {{error, not_found}, {error, not_found}} -> [];
@@ -474,21 +461,19 @@ update_staff_details(Id, Name, Address, Speciality) ->
 update_prescription_medication(Id, add_drugs, Drugs) ->
     {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
     Pid = poolboy:checkout(fmke_db_connection_pool),
-    Result = case get_prescription_by_id(Id) of
+    Result =
+        case get_prescription_by_id(Id) of
         {error, not_found} ->
             {error, no_such_prescription};
-        Prescription ->
-            case Prescription#prescription.is_processed of
-                ?PRESCRIPTION_PROCESSED_VALUE ->
-                    {error, prescription_already_processed};
-                _Other ->
-                    Map = riakc_map:new(),
-                    Map1 = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set},
-                                        fun(S) -> riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S) end,
-                                        Map),
-                    ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(Map1))
-            end
-      end,
+        #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+            {error, prescription_already_processed};
+        #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+            Map = riakc_map:new(),
+            Map1 = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set},
+                                fun(S) -> riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S) end,
+                                Map),
+            ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(Map1))
+        end,
     poolboy:checkin(fmke_db_connection_pool, Pid),
     Result;
 
@@ -518,9 +503,11 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
             Prescriptions1 = riakc_set:add_element(PrescriptionKey, Prescriptions),
             BucketType = <<"sets">>,
             BucketName = <<"prescriptions">>,
-            lists:map(fun(Key) ->
-                          riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_set:to_op(Prescriptions1))
-                      end, [PatientKey, PharmacyKey, PrescriberKey]),
+            lists:map(
+                fun(Key) ->
+                    riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_set:to_op(Prescriptions1))
+                end, [PatientKey, PharmacyKey, PrescriberKey]
+            ),
             ok;
         ErrorMessage -> ErrorMessage
     end,
@@ -560,75 +547,81 @@ process_prescription(Id, Date) ->
     Result.
 
 process_prescription(Pid, Id, Date) ->
-    case process_get_request(Pid, prescription, Id) of
-        {error, not_found} ->
-            {error, no_such_prescription};
-        Prescription ->
-            case riakc_map:fetch({?PRESCRIPTION_IS_PROCESSED_KEY, register}, Prescription) of
-                ?PRESCRIPTION_PROCESSED_VALUE ->
-                    {error, prescription_already_processed};
-                ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
-                    Object = build_app_record(prescription, Prescription),
-                    PharmacyKey =      get_key(pharmacy, binary_to_integer(Object#prescription.pharmacy_id)),
-                    PatientKey =       get_key(patient, binary_to_integer(Object#prescription.patient_id)),
-                    StaffKey =         get_key(staff, binary_to_integer(Object#prescription.prescriber_id)),
-                    PrescriptionKey =  get_key(prescription, Id),
+    Prescription = get_prescription_by_id(Pid, Id),
+    case can_process_prescription(Prescription) of
+        {false, Reason} ->
+            {error, Reason};
+        true ->
+            Object = build_app_record(prescription, Prescription),
+            PharmacyKey =      get_key(pharmacy, binary_to_integer(Object#prescription.pharmacy_id)),
+            PatientKey =       get_key(patient, binary_to_integer(Object#prescription.patient_id)),
+            StaffKey =         get_key(staff, binary_to_integer(Object#prescription.prescriber_id)),
+            PrescriptionKey =  get_key(prescription, Id),
 
-                    NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
-                                        fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
-                                    Prescription),
-                    NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
-                                        fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
-                                    NewMap1),
+            NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+                                fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
+                            Prescription),
+            NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
+                                fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
+                            NewMap1),
 
-                    [OpenPatPrescs, OpenPharmPrescs, OpenStaffPrescs] = multi_read(Pid, [
-                        {PatientKey, <<"sets">>, <<"prescriptions">>},
-                        {PharmacyKey, <<"sets">>, <<"prescriptions">>},
-                        {StaffKey, <<"sets">>, <<"prescriptions">>}
-                    ]),
+            [OpenPatPrescs, OpenPharmPrescs, OpenStaffPrescs] = multi_read(Pid, [
+                {PatientKey, <<"sets">>, <<"prescriptions">>},
+                {PharmacyKey, <<"sets">>, <<"prescriptions">>},
+                {StaffKey, <<"sets">>, <<"prescriptions">>}
+            ]),
 
-                    RemFromSetPat = riakc_set:del_element(PrescriptionKey, OpenPatPrescs),
-                    RemFromSetPharm = riakc_set:del_element(PrescriptionKey, OpenPharmPrescs),
-                    RemFromSetStaff = riakc_set:del_element(PrescriptionKey, OpenStaffPrescs),
+            RemFromSetPat = riakc_set:del_element(PrescriptionKey, OpenPatPrescs),
+            RemFromSetPharm = riakc_set:del_element(PrescriptionKey, OpenPharmPrescs),
+            RemFromSetStaff = riakc_set:del_element(PrescriptionKey, OpenStaffPrescs),
 
-                    ProcPrescsLocal = riakc_set:add_element(PrescriptionKey, riakc_set:new()),
+            ProcPrescsLocal = riakc_set:add_element(PrescriptionKey, riakc_set:new()),
 
-                    DelBuckName = <<"prescriptions">>,
-                    AddBuckName = <<"processed_prescriptions">>,
-                    BucketType = <<"sets">>,
+            BucketType = <<"sets">>,
+            PrscBucketType = {<<"maps">>, <<"prescriptions">>},
+            DelBucketType = {BucketType, <<"prescriptions">>},
+            AddBucketType = {BucketType, <<"processed_prescriptions">>},
 
-                    riakc_pb_socket:update_type(Pid, {<<"maps">>, <<"prescriptions">>}, PrescriptionKey, riakc_map:to_op(NewMap)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PatientKey, riakc_set:to_op(RemFromSetPat)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, StaffKey, riakc_set:to_op(RemFromSetStaff)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
-                    ok
-           end
+            riakc_pb_socket:update_type(Pid, PrscBucketType, PrescriptionKey, riakc_map:to_op(NewMap)),
+            riakc_pb_socket:update_type(Pid, DelBucketType, PatientKey, riakc_set:to_op(RemFromSetPat)),
+            riakc_pb_socket:update_type(Pid, DelBucketType, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
+            riakc_pb_socket:update_type(Pid, DelBucketType, StaffKey, riakc_set:to_op(RemFromSetStaff)),
+            riakc_pb_socket:update_type(Pid, AddBucketType, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
+            riakc_pb_socket:update_type(Pid, AddBucketType, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
+            riakc_pb_socket:update_type(Pid, AddBucketType, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
+            ok
    end.
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
 
+%% Uses a Pid connected to Riak to fetch the open prescriptions and processed prescriptions
+%% Returns [OpenPrescriptions, ProcessedPrescriptions]
+get_prescriptions(Pid, Key) ->
+    multi_read(Pid, [
+        {Key, <<"sets">>, <<"prescriptions">>},
+        {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]).
+
+can_process_prescription({error, Reason}) ->
+    {false, Reason};
+can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
+    {false, prescription_already_processed};
+can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
+    true.
+
 process_get_request(Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    ReadResult = get(Key, BucketType, BucketName),
-    case ReadResult of
-        {error, {notfound, _Type}} -> {error, not_found};
-        {ok, Object} -> Object;
-        _SomethingElse -> _SomethingElse
-    end.
+    parse_read_result(get(Key, BucketType, BucketName)).
 
 process_get_request(Pid, Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    ReadResult = get(Pid, Key, BucketType, BucketName),
-    case ReadResult of
-        {error, {notfound, _Type}} -> {error, not_found};
-        {ok, Object} -> Object;
-        _SomethingElse -> _SomethingElse
-    end.
+    parse_read_result(get(Pid, Key, BucketType, BucketName)).
+
+parse_read_result({error, {notfound, _Type}}) -> {error, not_found};
+parse_read_result({ok, Object}) -> Object;
+parse_read_result(Result) -> erlang:error({unknown_read_result, Result}).
 
 get(Key, BucketType, BucketName) ->
     Pid = poolboy:checkout(fmke_db_connection_pool),
