@@ -547,20 +547,20 @@ process_prescription(Id, Date) ->
     Result.
 
 process_prescription(Pid, Id, Date) ->
-    Prescription = get_prescription_by_id(Pid, Id),
+    RiakObject = process_get_request(Pid, prescription, Id),
+    Prescription = build_app_record(prescription, RiakObject),
     case can_process_prescription(Prescription) of
         {false, Reason} ->
             {error, Reason};
         true ->
-            Object = build_app_record(prescription, Prescription),
-            PharmacyKey =      get_key(pharmacy, binary_to_integer(Object#prescription.pharmacy_id)),
-            PatientKey =       get_key(patient, binary_to_integer(Object#prescription.patient_id)),
-            StaffKey =         get_key(staff, binary_to_integer(Object#prescription.prescriber_id)),
+            PharmacyKey =      get_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
+            PatientKey =       get_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
+            StaffKey =         get_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
             PrescriptionKey =  get_key(prescription, Id),
 
             NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
                                 fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
-                            Prescription),
+                            RiakObject),
             NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
                                 fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
                             NewMap1),
