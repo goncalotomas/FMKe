@@ -122,16 +122,13 @@ parse_db_address_list_rec([H|T], Accum) ->
             end
     end.
 
-read_tuple_address({_1, _2, _3, _4}) when is_integer(_1) andalso is_integer(_2)
-    andalso is_integer(_3) andalso is_integer(_4) ->
-        integer_to_list(_1) ++ "." ++ integer_to_list(_2) ++ "." ++
-        integer_to_list(_3) ++ "." ++ integer_to_list(_4);
+read_tuple_address({A, B, C, D}) when is_integer(A) andalso is_integer(B) andalso is_integer(C) andalso is_integer(D) ->
+    integer_to_list(A) ++ "." ++ integer_to_list(B) ++ "." ++ integer_to_list(C) ++ "." ++ integer_to_list(D);
 
-read_tuple_address({_1, _2, _3, _4, _5, _6}) when is_integer(_1) andalso is_integer(_2)
-    andalso is_integer(_3) andalso is_integer(_4) andalso is_integer(_5) andalso is_integer(_6) ->
-        integer_to_list(_1) ++ "." ++ integer_to_list(_2) ++ "." ++
-        integer_to_list(_3) ++ "." ++ integer_to_list(_4) ++ "." ++
-        integer_to_list(_5) ++ "." ++ integer_to_list(_6).
+read_tuple_address({A, B, C, D, E, F, G, H}) when is_list(A) andalso is_list(B) andalso is_list(C) andalso is_list(D)
+    andalso is_list(E) andalso is_list(F) andalso is_list(G) andalso is_list(H) ->
+        integer_to_list(A) ++ ":" ++ integer_to_list(B) ++ ":" ++ integer_to_list(C) ++ ":" ++ integer_to_list(D) ++ ":"
+        ++ integer_to_list(E) ++ ":" ++ integer_to_list(F) ++ integer_to_list(G) ++ ":" ++ integer_to_list(H).
 
 parse_db_port_list(DbPortList) ->
     parse_db_port_list_rec(DbPortList, []).
