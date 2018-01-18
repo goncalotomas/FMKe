@@ -197,8 +197,8 @@ correct_redis_driver_setup_test() ->
     {fmke_kv_driver, fmke_db_driver_redis} = get_driver_setup(redis).
 
 parse_ipv4_tuple_address_test() ->
-    "1.2.3.4" = read_tuple_address({1,2,3,4}),
-    "123.245.167.98" = read_tuple_address({123,245,167,098}).
+    "1.2.3.4" = read_tuple_address({1, 2, 3, 4}),
+    "123.245.167.98" = read_tuple_address({123, 245, 167, 098}).
 
 parse_ipv6_tuple_address_test() ->
     "ab:cd:ef:bb:cc:dd:ee:ff" = read_tuple_address({"ab", "cd", "ef", "bb", "cc", "dd", "ee", "ff"}).
