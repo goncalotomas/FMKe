@@ -12,7 +12,7 @@ init(Req0, Opts) ->
   catch
     Err:Reason ->
       ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
-      io:format(ErrorMessage),
+      lager:error(ErrorMessage),
       Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
       {ok, Req2, Opts}
   end.
@@ -44,11 +44,11 @@ create_event(Req) ->
             IntegerStaffId = binary_to_integer(StaffMemberId),
             StringTimestamp = binary_to_list(Timestamp),
             StringDescription = binary_to_list(Description),
-            ServerResponse = fmke:create_event(IntegerId, IntegerTreatmentId, IntegerStaffId, StringTimestamp, StringDescription),
-            Success = ServerResponse =:= ok,
+            Resp = fmke:create_event(IntegerId, IntegerTreatmentId, IntegerStaffId, StringTimestamp, StringDescription),
+            Success = Resp =:= ok,
             JsonReply =  lists:flatten(io_lib:format(
                 "{\"success\": \"~p\", \"result\": \"~p\"}",
-                [Success, ServerResponse]
+                [Success, Resp]
             )),
             cowboy_req:reply(200, #{
                 <<"content-type">> => <<"application/json">>
