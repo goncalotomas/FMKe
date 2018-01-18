@@ -327,7 +327,7 @@ multi_read(Pid, Objects) ->
                 fun({Key, BucketType, BucketName}) ->
                     riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key)
                 end, Objects),
-    lists:map(parse_read_result/1, Results).
+    lists:map(fun parse_read_result/1, Results).
 
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).

@@ -300,7 +300,7 @@ get_entity_with_prescriptions(Entity, Id, Txn) ->
 
 multi_read(Objects, Txn) ->
   Results = txn_read_objects(Objects, Txn),
-  lists:map(parse_read_result/1, Results).
+  lists:map(fun parse_read_result/1, Results).
 
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
