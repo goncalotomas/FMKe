@@ -119,6 +119,6 @@ parse_valid_string_from_binary_test() ->
     "FMKe" = parse_string(parameter, <<"FMKe">>).
 
 parse_string_from_invalid_binary_test() ->
-    ?assertError(invalid_parameter, parse_string(parameter, <<123,200,21>>)).
+    ?assertError(invalid_parameter, parse_string(parameter, <<123, 200, 21>>)).
 
 -endif.
