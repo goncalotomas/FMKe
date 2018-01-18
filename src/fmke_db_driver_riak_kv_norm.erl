@@ -604,6 +604,8 @@ get_prescriptions(Pid, Key) ->
         {Key, <<"sets">>, <<"processed_prescriptions">>}
     ]).
 
+can_process_prescription({error, not_found}) ->
+    {false, no_such_prescription};
 can_process_prescription({error, Reason}) ->
     {false, Reason};
 can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
