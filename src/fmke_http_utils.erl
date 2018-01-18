@@ -65,7 +65,7 @@ parse_id(Id) when is_binary(Id) ->
     catch
         error:badarg ->
             %% could be a binary integer instead of a binary list
-            parse_id(binary_to_integer(Id))
+            parse_id(binary_to_integer(Id));
         _:_ -> erlang:error(invalid_id)
     end.
 
