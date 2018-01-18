@@ -63,6 +63,9 @@ ct-riak-norm: rel
 dialyzer:
 	${REBAR} dialyzer
 
+eunit:
+	rebar3 eunit
+
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
 
