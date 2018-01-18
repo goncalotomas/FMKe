@@ -109,13 +109,13 @@ parse_db_address_list(DbAddressList) ->
 
 parse_db_address_list_rec([], []) -> throw(empty_address_list);
 parse_db_address_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
-parse_db_address_list_rec([H|T], Accum) when is_tuple(H) ->
+parse_db_address_list_rec([H|T], Accum) ->
     case is_tuple(H) of
         true -> parse_db_address_list_rec(T, lists:append(Accum, [read_tuple_address(H)]));
         false ->
             case io_lib:printable_unicode_list(H) of
                 false -> {error, invalid_format};
-                true -> parse_db_address_list_rec( T, lists:append(Accum, [H]))
+                true -> parse_db_address_list_rec(T, lists:append(Accum, [H]))
             end
     end.
 
