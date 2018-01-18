@@ -100,7 +100,7 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->
@@ -185,9 +185,12 @@ gen_entity_update(prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePr
     PatientOp = build_id_op(?PRESCRIPTION_PATIENT_ID_KEY, ?PRESCRIPTION_PATIENT_ID_CRDT, PatientId),
     PharmacyOp = build_id_op(?PRESCRIPTION_PHARMACY_ID_KEY, ?PRESCRIPTION_PHARMACY_ID_CRDT, PharmacyId),
     PrescriberOp = build_id_op(?PRESCRIPTION_PRESCRIBER_ID_KEY, ?PRESCRIPTION_PRESCRIBER_ID_CRDT, PrescriberId),
-    DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?PRESCRIPTION_DATE_PRESCRIBED_CRDT, DatePrescribed),
-    IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT, ?PRESCRIPTION_NOT_PROCESSED_VALUE),
-    DrugsOp = build_map_op(?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT, {add_all, lists:map(fun list_to_binary/1, Drugs)}),
+    DatePrescribedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?PRESCRIPTION_DATE_PRESCRIBED_CRDT,
+    DatePrescribed),
+    IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT,
+    ?PRESCRIPTION_NOT_PROCESSED_VALUE),
+    DrugsOp = build_map_op(?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT,
+    {add_all, lists:map(fun list_to_binary/1, Drugs)}),
     [IdOp, PatientOp, PharmacyOp, PrescriberOp, DatePrescribedOp, IsProcessedOp, DrugsOp];
 gen_entity_update(staff, [Id, Name, Address, Speciality]) ->
     IdOp = build_id_op(?STAFF_ID_KEY, ?STAFF_ID_CRDT, Id),
@@ -248,9 +251,12 @@ build_app_record(prescription, Object) ->
   PatientId = find_key(Object, ?PRESCRIPTION_PATIENT_ID_KEY, ?PRESCRIPTION_PATIENT_ID_CRDT, <<"undefined">>),
   PrescriberId = find_key(Object, ?PRESCRIPTION_PRESCRIBER_ID_KEY, ?PRESCRIPTION_PRESCRIBER_ID_CRDT, <<"undefined">>),
   PharmacyId = find_key(Object, ?PRESCRIPTION_PHARMACY_ID_KEY, ?PRESCRIPTION_PHARMACY_ID_CRDT, <<"undefined">>),
-  DatePrescribed = find_key(Object, ?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?PRESCRIPTION_DATE_PRESCRIBED_CRDT, <<"undefined">>),
-  IsProcessed = find_key(Object, ?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT, ?PRESCRIPTION_NOT_PROCESSED_VALUE),
-  DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?PRESCRIPTION_DATE_PROCESSED_CRDT, <<"undefined">>),
+  DatePrescribed = find_key(Object, ?PRESCRIPTION_DATE_PRESCRIBED_KEY, ?PRESCRIPTION_DATE_PRESCRIBED_CRDT,
+  <<"undefined">>),
+  IsProcessed = find_key(Object, ?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT,
+  ?PRESCRIPTION_NOT_PROCESSED_VALUE),
+  DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?PRESCRIPTION_DATE_PROCESSED_CRDT,
+  <<"undefined">>),
   Drugs = find_key(Object, ?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT, []),
   #prescription{
       id = Id,
@@ -280,9 +286,13 @@ get_entity_with_prescriptions(Entity, Id, Txn) ->
     case {Prescriptions, ProcessedPrescriptions} of
       {{error, not_found}, {error, not_found}} -> build_app_record(Entity, EntityFields);
       {{error, not_found}, PrescriptionKeys2} ->
-          build_app_record(Entity, [{{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys2} | EntityFields]);
+          build_app_record(Entity, [
+            {{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys2} | EntityFields
+          ]);
       {PrescriptionKeys1, {error, not_found}} ->
-          build_app_record(Entity, [{{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys1} | EntityFields]);
+          build_app_record(Entity, [
+            {{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys1} | EntityFields
+          ]);
       {PrescriptionKeys1, PrescriptionKeys2} ->
           build_app_record(Entity, [{{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET},
               lists:append(PrescriptionKeys1, PrescriptionKeys2)} | EntityFields])
@@ -290,13 +300,7 @@ get_entity_with_prescriptions(Entity, Id, Txn) ->
 
 multi_read(Objects, Txn) ->
   Results = txn_read_objects(Objects, Txn),
-  lists:map(fun(ReadResult) ->
-    case ReadResult of
-      {_Crdt, []} -> {error, not_found};
-      {_Crdt, Object} -> Object;
-      _SomethingElse -> _SomethingElse
-    end
-  end, Results).
+  lists:map(parse_read_result/1, Results).
 
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
@@ -441,23 +445,21 @@ update_staff_details(Id, Name, Address, Speciality) ->
 -spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
 update_prescription_medication(Id, add_drugs, Drugs) ->
   Txn = txn_start(),
-  Result = case get_prescription_by_id(Id, Txn) of
-             {error, not_found} ->
-               {error, no_such_prescription};
-             Prescription ->
-               case Prescription#prescription.is_processed of
-                   ?PRESCRIPTION_PROCESSED_VALUE ->
-                      {error, prescription_already_processed};
-                   _Other ->
-                      PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
-                      UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT, PrescriptionSetOp)],
-                      put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
-                      ok
-               end
-           end,
+  Result =
+        case get_prescription_by_id(Id, Txn) of
+            {error, not_found} ->
+                {error, no_such_prescription};
+            #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+                {error, prescription_already_processed};
+            #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+                PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
+                UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?PRESCRIPTION_DRUGS_CRDT, PrescriptionSetOp)],
+                put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
+                ok
+       end,
   ok = txn_commit(Txn),
   Result;
-update_prescription_medication(_Id, _action, _Drugs) -> {error, invalid_update_operation}.
+update_prescription_medication(_Id, _Action, _Drugs) -> {error, invalid_update_operation}.
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy and treatment facility (hospital). The prescription also includes the prescription date
@@ -519,38 +521,43 @@ create_treatment(_TreatmentId, _PatientId, _StaffId, _FacilityId, _DateStarted, 
 
 process_prescription(Id, Date) ->
   Txn = txn_start(),
-  Result = case get_prescription_by_id(Id, Txn) of
-             {error, not_found} ->
-               {error, no_such_prescription};
-             Prescription ->
-               case Prescription#prescription.is_processed of
-                 ?PRESCRIPTION_PROCESSED_VALUE ->
-                   {error, prescription_already_processed};
-                 ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
-                   PharmacyKey =      gen_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
-                   PatientKey =       gen_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
-                   StaffKey =         gen_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
-                   PrescriptionKey =  gen_key(prescription, Id),
+  Prescription = get_prescription_by_id(Id, Txn),
+  Result =
+    case can_process_prescription(Prescription) of
+        {false, Reason} ->
+            {error, Reason};
+        true ->
+            PharmacyKey =      gen_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
+            PatientKey =       gen_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
+            StaffKey =         gen_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
+            PrescriptionKey =  gen_key(prescription, Id),
 
-                   IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT, ?PRESCRIPTION_PROCESSED_VALUE),
-                   ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?PRESCRIPTION_DATE_PROCESSED_CRDT, Date),
-                   PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
+            IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_IS_PROCESSED_CRDT,
+            ?PRESCRIPTION_PROCESSED_VALUE),
+            ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?PRESCRIPTION_DATE_PROCESSED_CRDT, Date),
+            PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
 
-                   PharmacyOp1 =  gen_entity_update(remove_entity_prescription, [PharmacyKey, PrescriptionKey]),
-                   PharmacyOp2 =  gen_entity_update(add_entity_processed_prescription, [PharmacyKey, PrescriptionKey]),
-                   PatientOp1 =   gen_entity_update(remove_entity_prescription, [PatientKey, PrescriptionKey]),
-                   PatientOp2 =   gen_entity_update(add_entity_processed_prescription, [PatientKey, PrescriptionKey]),
-                   StaffOp1 =     gen_entity_update(remove_entity_prescription, [StaffKey, PrescriptionKey]),
-                   StaffOp2 =     gen_entity_update(add_entity_processed_prescription, [StaffKey, PrescriptionKey]),
+            PharmacyOp1 =  gen_entity_update(remove_entity_prescription, [PharmacyKey, PrescriptionKey]),
+            PharmacyOp2 =  gen_entity_update(add_entity_processed_prescription, [PharmacyKey, PrescriptionKey]),
+            PatientOp1 =   gen_entity_update(remove_entity_prescription, [PatientKey, PrescriptionKey]),
+            PatientOp2 =   gen_entity_update(add_entity_processed_prescription, [PatientKey, PrescriptionKey]),
+            StaffOp1 =     gen_entity_update(remove_entity_prescription, [StaffKey, PrescriptionKey]),
+            StaffOp2 =     gen_entity_update(add_entity_processed_prescription, [StaffKey, PrescriptionKey]),
 
-                   txn_update_objects([
-                      PrescriptionUpdate, PharmacyOp1, PharmacyOp2, PatientOp1, PatientOp2, StaffOp1, StaffOp2
-                   ], Txn),
-                   ok
-               end
-           end,
+            txn_update_objects([
+                PrescriptionUpdate, PharmacyOp1, PharmacyOp2, PatientOp1, PatientOp2, StaffOp1, StaffOp2
+            ], Txn),
+        ok
+    end,
   ok = txn_commit(Txn),
   Result.
+
+can_process_prescription({error, not_found}) ->
+    {false, no_such_prescription};
+can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
+    {false, prescription_already_processed};
+can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
+    true.
 
 
 %%-----------------------------------------------------------------------------
@@ -558,20 +565,14 @@ process_prescription(Id, Date) ->
 %%-----------------------------------------------------------------------------
 
 process_get_request(Key, Type) ->
-  ReadResult = get(Key, Type),
-  case ReadResult of
-    {_Crdt, []} -> {error, not_found};
-    {_Crdt, Object} -> Object;
-    _SomethingElse -> _SomethingElse
-  end.
+  parse_read_result(get(Key, Type)).
 
 process_get_request(Key, Type, Txn) ->
-  ReadResult = get(Key, Type, Txn),
-  case ReadResult of
-    {_Crdt, []} -> {error, not_found};
-    {_Crdt, Object} -> Object;
-    _SomethingElse -> _SomethingElse
-  end.
+  parse_read_result(get(Key, Type, Txn)).
+
+parse_read_result({_Crdt, []}) -> {error, not_found};
+parse_read_result({_Crdt, Object}) -> Object;
+parse_read_result(_) -> erlang:error(unknown_object_type).
 
 error_to_binary(Reason) -> list_to_binary(lists:flatten(io_lib:format("~p", [Reason]))).
 
