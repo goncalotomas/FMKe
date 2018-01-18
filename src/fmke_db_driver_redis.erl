@@ -40,7 +40,7 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->

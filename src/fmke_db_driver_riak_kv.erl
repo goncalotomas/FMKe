@@ -46,7 +46,7 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->
@@ -165,7 +165,8 @@ parse_nested_prescriptions([[]]) -> [];
 parse_nested_prescriptions({{_NestedKey, map}, ListPrescriptions}) ->
     [build_app_record(prescription, Map) || Map <- ListPrescriptions];
 parse_nested_prescriptions(ListPrescriptions=[_H|_T]) when is_list(ListPrescriptions) ->
-    [build_app_record(prescription, {map, ListFields, [], [], undefined}) || {{_SomeKey, map}, ListFields} <- ListPrescriptions].
+    [build_app_record(prescription, {map, ListFields, [], [], undefined})
+        || {{_SomeKey, map}, ListFields} <- ListPrescriptions].
 
 
 build_ops(ListOps) ->
@@ -262,11 +263,11 @@ get_nested_counter_updt_fun(Op, Amount) ->
 update_local_map_obj(NestedKey, UpdateFunction, Map) ->
     riakc_map:update(NestedKey, UpdateFunction, Map).
 
-get_key(Key, _Type, _Context) when is_list(Key) ->
-    get_key(list_to_binary(Key), _Type, _Context);
+get_key(Key, Type, Context) when is_list(Key) ->
+    get_key(list_to_binary(Key), Type, Context);
 
-get_key(_Key, Type, _Context) when is_atom(Type) ->
-    get_key(_Key, get_bucket_from_entity(Type), _Context);
+get_key(Key, Type, Context) when is_atom(Type) ->
+    get_key(Key, get_bucket_from_entity(Type), Context);
 
 get_key(_Key, _Bucket, {}) ->
     erlang:error(no_transactional_context);
