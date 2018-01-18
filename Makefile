@@ -66,6 +66,9 @@ dialyzer:
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
 
+lint:
+	rebar3 as lint lint
+
 populate: compile
 	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmke@127.0.0.1"
 
