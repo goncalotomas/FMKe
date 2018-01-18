@@ -107,12 +107,9 @@ parse_db_address_list(DbAddressList) ->
             end
     end.
 
-parse_db_address_list_rec([], Accum) ->
-    case length(Accum) > 0 of
-        true -> {ok, Accum};
-        false -> {error, no_addresses}
-    end;
-parse_db_address_list_rec([H|T], Accum) ->
+parse_db_address_list_rec([], []) -> throw(empty_address_list);
+parse_db_address_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
+parse_db_address_list_rec([H|T], Accum) when is_tuple(H) ->
     case is_tuple(H) of
         true -> parse_db_address_list_rec(T, lists:append(Accum, [read_tuple_address(H)]));
         false ->
@@ -122,22 +119,16 @@ parse_db_address_list_rec([H|T], Accum) ->
             end
     end.
 
-read_tuple_address({A, B, C, D}) when is_integer(A) andalso is_integer(B) andalso is_integer(C) andalso is_integer(D) ->
-    integer_to_list(A) ++ "." ++ integer_to_list(B) ++ "." ++ integer_to_list(C) ++ "." ++ integer_to_list(D);
-
-read_tuple_address({A, B, C, D, E, F, G, H}) when is_list(A) andalso is_list(B) andalso is_list(C) andalso is_list(D)
-    andalso is_list(E) andalso is_list(F) andalso is_list(G) andalso is_list(H) ->
-        integer_to_list(A) ++ ":" ++ integer_to_list(B) ++ ":" ++ integer_to_list(C) ++ ":" ++ integer_to_list(D) ++ ":"
-        ++ integer_to_list(E) ++ ":" ++ integer_to_list(F) ++ integer_to_list(G) ++ ":" ++ integer_to_list(H).
+read_tuple_address({Fst, Snd, Thd, Fth}) when is_integer(Fst), is_integer(Snd), is_integer(Thd), is_integer(Fth) ->
+    integer_to_list(Fst) ++ "." ++ integer_to_list(Snd) ++ "." ++ integer_to_list(Thd) ++ "." ++ integer_to_list(Fth);
+read_tuple_address({A, B, C, D, E, F, G, H}) ->
+    A ++ ":" ++ B ++ ":" ++ C ++ ":" ++ D ++ ":" ++ E ++ ":" ++ F ++ ":" ++ G ++ ":" ++ H.
 
 parse_db_port_list(DbPortList) ->
     parse_db_port_list_rec(DbPortList, []).
 
-parse_db_port_list_rec([], Accum) ->
-    case length(Accum) > 0 of
-        true -> {ok, Accum};
-        false -> {error, no_ports}
-    end;
+parse_db_port_list_rec([], []) -> throw(empty_port_list);
+parse_db_port_list_rec([], Accum) -> {ok, Accum};
 parse_db_port_list_rec([H|T], Accum) ->
     case is_integer(H) of
         true -> parse_db_port_list_rec(T, lists:append(Accum, [H]));
@@ -166,3 +157,50 @@ supported_db(Database) when is_list(Database) ->
 
 supported_db(_Database) ->
     false.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+supports_antidote_test() ->
+    ?assert(supported_db("antidote")),
+    ?assert(supported_db(antidote)).
+
+supports_antidote_norm_test() ->
+    ?assert(supported_db("antidote_norm")),
+    ?assert(supported_db(antidote_norm)).
+
+supports_riak_test() ->
+    ?assert(supported_db("riak")),
+    ?assert(supported_db(riak)).
+
+supports_riak_norm_test() ->
+    ?assert(supported_db("riak_norm")),
+    ?assert(supported_db(riak_norm)).
+
+supports_redis_test() ->
+    ?assert(supported_db("redis")),
+    ?assert(supported_db(redis)).
+
+correct_antidote_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_antidote} = get_driver_setup(antidote).
+
+correct_antidote_norm_driver_setup_test() ->
+    {fmke_db_driver_antidote_norm, undefined} = get_driver_setup(antidote_norm).
+
+correct_riak_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_riak_kv} = get_driver_setup(riak).
+
+correct_riak_norm_driver_setup_test() ->
+    {fmke_db_driver_riak_kv_norm, undefined} = get_driver_setup(riak_norm).
+
+correct_redis_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_redis} = get_driver_setup(redis).
+
+parse_ipv4_tuple_address_test() ->
+    "1.2.3.4" = read_tuple_address({1,2,3,4}),
+    "123.245.167.98" = read_tuple_address({123,245,167,098}).
+
+parse_ipv6_tuple_address_test() ->
+    "ab:cd:ef:bb:cc:dd:ee:ff" = read_tuple_address({"ab", "cd", "ef", "bb", "cc", "dd", "ee", "ff"}).
+
+-endif.

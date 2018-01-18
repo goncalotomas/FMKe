@@ -73,7 +73,11 @@ parse_string(Name, undefined) ->
     erlang:error(list_to_atom("missing_" ++ atom_to_list(Name)));
 parse_string(Name, String) when is_binary(String) ->
     try
-        binary_to_list(String)
+        List = binary_to_list(String),
+        case io_lib:printable_unicode_list(List) of
+            true -> List;
+            false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
+        end
     catch
         error:badarg -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
     end;
@@ -82,10 +86,39 @@ parse_string(_, String) when is_list(String) ->
 
 parse_csv_string(Name, String) ->
     ParsedString = parse_string(Name, String),
-    lists:map(
-        fun(Str) ->
-            %% string:trim introduced in OTP 20 so I can't use it here
-            re:replace(Str, " ", "", [global, {return, list}])
-        end, string:tokens(ParsedString, ",")).
+    lists:map(fun(Str) -> re:replace(Str, " ", "", [global, {return, list}]) end, string:tokens(ParsedString, ",")).
 
-%%TODO this module should have tests in here
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+parse_non_negative_id_from_integer_test() ->
+    0 = parse_id(0).
+
+parse_non_negative_id_from_string_test() ->
+    1 = parse_id("1").
+
+parse_binary_non_negative_id_test() ->
+    2 = parse_id(<<"2">>).
+
+parse_negative_id_from_integer_test() ->
+    ?assertError(invalid_id, parse_id(-1)).
+
+parse_negative_id_from_string_test() ->
+    ?assertError(invalid_id, parse_id("-1")).
+
+parse_invalid_string_as_id_test() ->
+    ?assertError(invalid_id, parse_id("abc")).
+
+parse_binary_string_as_id_test() ->
+    ?assertError(invalid_id, parse_id(<<"d">>)).
+
+parse_undefined_as_string_test() ->
+    ?assertError(missing_test, parse_string(test, undefined)).
+
+parse_valid_string_from_binary_test() ->
+    "FMKe" = parse_string(parameter, <<"FMKe">>).
+
+parse_string_from_invalid_binary_test() ->
+    ?assertError(invalid_parameter, parse_string(parameter, <<123,200,21>>)).
+
+-endif.
