@@ -12,6 +12,7 @@ script:
   - make ct
   - make bench
   - make test-multiple-releases
+  - rebar3 as test coveralls send
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"
