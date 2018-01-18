@@ -50,7 +50,7 @@
 
 -type context() :: term().
 
--define (build_nested_map_op(TopLevelKey,Key,Op), [update_map_op(TopLevelKey,[update_map_op(Key,Op)])]).
+-define (BUILD_NESTED_MAP_OP(TopLevelKey, Key, Op), [update_map_op(TopLevelKey, [update_map_op(Key, Op)])]).
 %% TODO switch to stateful modules
 -define (KV_IMPLEMENTATION(), fmke_config:get(simplified_driver)).
 
@@ -158,10 +158,10 @@ create_if_not_exists(Entity, Fields, Driver) ->
     {Result, Txn3} =
       case check_id(Entity, Id, Txn, Driver) of
         {taken, Txn1} ->
-            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Txn1};
+            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))}, Txn1};
         {free, Txn2} ->
             EntityKey = gen_key(Entity, Id),
-            EntityUpdate = gen_entity_update(Entity,Fields),
+            EntityUpdate = gen_entity_update(Entity, Fields),
             execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
       end,
     Driver:commit_transaction(Txn3),
@@ -173,10 +173,10 @@ create_if_not_exists(Entity, Fields, Driver, Txn) ->
     {Result, Txn3} =
       case check_id(Entity, Id, Txn, Driver) of
         {taken, Txn1} ->
-            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken",[Entity])))}, Txn1};
+            {{error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))}, Txn1};
         {free, Txn2} ->
             EntityKey = gen_key(Entity, Id),
-            EntityUpdate = gen_entity_update(Entity,Fields),
+            EntityUpdate = gen_entity_update(Entity, Fields),
             execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
       end,
     {Result, Txn3}.
@@ -188,10 +188,10 @@ update_if_already_exists(Entity, Fields, Driver) ->
     {Result, Txn3} =
       case check_id(Entity, Id, Txn, Driver) of
         {free, Txn1} ->
-            {{error, list_to_atom(lists:flatten(io_lib:format("no_such_~p",[Entity])))}, Txn1};
+            {{error, list_to_atom(lists:flatten(io_lib:format("no_such_~p", [Entity])))}, Txn1};
         {taken, Txn2} ->
             EntityKey = gen_key(Entity, Id),
-            EntityUpdate = gen_entity_update(Entity,Fields),
+            EntityUpdate = gen_entity_update(Entity, Fields),
             execute_create_op(Entity, EntityKey, EntityUpdate, Txn2, Driver)
       end,
     Driver:commit_transaction(Txn3),
@@ -230,109 +230,94 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
     {ok, Txn} = Driver:start_transaction([]),
     %% Check if multiple keys are taken
     [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-        = check_keys(Txn,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}], Driver),
+        = check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}], Driver),
 
     %% Create top level prescription if key does not exist.
-    PrescriptionFields = [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs],
+    PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
     {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Driver, Txn),
 
     {Result, Context5} = case HandleCreateOpResult of
         ok ->
             %% creating top level prescription was successful, create nested objects
-            PatientUpdate = [gen_nested_entity_update(prescription,?PATIENT_PRESCRIPTIONS_KEY,PrescriptionFields)],
-            PharmacyUpdate = [gen_nested_entity_update(prescription,?PHARMACY_PRESCRIPTIONS_KEY,PrescriptionFields)],
-            PrescriberUpdate = [gen_nested_entity_update(prescription,?STAFF_PRESCRIPTIONS_KEY,PrescriptionFields)],
-            {ok, Context2} = Driver:put(PatientKey,patient,PatientUpdate,Txn2),
-            {ok, Context3} = Driver:put(PharmacyKey,pharmacy,PharmacyUpdate,Context2),
-            {ok, Context4} = Driver:put(PrescriberKey,staff,PrescriberUpdate,Context3),
+            PatientUpdate = [gen_nested_entity_update(prescription, ?PATIENT_PRESCRIPTIONS_KEY, PrescriptionFields)],
+            PharmacyUpdate = [gen_nested_entity_update(prescription, ?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionFields)],
+            PrescriberUpdate = [gen_nested_entity_update(prescription, ?STAFF_PRESCRIPTIONS_KEY, PrescriptionFields)],
+            {ok, Context2} = Driver:put(PatientKey, patient, PatientUpdate, Txn2),
+            {ok, Context3} = Driver:put(PharmacyKey, pharmacy, PharmacyUpdate, Context2),
+            {ok, Context4} = Driver:put(PrescriberKey, staff, PrescriberUpdate, Context3),
             {ok, Context4};
         ErrorMessage -> {ErrorMessage, Txn2}
     end,
     Driver:commit_transaction(Context5),
     Result.
 
-process_prescription_w_obj(Context, Prescription = #prescription{}, DateProcessed, Driver) ->
-    case Prescription#prescription.is_processed of
-        ?PRESCRIPTION_PROCESSED_VALUE ->
-            {{error, prescription_already_processed},Context};
-        _Other ->
-            PrescriptionId = binary_to_integer(Prescription#prescription.id),
-            PatientId = binary_to_integer(Prescription#prescription.patient_id),
-            PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
-            PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
-            PrescriptionKey = gen_key(prescription,PrescriptionId),
-            PatientKey = gen_key(patient,PatientId),
-            PrescriberKey = gen_key(staff,PrescriberId),
-            PharmacyKey = gen_key(pharmacy,PharmacyId),
+process_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}, _DateProcessed,
+    _Driver) -> {{error, prescription_already_processed}, Context};
 
-            NestedOp = [
-                create_register_op(?PRESCRIPTION_IS_PROCESSED_KEY,?PRESCRIPTION_PROCESSED_VALUE),
-                create_register_op(?PRESCRIPTION_DATE_PROCESSED_KEY,DateProcessed)
-            ],
+process_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} = Prescription,
+    DateProcessed, Driver) ->
+        PrescriptionId = binary_to_integer(Prescription#prescription.id),
+        PatientId = binary_to_integer(Prescription#prescription.patient_id),
+        PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
+        PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
+        PrescriptionKey = gen_key(prescription, PrescriptionId),
+        PatientKey = gen_key(patient, PatientId),
+        PrescriberKey = gen_key(staff, PrescriberId),
+        PharmacyKey = gen_key(pharmacy, PharmacyId),
 
-            PatientUpdate = [update_map_op(?PATIENT_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
-            PharmacyUpdate = [update_map_op(?PHARMACY_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
-            PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY,[update_map_op(PrescriptionKey,NestedOp)])],
+        NestedOp = [
+            create_register_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?PRESCRIPTION_PROCESSED_VALUE),
+            create_register_op(?PRESCRIPTION_DATE_PROCESSED_KEY, DateProcessed)
+        ],
 
-            Operations = [
-                {PrescriptionKey,prescription,NestedOp},
-                {PatientKey,patient,PatientUpdate},
-                {PharmacyKey,pharmacy,PharmacyUpdate},
-                {PrescriberKey,staff,PrescriberUpdate}
-            ],
+        PatientUpdate = [update_map_op(?PATIENT_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
+        PharmacyUpdate = [update_map_op(?PHARMACY_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
+        PrescriberUpdate = [update_map_op(?STAFF_PRESCRIPTIONS_KEY, [update_map_op(PrescriptionKey, NestedOp)])],
 
-            run_updates(Context, Operations, false, Driver)
-      end.
+        run_updates(Context, [
+            {PrescriptionKey, prescription, NestedOp}, {PatientKey, patient, PatientUpdate},
+            {PharmacyKey, pharmacy, PharmacyUpdate}, {PrescriberKey, staff, PrescriberUpdate}
+        ], false, Driver).
 
 -spec run_updates(Context :: context(), ListOps :: list(), Aborted :: boolean(), Driver :: atom()) ->
-    {ok,context()} | {{error, term()},context()}.
+    {ok, context()} | {{error, term()}, context()}.
 run_updates(Context, _ListOps, true, _Driver) ->
     %% TODO not calling abort on driver, might be useful to do it in some KVS
-    {{error,txn_aborted},Context};
-run_updates(Context,[],false, _Driver) ->
+    {{error, txn_aborted}, Context};
+run_updates(Context, [], false, _Driver) ->
     {ok, Context};
 run_updates(Context, [H|T], false, Driver) ->
-    {Key,KeyType,Update} = H,
+    {Key, KeyType, Update} = H,
     case execute_create_op(KeyType, Key, Update, Context, Driver) of
         {ok, Context2} ->
             run_updates(Context2, T, false, Driver);
-        {_Error,Context3} ->
+        {_Error, Context3} ->
             run_updates(Context3, T, true, Driver)
     end.
 
-update_prescription_w_obj(Context, Prescription = #prescription{}, Operation, Drugs, Driver) ->
-    case Prescription#prescription.is_processed of
-        ?PRESCRIPTION_PROCESSED_VALUE ->
-            {{error, prescription_already_processed},Context};
-        _Other ->
-            PrescriptionId = binary_to_integer(Prescription#prescription.id),
-            PatientId = binary_to_integer(Prescription#prescription.patient_id),
-            PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
-            PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
-            PrescriptionKey = gen_key(prescription,PrescriptionId),
-            PatientKey = gen_key(patient,PatientId),
-            PrescriberKey = gen_key(staff,PrescriberId),
-            PharmacyKey = gen_key(pharmacy,PharmacyId),
+update_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}, add_drugs, _Drugs,
+    _Driver) -> {{error, prescription_already_processed}, Context};
 
-            NestedOp = [create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)],
-            PatientUpdate = ?build_nested_map_op(?PATIENT_PRESCRIPTIONS_KEY,PrescriptionKey,NestedOp),
-            PharmacyUpdate = ?build_nested_map_op(?PHARMACY_PRESCRIPTIONS_KEY,PrescriptionKey,NestedOp),
-            PrescriberUpdate = ?build_nested_map_op(?STAFF_PRESCRIPTIONS_KEY,PrescriptionKey,NestedOp),
+update_prescription_w_obj(Context, #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} = Prescription,
+    add_drugs, Drugs, Driver) ->
+        PrescriptionId = binary_to_integer(Prescription#prescription.id),
+        PatientId = binary_to_integer(Prescription#prescription.patient_id),
+        PrescriberId = binary_to_integer(Prescription#prescription.prescriber_id),
+        PharmacyId = binary_to_integer(Prescription#prescription.pharmacy_id),
+        PrescriptionKey = gen_key(prescription, PrescriptionId),
+        PatientKey = gen_key(patient, PatientId),
+        PrescriberKey = gen_key(staff, PrescriberId),
+        PharmacyKey = gen_key(pharmacy, PharmacyId),
 
-            ListUpdates = [
-                {PrescriptionKey,prescription,NestedOp},
-                {PatientKey,patient,PatientUpdate},
-                {PharmacyKey,pharmacy,PharmacyUpdate},
-                {PrescriberKey,staff,PrescriberUpdate}
-            ],
+        NestedOp = [create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)],
+        PatientUpdate = ?BUILD_NESTED_MAP_OP(?PATIENT_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+        PharmacyUpdate = ?BUILD_NESTED_MAP_OP(?PHARMACY_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
+        PrescriberUpdate = ?BUILD_NESTED_MAP_OP(?STAFF_PRESCRIPTIONS_KEY, PrescriptionKey, NestedOp),
 
-            run_update_prescription_ops(Context, Operation, ListUpdates, Driver)
-    end.
-
-run_update_prescription_ops(Context, add_drugs, Updates, Driver) ->
-    run_updates(Context, Updates, false, Driver);
-run_update_prescription_ops(Context, _OtherOp, _Updates, _Driver) ->
-    {{error,invalid_update_operation},Context}.
+        run_updates(Context, [
+            {PrescriptionKey, prescription, NestedOp}, {PatientKey, patient, PatientUpdate},
+            {PharmacyKey, pharmacy, PharmacyUpdate}, {PrescriberKey, staff, PrescriberUpdate}
+        ], false, Driver).
 
 %%-----------------------------------------------------------------------------
 %% Create functions - no transactional context
@@ -341,29 +326,29 @@ run_update_prescription_ops(Context, _OtherOp, _Updates, _Driver) ->
 %% Adds a patient to the FMK system, needing only an ID, Name and Address.
 %% A check is done to determine if a patient with the given ID already exists,
 %% and if so the operation fails.
--spec create_patient(id(),string(),string()) -> ok | {error, reason()}.
-create_patient(Id,Name,Address) ->
+-spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
+create_patient(Id, Name, Address) ->
     gen_server:call(?MODULE, {create_patient, Id, Name, Address}).
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet been seen.
--spec create_pharmacy(id(),string(),string()) -> ok | {error, reason()}.
-create_pharmacy(Id,Name,Address) ->
+-spec create_pharmacy(id(), string(), string()) -> ok | {error, reason()}.
+create_pharmacy(Id, Name, Address) ->
     gen_server:call(?MODULE, {create_pharmacy, Id, Name, Address}).
 
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet been seen.
--spec create_facility(id(),string(),string(),string()) -> ok | {error, reason()}.
-create_facility(Id,Name,Address,Type) ->
+-spec create_facility(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_facility(Id, Name, Address, Type) ->
     gen_server:call(?MODULE, {create_facility, Id, Name, Address, Type}).
 
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet been seen.
--spec create_staff(id(),string(),string(),string()) -> ok | {error, reason()}.
-create_staff(Id,Name,Address,Speciality) ->
+-spec create_staff(id(), string(), string(), string()) -> ok | {error, reason()}.
+create_staff(Id, Name, Address, Speciality) ->
     gen_server:call(?MODULE, {create_staff, Id, Name, Address, Speciality}).
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy. The prescription also includes the prescription date and the list of drugs that should be administered.
 -spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
-create_prescription(PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs) ->
+create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
     gen_server:call(?MODULE,
         {create_prescription, PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}
     ).
@@ -426,88 +411,88 @@ get_staff_treatments(_Id) ->
 %%-----------------------------------------------------------------------------
 
 %% Updates the personal details of a patient with a certain ID.
--spec update_patient_details(id(),string(),string()) -> ok | {error, reason()}.
-update_patient_details(Id,Name,Address) ->
+-spec update_patient_details(id(), string(), string()) -> ok | {error, reason()}.
+update_patient_details(Id, Name, Address) ->
     gen_server:call(?MODULE, {update_patient_details, Id, Name, Address}).
 
 %% Updates the details of a pharmacy with a certain ID.
--spec update_pharmacy_details(id(),string(),string()) -> ok | {error, reason()}.
-update_pharmacy_details(Id,Name,Address) ->
+-spec update_pharmacy_details(id(), string(), string()) -> ok | {error, reason()}.
+update_pharmacy_details(Id, Name, Address) ->
     gen_server:call(?MODULE, {update_pharmacy_details, Id, Name, Address}).
 
 %% Updates the details of a facility with a certain ID.
--spec update_facility_details(id(),string(),string(),string()) -> ok | {error, reason()}.
-update_facility_details(Id,Name,Address,Type) ->
+-spec update_facility_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_facility_details(Id, Name, Address, Type) ->
     gen_server:call(?MODULE, {update_facility_details, Id, Name, Address, Type}).
 
 %% Updates the details of a staff member with a certain ID.
--spec update_staff_details(id(),string(),string(),string()) -> ok | {error, reason()}.
-update_staff_details(Id,Name,Address,Speciality) ->
+-spec update_staff_details(id(), string(), string(), string()) -> ok | {error, reason()}.
+update_staff_details(Id, Name, Address, Speciality) ->
     gen_server:call(?MODULE, {update_staff_details, Id, Name, Address, Speciality}).
 
--spec update_prescription_medication(id(),atom(),[string()]) -> ok | {error, reason()}.
-update_prescription_medication(Id,Operation,Drugs) ->
+-spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
+update_prescription_medication(Id, Operation, Drugs) ->
     gen_server:call(?MODULE, {update_prescription_medication, Id, Operation, Drugs}).
 
-process_prescription(Id,Date) ->
+process_prescription(Id, Date) ->
     gen_server:call(?MODULE, {process_prescription, Id, Date}).
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions
 %%-----------------------------------------------------------------------------
 
-gen_entity_update(pharmacy,EntityFields) ->
-    [Id,Name,Address] = EntityFields,
+gen_entity_update(pharmacy, EntityFields) ->
+    [Id, Name, Address] = EntityFields,
     [
-        create_register_op(?PHARMACY_ID_KEY,Id),
-        create_register_op(?PHARMACY_NAME_KEY,Name),
-        create_register_op(?PHARMACY_ADDRESS_KEY,Address)
+        create_register_op(?PHARMACY_ID_KEY, Id),
+        create_register_op(?PHARMACY_NAME_KEY, Name),
+        create_register_op(?PHARMACY_ADDRESS_KEY, Address)
     ];
-gen_entity_update(staff,EntityFields) ->
-    [Id,Name,Address,Speciality] = EntityFields,
+gen_entity_update(staff, EntityFields) ->
+    [Id, Name, Address, Speciality] = EntityFields,
     [
-        create_register_op(?STAFF_ID_KEY,Id),
-        create_register_op(?STAFF_NAME_KEY,Name),
-        create_register_op(?STAFF_ADDRESS_KEY,Address),
-        create_register_op(?STAFF_SPECIALITY_KEY,Speciality)
+        create_register_op(?STAFF_ID_KEY, Id),
+        create_register_op(?STAFF_NAME_KEY, Name),
+        create_register_op(?STAFF_ADDRESS_KEY, Address),
+        create_register_op(?STAFF_SPECIALITY_KEY, Speciality)
     ];
-gen_entity_update(facility,EntityFields) ->
-    [Id,Name,Address,Type] = EntityFields,
+gen_entity_update(facility, EntityFields) ->
+    [Id, Name, Address, Type] = EntityFields,
     [
-        create_register_op(?FACILITY_ID_KEY,Id),
-        create_register_op(?FACILITY_NAME_KEY,Name),
-        create_register_op(?FACILITY_ADDRESS_KEY,Address),
-        create_register_op(?FACILITY_TYPE_KEY,Type)
+        create_register_op(?FACILITY_ID_KEY, Id),
+        create_register_op(?FACILITY_NAME_KEY, Name),
+        create_register_op(?FACILITY_ADDRESS_KEY, Address),
+        create_register_op(?FACILITY_TYPE_KEY, Type)
     ];
-gen_entity_update(prescription,EntityFields) ->
-    [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
+gen_entity_update(prescription, EntityFields) ->
+    [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs] = EntityFields,
     [
-        create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
-        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
-        create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
-        create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
-        create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
+        create_register_op(?PRESCRIPTION_ID_KEY, PrescriptionId),
+        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY, PatientId),
+        create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY, PrescriberId),
+        create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY, PharmacyId),
+        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY, DatePrescribed),
+        create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)
     ];
-gen_entity_update(patient,EntityFields) ->
-    [Id,Name,Address] = EntityFields,
+gen_entity_update(patient, EntityFields) ->
+    [Id, Name, Address] = EntityFields,
     [
-        create_register_op(?PATIENT_ID_KEY,Id),
-        create_register_op(?PATIENT_NAME_KEY,Name),
-        create_register_op(?PATIENT_ADDRESS_KEY,Address)
+        create_register_op(?PATIENT_ID_KEY, Id),
+        create_register_op(?PATIENT_NAME_KEY, Name),
+        create_register_op(?PATIENT_ADDRESS_KEY, Address)
     ].
 
 gen_nested_entity_update(prescription, TopLevelKey, EntityFields) ->
-    [PrescriptionId,PatientId,PrescriberId,PharmacyId,DatePrescribed,Drugs] = EntityFields,
+    [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs] = EntityFields,
     NestedOps = [
-        create_register_op(?PRESCRIPTION_ID_KEY,PrescriptionId),
-        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY,PatientId),
-        create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY,PrescriberId),
-        create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY,PharmacyId),
-        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY,DatePrescribed),
-        create_set_op(?PRESCRIPTION_DRUGS_KEY,Drugs)
+        create_register_op(?PRESCRIPTION_ID_KEY, PrescriptionId),
+        create_register_op(?PRESCRIPTION_PATIENT_ID_KEY, PatientId),
+        create_register_op(?PRESCRIPTION_PRESCRIBER_ID_KEY, PrescriberId),
+        create_register_op(?PRESCRIPTION_PHARMACY_ID_KEY, PharmacyId),
+        create_register_op(?PRESCRIPTION_DATE_PRESCRIBED_KEY, DatePrescribed),
+        create_set_op(?PRESCRIPTION_DRUGS_KEY, Drugs)
     ],
-    update_map_op(TopLevelKey,[create_map_op(gen_key(prescription,PrescriptionId),NestedOps)]).
+    update_map_op(TopLevelKey, [create_map_op(gen_key(prescription, PrescriptionId), NestedOps)]).
 
 check_keys(_Context, [], _Driver) ->
     [];
@@ -518,17 +503,17 @@ check_keys(Context, [H|T], Driver) ->
         {{ok, _Object}, Context2} -> [{taken, H}] ++ check_keys(Context2, T, Driver)
     end.
 
-update_map_op(Key,NestedOps) ->
+update_map_op(Key, NestedOps) ->
     {update_map, Key, NestedOps}.
 
-create_map_op(Key,NestedOps) ->
+create_map_op(Key, NestedOps) ->
     {create_map, Key, NestedOps}.
 
-create_register_op(Key,Value) ->
+create_register_op(Key, Value) ->
     {create_register, Key, Value}.
 
 create_set_op(Key, Elements) ->
     {create_set, Key, Elements}.
 
-gen_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
+gen_key(Entity, Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).

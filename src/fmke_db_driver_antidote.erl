@@ -48,58 +48,58 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->
     Hostnames = proplists:get_value(db_conn_hostnames, Params),
     Ports = proplists:get_value(db_conn_ports, Params),
     ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
-    {ok,_} = fmke_db_conn_pool:start([
+    {ok, _} = fmke_db_conn_pool:start([
         {db_conn_hostnames, Hostnames},
         {db_conn_ports, Ports},
         {db_conn_module, antidotec_pb_socket},
         {db_conn_pool_size, ConnPoolSize}
     ]),
-    {ok,Pid}.
+    {ok, Pid}.
 
 stop(_Anything) ->
   ok.
 
 get(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
-  Object = create_read_bucket(Key,?MAP), %% application records are all of type ?MAP
+  Object = create_read_bucket(Key, ?MAP), %% application records are all of type ?MAP
   {ok, [Value]} = antidotec_pb:read_values(Pid, [Object], TxnId),
   case Value of
-    {_Something,[]} -> {{error, not_found}, Context};
-    {map, MapObject} -> {{ok, build_app_record(RecordType,MapObject)}, Context}
+    {_Something, []} -> {{error, not_found}, Context};
+    {map, MapObject} -> {{ok, build_app_record(RecordType, MapObject)}, Context}
   end.
 
-build_app_record(patient,Object) ->
+build_app_record(patient, Object) ->
   Id = find_key(Object, ?PATIENT_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?PATIENT_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?PATIENT_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
   Prescriptions = read_nested_prescriptions(Object, ?PATIENT_PRESCRIPTIONS_KEY),
-  #patient{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
-build_app_record(pharmacy,Object) ->
+  #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
+build_app_record(pharmacy, Object) ->
   Id = find_key(Object, ?PHARMACY_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?PHARMACY_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?PHARMACY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
   Prescriptions = read_nested_prescriptions(Object, ?PHARMACY_PRESCRIPTIONS_KEY),
-  #pharmacy{id=Id,name=Name,address=Address,prescriptions=Prescriptions};
-build_app_record(staff,Object) ->
+  #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
+build_app_record(staff, Object) ->
   Id = find_key(Object, ?STAFF_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?STAFF_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?STAFF_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
   Speciality = find_key(Object, ?STAFF_SPECIALITY_KEY, ?LWWREG, <<"undefined">>),
   Prescriptions = read_nested_prescriptions(Object, ?STAFF_PRESCRIPTIONS_KEY),
-  #staff{id=Id,name=Name,address=Address,speciality=Speciality,prescriptions=Prescriptions};
-build_app_record(facility,Object) ->
+  #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions};
+build_app_record(facility, Object) ->
   Id = find_key(Object, ?FACILITY_ID_KEY, ?LWWREG, -1),
   Name = find_key(Object, ?FACILITY_NAME_KEY, ?LWWREG, <<"undefined">>),
   Address = find_key(Object, ?FACILITY_ADDRESS_KEY, ?LWWREG, <<"undefined">>),
   Type = find_key(Object, ?FACILITY_TYPE_KEY, ?LWWREG, <<"undefined">>),
-  #facility{id=Id,name=Name,address=Address,type=Type};
-build_app_record(prescription,Object) ->
+  #facility{id = Id, name = Name, address = Address, type = Type};
+build_app_record(prescription, Object) ->
   Id = find_key(Object, ?PRESCRIPTION_ID_KEY, ?LWWREG, -1),
   PatientId = find_key(Object, ?PRESCRIPTION_PATIENT_ID_KEY, ?LWWREG, <<"undefined">>),
   PrescriberId = find_key(Object, ?PRESCRIPTION_PRESCRIBER_ID_KEY, ?LWWREG, <<"undefined">>),
@@ -109,29 +109,29 @@ build_app_record(prescription,Object) ->
   DateProcessed = find_key(Object, ?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, <<"undefined">>),
   Drugs = find_key(Object, ?PRESCRIPTION_DRUGS_KEY, ?ORSET, []),
   #prescription{
-      id=Id
-      ,patient_id=PatientId
-      ,pharmacy_id=PharmacyId
-      ,prescriber_id=PrescriberId
-      ,date_prescribed=DatePrescribed
-      ,date_processed=DateProcessed
-      ,drugs=Drugs
-      ,is_processed=IsProcessed
+      id = Id,
+      patient_id = PatientId,
+      pharmacy_id = PharmacyId,
+      prescriber_id = PrescriberId,
+      date_prescribed = DatePrescribed,
+      date_processed = DateProcessed,
+      drugs = Drugs,
+      is_processed = IsProcessed
   }.
 
-read_nested_prescriptions(Object,Key) ->
+read_nested_prescriptions(Object, Key) ->
   case find_key(Object, Key, ?NESTED_MAP, []) of
       [] -> [];
       ListPrescriptions -> lists:map(
-                              fun({_PHeader,Prescription}) ->
-                                  build_app_record(prescription,Prescription)
-                              end
-                            ,ListPrescriptions)
+                              fun({_PHeader, Prescription}) ->
+                                  build_app_record(prescription, Prescription)
+                              end,
+                            ListPrescriptions)
   end.
 
 %% Return status {(ok | error), context}
 put_map(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
-  Object = create_write_bucket(Key,KeyType,Value),
+  Object = create_write_bucket(Key, KeyType, Value),
 
   Result = antidotec_pb:update_objects(Pid, [Object], TxnId),
   {Result, Context}.
@@ -140,27 +140,27 @@ put_map(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = Txn
 start_transaction(_OldContext) ->
   Pid = poolboy:checkout(fmke_db_connection_pool),
   {ok, TxnId} = antidotec_pb:start_transaction(Pid, ignore, {}),
-  {ok, #antidote_context{pid=Pid, txn_id = TxnId}}.
+  {ok, #antidote_context{pid = Pid, txn_id = TxnId}}.
 
 %% Return status {(ok | error), context}
 commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
   CmtRes = antidotec_pb:commit_transaction(Pid, TransactionId),
   Result = poolboy:checkin(fmke_db_connection_pool, Pid),
   case CmtRes of
-    {ok, _Something} -> {Result, #antidote_context{pid=Pid}};
-    {error, unknown} -> {{error, txn_aborted},#antidote_context{pid=Pid}}
+    {ok, _Something} -> {Result, #antidote_context{pid = Pid}};
+    {error, unknown} -> {{error, txn_aborted}, #antidote_context{pid = Pid}}
   end.
 
 %% Creates an Antidote bucket of a certain type.
 -spec create_write_bucket(field(), crdt(), term()) -> object_bucket().
-create_write_bucket(Key,?MAP,Value) ->
-  Bucket = create_read_bucket(Key,?MAP),
+create_write_bucket(Key, ?MAP, Value) ->
+  Bucket = create_read_bucket(Key, ?MAP),
   {Bucket, update, Value}.
 
 %% Creates an Antidote bucket of a certain type.
 -spec create_read_bucket(field(), crdt()) -> object_bucket().
-create_read_bucket(Key,Type) ->
-  {Key,Type,<<"bucket">>}.
+create_read_bucket(Key, Type) ->
+  {Key, Type, <<"bucket">>}.
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
@@ -172,38 +172,38 @@ lwwreg_assign_op(Value) when is_list(Value) ->
 lwwreg_assign_op(Value) when is_integer(Value) ->
   {assign, integer_to_binary(Value)}.
 
-build_lwwreg_op(Key,Value) ->
-  build_map_op(Key,?LWWREG,lwwreg_assign_op(Value)).
+build_lwwreg_op(Key, Value) ->
+  build_map_op(Key, ?LWWREG, lwwreg_assign_op(Value)).
 
 build_add_set_op(Key, Elements) ->
-  build_map_op(Key,?ORSET,add_to_set_op(Elements)).
+  build_map_op(Key, ?ORSET, add_to_set_op(Elements)).
 
 add_to_set_op(Elements) when is_list(Elements) ->
   {add_all, [list_to_binary(X) || X <- Elements]}.
 
-build_map_op(Key,Type,Op) ->
-  {{Key,Type}, Op}.
+build_map_op(Key, Type, Op) ->
+  {{Key, Type}, Op}.
 
-put(Key,_KeyType,ListOps,Context) ->
-  put_map(Key,?MAP,inner_update_map(ListOps),Context).
+put(Key, _KeyType, ListOps, Context) ->
+  put_map(Key, ?MAP, inner_update_map(ListOps), Context).
 
 inner_update_map([]) ->
   [];
 inner_update_map([H|T]) ->
   HeadOp = case H of
        %% These cases are for direct children of maps
-       {create_register, Key, Value} -> build_lwwreg_op(Key,Value);
-       {create_set, Key, Elements} -> build_add_set_op(Key,Elements);
+       {create_register, Key, Value} -> build_lwwreg_op(Key, Value);
+       {create_set, Key, Elements} -> build_add_set_op(Key, Elements);
        %% When nested fields are necessary
-       {create_map, Key, NestedOps} -> build_update_map_bucket_op(Key,inner_update_map(NestedOps));
-       {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key,inner_update_map(NestedOps))
+       {create_map, Key, NestedOps} -> build_update_map_bucket_op(Key, inner_update_map(NestedOps));
+       {update_map, Key, NestedOps} -> build_update_map_bucket_op(Key, inner_update_map(NestedOps))
   end,
   [HeadOp] ++ inner_update_map(T).
 
 find_key(Map, Key, KeyType, FallbackValue) ->
-  try lists:keyfind({Key,KeyType},1,Map) of
+  try lists:keyfind({Key, KeyType}, 1, Map) of
     false -> FallbackValue;
-    {{Key,KeyType},Value} -> Value
+    {{Key, KeyType}, Value} -> Value
   catch
     _:_ -> FallbackValue
   end.
@@ -212,4 +212,4 @@ build_map_update_op(NestedOps) ->
   {update, NestedOps}.
 
 build_update_map_bucket_op(Key, NestedOps) ->
-  build_map_op(Key,?MAP,build_map_update_op(NestedOps)).
+  build_map_op(Key, ?MAP, build_map_update_op(NestedOps)).

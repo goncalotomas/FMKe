@@ -40,20 +40,20 @@
 start(Params) ->
     case fmke_sup:start_link() of
        {ok, Pid} -> start_conn_pool(Pid, Params);
-       _Error -> _Error
+       Error -> Error
     end.
 
 start_conn_pool(Pid, Params) ->
     Hostnames = proplists:get_value(db_conn_hostnames, Params),
     Ports = proplists:get_value(db_conn_ports, Params),
     ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
-    {ok,_} = fmke_db_conn_pool:start([
+    {ok, _} = fmke_db_conn_pool:start([
         {db_conn_hostnames, Hostnames},
         {db_conn_ports, Ports},
         {db_conn_module, eredis},
         {db_conn_pool_size, ConnPoolSize}
     ]),
-    {ok,Pid}.
+    {ok, Pid}.
 
 stop({Pid}) ->
     eredis:stop(Pid).
@@ -77,7 +77,7 @@ get_presc_key(staff) -> ?STAFF_PRESCRIPTIONS_KEY.
 
 get(Key, prescription, Context) ->
     Ops = [["HGETALL", Key], ["SMEMBERS", concat_bin_strings([Key, ?PRESCRIPTION_DRUGS_KEY])]],
-    [{ok,Fields}, {ok,Drugs}] = execute_multi_get(Context, Ops),
+    [{ok, Fields}, {ok, Drugs}] = execute_multi_get(Context, Ops),
     case Fields of
         [] -> {{error, not_found}, Context};
         _ ->  {{ok, build_app_record(Fields ++ [?PRESCRIPTION_DRUGS_KEY, Drugs])}, Context}
@@ -85,7 +85,7 @@ get(Key, prescription, Context) ->
 
 get(Key, KeyType, Context) when KeyType == patient; KeyType == pharmacy; KeyType == staff ->
     Ops = [["HGETALL", Key], ["KEYS", concat_bin_strings([Key, get_presc_key(KeyType), <<"*">>])]],
-    [{ok,Fields}, {ok,PrescKeys}] = execute_multi_get(Context, Ops),
+    [{ok, Fields}, {ok, PrescKeys}] = execute_multi_get(Context, Ops),
     case Fields of
         [] -> {{error, not_found}, Context};
         _ ->  case PrescKeys of
@@ -97,8 +97,8 @@ get(Key, KeyType, Context) when KeyType == patient; KeyType == pharmacy; KeyType
 
 get(Key, _KeyType, Context) ->
   case execute_get(Context, ["HGETALL", Key]) of
-      {ok,[]} -> {{error, not_found}, Context};
-      {ok,Res} -> {{ok, build_app_record(Res)}, Context}
+      {ok, []} -> {{error, not_found}, Context};
+      {ok, Res} -> {{ok, build_app_record(Res)}, Context}
   end.
 
 sort_presc_keys(Props) -> sort_presc_keys(Props, []).
@@ -110,7 +110,7 @@ sort_presc_keys([H|T], Props) ->
                   NewProps = Props ++ [{H, undefined}],
                   sort_presc_keys(T, NewProps);
         _ ->
-                  PrescKey = string:slice(H,0,byte_size(H)-byte_size(?PRESCRIPTION_DRUGS_KEY)),
+                  PrescKey = string:slice(H, 0, byte_size(H)-byte_size(?PRESCRIPTION_DRUGS_KEY)),
                   NewProps = lists:keyreplace(PrescKey, 1, Props, {PrescKey, H}),
                   sort_presc_keys(T, NewProps)
     end.
@@ -181,12 +181,12 @@ build_app_record([?PRESCRIPTION_ID_KEY, Id,
                   ?PRESCRIPTION_DATE_PRESCRIBED_KEY, DatePrescribed,
                   ?PRESCRIPTION_DRUGS_KEY, Drugs]) ->
                       #prescription{
-                          id=Id
-                          ,patient_id=PatientId
-                          ,pharmacy_id=PharmacyId
-                          ,prescriber_id=PrescriberId
-                          ,date_prescribed=DatePrescribed
-                          ,drugs=Drugs
+                          id = Id,
+                          patient_id = PatientId,
+                          pharmacy_id = PharmacyId,
+                          prescriber_id = PrescriberId,
+                          date_prescribed = DatePrescribed,
+                          drugs = Drugs
                       };
 
 build_app_record([?PRESCRIPTION_ID_KEY, Id,
@@ -198,14 +198,14 @@ build_app_record([?PRESCRIPTION_ID_KEY, Id,
                   ?PRESCRIPTION_DATE_PROCESSED_KEY, DateProcessed,
                   ?PRESCRIPTION_DRUGS_KEY, Drugs]) ->
                       #prescription{
-                          id=Id
-                          ,patient_id=PatientId
-                          ,pharmacy_id=PharmacyId
-                          ,prescriber_id=PrescriberId
-                          ,date_prescribed=DatePrescribed
-                          ,date_processed=DateProcessed
-                          ,drugs=Drugs
-                          ,is_processed=IsProcessed
+                          id = Id,
+                          patient_id = PatientId,
+                          pharmacy_id = PharmacyId,
+                          prescriber_id = PrescriberId,
+                          date_prescribed = DatePrescribed,
+                          date_processed = DateProcessed,
+                          drugs = Drugs,
+                          is_processed = IsProcessed
                       }.
 
 %% Updates
@@ -245,16 +245,16 @@ inner_map_key(Map, Key) ->
     list_to_binary(binary_to_list(Map) ++ binary_to_list(Key)).
 
 execute_op({Pid}, Op) ->
-    case eredis:q(Pid,Op) of
+    case eredis:q(Pid, Op) of
         {ok, _} -> ok;
         {error, Reason} -> {error, Reason}
     end.
 
 execute_get({Pid}, Op) ->
-   eredis:q(Pid,Op).
+   eredis:q(Pid, Op).
 
 execute_multi_get({Pid}, Ops) ->
-  case eredis:qp(Pid,Ops) of
+  case eredis:qp(Pid, Ops) of
       {error, Reason} -> {error, Reason};
       Res -> Res
   end.

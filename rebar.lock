@@ -7,8 +7,8 @@
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.1.0">>},1},
  {<<"eredis">>,{pkg,<<"eredis">>,<<"1.1.0">>},0},
  {<<"goldrush">>,{pkg,<<"goldrush">>,<<"0.1.9">>},1},
- {<<"jsx">>,{pkg,<<"jsx">>,<<"2.8.3">>},0},
- {<<"lager">>,{pkg,<<"lager">>,<<"3.5.2">>},0},
+ {<<"jsx">>,{pkg,<<"jsx">>,<<"2.9.0">>},0},
+ {<<"lager">>,{pkg,<<"lager">>,<<"3.6.0">>},0},
  {<<"meck">>,
   {git,"https://github.com/basho/meck.git",
        {ref,"dde759050eff19a1a80fd854d7375174b191665d"}},
@@ -19,22 +19,20 @@
        {ref,"0dde9d3b37b7bec3a4dfb0e87684dd7039e169ab"}},
   2},
  {<<"ranch">>,{pkg,<<"ranch">>,<<"1.4.0">>},1},
+ {<<"riak_client">>,{pkg,<<"riak_client">>,<<"2.5.3">>},0},
  {<<"riak_pb">>,
   {git,"git://github.com/syncfree/riak_pb",
        {ref,"322309b2bb69b38191a51b21247a71b5e412e656"}},
-  1},
- {<<"riakc">>,
-  {git,"https://github.com/goncalotomas/riakc",
-       {ref,"30caf0ab62fc33e9b7efbd7cf4709157b6fcad7d"}},
-  0}]}.
+  1}]}.
 [
 {pkg_hash,[
  {<<"cowboy">>, <<"5233ED78AFE96B19EFD33B7BBCAFD15E064B187C0C131C61D50FE69D88DC76FD">>},
  {<<"cowlib">>, <<"F73658B93DD043AF40400C3E4FD997068EBD0C617F8C8F4CD003A1A78EBF94F5">>},
  {<<"eredis">>, <<"8D8D74496F35216679B97726B75FB1C8715E99DD7F3EF9F9824A2264C3E0AAC0">>},
  {<<"goldrush">>, <<"F06E5D5F1277DA5C413E84D5A2924174182FB108DABB39D5EC548B27424CD106">>},
- {<<"jsx">>, <<"A05252D381885240744D955FBE3CF810504EB2567164824E19303EA59EEF62CF">>},
- {<<"lager">>, <<"614A8C8F67BF99B69EB264EA22121AD25511C055AAEC09B086773D5108C6767F">>},
+ {<<"jsx">>, <<"D2F6E5F069C00266CAD52FB15D87C428579EA4D7D73A33669E12679E203329DD">>},
+ {<<"lager">>, <<"0C5BDB1E5937ECA17D7CAB15DD52AA30B9EB12D48A2D9E774EF6385E48709A98">>},
  {<<"poolboy">>, <<"6B46163901CFD0A1B43D692657ED9D7E599853B3B21B95AE5AE0A777CF9B6CA8">>},
- {<<"ranch">>, <<"10272F95DA79340FA7E8774BA7930B901713D272905D0012B06CA6D994F8826B">>}]}
+ {<<"ranch">>, <<"10272F95DA79340FA7E8774BA7930B901713D272905D0012B06CA6D994F8826B">>},
+ {<<"riak_client">>, <<"6B78373E576D80C7020BCBDA3B2C102221D32863580404F59D8791E5CDC19E79">>}]}
 ].
