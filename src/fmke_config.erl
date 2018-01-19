@@ -102,14 +102,13 @@ parse_db_address_list(DbAddressList) ->
         false ->
             parse_db_address_list_rec(DbAddressList, []);
         true ->
-            Split = string:split(DbAddressList, " "),
+            Split = string:split(string:trim(DbAddressList), " "),
             case Split of
                 [[]] -> {error, no_addresses};
                 _ -> {ok, Split}
             end
     end.
 
-parse_db_address_list_rec([], []) -> {error, no_addresses};
 parse_db_address_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
 parse_db_address_list_rec([H|T], Accum) ->
     case is_tuple(H) of
@@ -133,14 +132,13 @@ parse_db_port_list(DbPortList) ->
         false ->
             parse_db_port_list_rec(DbPortList, []);
         true ->
-            Split = string:split(DbPortList, " "),
+            Split = string:split(string:trim(DbPortList), " "),
             case Split of
                 [[]] -> {error, no_ports};
                 _ -> parse_db_port_list_rec(Split, [])
             end
     end.
 
-parse_db_port_list_rec([], []) -> {error, no_ports};
 parse_db_port_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
 parse_db_port_list_rec([H|T], Accum) ->
     case is_integer(H) of
@@ -200,6 +198,10 @@ supports_redis_test() ->
     ?assert(supported_db("redis")),
     ?assert(supported_db(redis)).
 
+unsupported_database_test() ->
+    false = supported_db("fmke_db"),
+    false = supported_db(fmke_db).
+
 correct_antidote_driver_setup_test() ->
     {fmke_kv_driver, fmke_db_driver_antidote} = get_driver_setup("antidote"),
     {fmke_kv_driver, fmke_db_driver_antidote} = get_driver_setup(antidote).
@@ -228,7 +230,8 @@ parse_ipv6_tuple_address_test() ->
     "ab:cd:ef:bb:cc:dd:ee:ff" = read_tuple_address({"ab", "cd", "ef", "bb", "cc", "dd", "ee", "ff"}).
 
 parse_empty_address_list_test() ->
-    {error, no_addresses} = parse_db_address_list([]).
+    {error, no_addresses} = parse_db_address_list([]),
+    {error, no_addresses} = parse_db_address_list(" ").
 
 parse_address_list_with_one_element_test() ->
     {ok, ["1.2.3.4"]} = parse_db_address_list(["1.2.3.4"]).
@@ -246,7 +249,8 @@ parse_address_list_from_multiple_addresses_test() ->
     ]).
 
 parse_empty_port_list_test() ->
-    {error, no_ports} = parse_db_port_list([]).
+    {error, no_ports} = parse_db_port_list([]),
+    {error, no_ports} = parse_db_port_list(" ").
 
 parse_port_list_with_one_element_test() ->
     {ok, [8087]} = parse_db_port_list([8087]).
