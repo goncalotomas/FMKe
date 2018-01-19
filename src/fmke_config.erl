@@ -179,7 +179,7 @@ supported_db(_Database) ->
 -include_lib("eunit/include/eunit.hrl").
 
 empty_prop_list_test() ->
-    ?assertException(error, {badmatch, {error,no_addresses}}, read_app_props([])).
+    ?assertException(error, {badmatch, {error, no_addresses}}, read_app_props([])).
 
 invalid_http_port_config_test() ->
     Props = [{connection_pool_size, 32}, {database_addresses, [{127, 0, 0, 1}]},
