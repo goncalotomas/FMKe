@@ -91,6 +91,9 @@ parse_csv_string(Name, String) ->
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
 
+parse_undefined_id_test() ->
+    ?assertException(error, missing_id, parse_id(undefined)).
+
 parse_non_negative_id_from_integer_test() ->
     0 = parse_id(0).
 
