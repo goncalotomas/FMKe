@@ -1,6 +1,8 @@
 -define (APP, fmke).
 
 -define (CONFIG_FILE_PATH, "/config/fmke.config").
+-define (DEFAULT_HTTP_PORT, 9090).
+-define (DEFAULT_CONN_SIZE, 32).
 
 %% TODO move this to an ETS table
 -define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).

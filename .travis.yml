@@ -9,6 +9,7 @@ install:
   - make all
 script:
   - make lint
+  - make eunit
   - make ct
   - make bench
   - make test-multiple-releases
