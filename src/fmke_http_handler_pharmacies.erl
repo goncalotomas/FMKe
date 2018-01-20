@@ -31,7 +31,7 @@ perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
         Id = fmke_http_utils:parse_id(BinaryId),
         {Success, ServerResponse} = case fmke:get_pharmacy_by_id(Id) of
             {error, Reason} -> {false, Reason};
-            PharmacyRecord -> {true, fmke_proplists:encode_object(pharmacy, PharmacyRecord)}
+            PharmacyRecord -> {true, fmke_proplists:encode_object(PharmacyRecord)}
         end,
         fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
     catch error:ErrReason ->
