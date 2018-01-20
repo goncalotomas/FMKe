@@ -9,6 +9,7 @@ install:
   - make all
 script:
   - make lint
+  - make xref
   - make eunit
   - make ct
   - make bench

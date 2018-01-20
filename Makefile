@@ -161,3 +161,6 @@ test-multiple-releases:
 	./_build/default/rel/fmke/bin/env stop
 	./_build/default/rel/fmke_test/bin/env_test stop
 	./scripts/stop_data_store.sh antidote
+
+xref:
+	rebar3 xref
