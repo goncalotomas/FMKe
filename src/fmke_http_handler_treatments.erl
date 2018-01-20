@@ -67,7 +67,8 @@
 %             JsonReply = case Success of
 %                 true ->
 %                     lists:flatten(io_lib:format(
-%                         "{\"success\": \"~p\", \"result\": " ++ fmke_proplists:encode(treatment, ServerResponse) ++ "}",
+%                         "{\"success\": \"~p\", \"result\": " ++
+                                % fmke_proplists:encode(treatment, ServerResponse) ++ "}",
 %                         [Success]
 %                     ));
 %                 false ->
