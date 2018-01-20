@@ -1,13 +1,9 @@
 -module (fmke_proplists).
 -include ("fmke.hrl").
 
--export([encode/2, encode_object/2]).
+-export([encode_object/1]).
 
-
-encode(Type, Object) ->
-    encode_object(Type, Object).
-
-encode_object(pharmacy, Object = #pharmacy{}) ->
+encode_object(Object = #pharmacy{}) ->
     PharmacyId = Object#pharmacy.id,
     PharmacyName = Object#pharmacy.name,
     PharmacyAddress = Object#pharmacy.address,
@@ -20,7 +16,7 @@ encode_object(pharmacy, Object = #pharmacy{}) ->
         {<<"pharmacyPrescriptions">>, JsonPrescriptions}
     ];
 
-encode_object(facility, Object = #facility{}) ->
+encode_object(Object = #facility{}) ->
     FacilityId = Object#facility.id,
     FacilityName = Object#facility.name,
     FacilityAddress = Object#facility.address,
@@ -32,7 +28,7 @@ encode_object(facility, Object = #facility{}) ->
         {<<"facilityType">>, FacilityType}
     ];
 
-encode_object(patient, Object = #patient{}) ->
+encode_object(Object = #patient{}) ->
     PatientId = Object#patient.id,
     PatientName = Object#patient.name,
     PatientAddress = Object#patient.address,
@@ -45,7 +41,7 @@ encode_object(patient, Object = #patient{}) ->
         {<<"patientPrescriptions">>, JsonPrescriptions}
     ];
 
-encode_object(staff, Object = #staff{}) ->
+encode_object(Object = #staff{}) ->
     StaffId = Object#staff.id,
     StaffName = Object#staff.name,
     StaffAddress = Object#staff.address,
@@ -60,7 +56,7 @@ encode_object(staff, Object = #staff{}) ->
         {<<"staffPrescriptions">>, JsonPrescriptions}
     ];
 
-encode_object(prescription, Object = #prescription{}) ->
+encode_object(Object = #prescription{}) ->
     PrescriptionId = Object#prescription.id,
     PrescriptionPatientId = Object#prescription.patient_id,
     PrescriptionPharmacyId = Object#prescription.pharmacy_id,
@@ -69,7 +65,7 @@ encode_object(prescription, Object = #prescription{}) ->
     PrescriptionIsProcessed = Object#prescription.is_processed,
     PrescriptionDatePrescribed = Object#prescription.date_prescribed,
     PrescriptionDateProcessed = Object#prescription.date_processed,
-    JsonDrugs = encode_object(list_drugs, PrescriptionDrugs),
+    JsonDrugs = encode_string_list(PrescriptionDrugs),
     [
         {<<"prescriptionId">>, PrescriptionId},
         {<<"prescriptionPatientId">>, PrescriptionPatientId},
@@ -79,69 +75,196 @@ encode_object(prescription, Object = #prescription{}) ->
         {<<"prescriptionIsProcessed">>, PrescriptionIsProcessed},
         {<<"prescriptionDatePrescribed">>, PrescriptionDatePrescribed},
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
-    ];
-
-encode_object(prescription_key, Key) -> Key;
-
-%% TODO unused
-encode_object(event, Object) ->
-    EventId = event:id(Object),
-    EventPatientId = event:patient_id(Object),
-    EventStaffId = event:staff_id(Object),
-    EventTimestamp = list_to_binary(event:timestamp(Object)),
-    EventDescription = list_to_binary(event:description(Object)),
-    [
-        {<<"eventId">>, EventId},
-        {<<"eventPatientId">>, EventPatientId},
-        {<<"eventStaffId">>, EventStaffId},
-        {<<"eventTimestamp">>, EventTimestamp},
-        {<<"eventDescription">>, EventDescription}
-    ];
-%% TODO unused
-encode_object(treatment, Object) ->
-    Id = treatment:id(Object),
-    FacilityId = treatment:facility_id(Object),
-    PatientId = treatment:patient_id(Object),
-    PrescriberId = treatment:prescriber_id(Object),
-    Events = treatment:events(Object),
-    Prescriptions = treatment:prescriptions(Object),
-    HasEnded= treatment:has_ended(Object),
-    DatePrescribed = treatment:date_prescribed(Object),
-    DateEnded = treatment:date_ended(Object),
-
-    JsonEvents = encode_object(list_events, Events),
-    JsonPrescriptions = encode_object(list_treatments, Prescriptions),
-    [
-        {<<"treatmentId">>, Id},
-        {<<"treatmentFacilityId">>, FacilityId},
-        {<<"treatmentPatientId">>, PatientId},
-        {<<"treatmentPrescriberId">>, PrescriberId},
-        {<<"treatmentHasEnded">>, HasEnded},
-        {<<"treatmentEvents">>, JsonEvents},
-        {<<"treatmentPrescriptions">>, JsonPrescriptions},
-        {<<"treatmentDatePrescribed">>, DatePrescribed},
-        {<<"treatmentDateEnded">>, DateEnded}
-    ];
-
+    ].
 
 encode_object(list_prescriptions, NestedObject) ->
     case is_list(NestedObject) andalso (length(NestedObject)>0) andalso is_binary(hd(NestedObject)) of
-        true -> encode_list(prescription_key, NestedObject);
-        false -> encode_list(prescription, NestedObject)
-    end;
-
-encode_object(list_drugs, NestedObject) ->
-    encode_string_list(NestedObject);
-
-encode_object(list_events, NestedObject) ->
-    encode_list(event, NestedObject);
-
-encode_object(list_treatments, NestedObject) ->
-    encode_list(treatment, NestedObject).
+        true -> NestedObject;
+        false -> lists:map(fun encode_object/1, NestedObject)
+    end.
 
 encode_string_list(not_found) -> [];
 encode_string_list(List) -> List.
 
-encode_list(_Type, not_found) ->    [];
-encode_list(_Type, []) ->           [];
-encode_list(Type, List) ->          lists:map(fun(Elem) -> encode_object(Type, Elem) end, List).
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+encode_basic_facility_test() ->
+    [
+        {<<"facilityId">>, 1},
+        {<<"facilityName">>, "fmke"},
+        {<<"facilityAddress">>, "github"},
+        {<<"facilityType">>, "benchmark"}
+    ] = encode_object(#facility{id = 1, name = "fmke", address = "github", type = "benchmark"}).
+
+encode_basic_patient_test() ->
+    [
+        {<<"patientId">>, 1},
+        {<<"patientName">>, "fmke"},
+        {<<"patientAddress">>, "github"},
+        {<<"patientPrescriptions">>, []}
+    ] = encode_object(#patient{id = 1, name = "fmke", address = "github"}).
+
+encode_patient_with_nested_prescriptions_test() ->
+    [
+        {<<"patientId">>, 1},
+        {<<"patientName">>, "fmke"},
+        {<<"patientAddress">>, "github"},
+        {<<"patientPrescriptions">>, [
+            [
+                {<<"prescriptionId">>, 1},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, <<"undefined">>}
+            ],
+            [
+                {<<"prescriptionId">>, 2},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, "19/01/2018"}
+            ]
+        ]}
+    ] = encode_object(
+        #patient{id = 1, name = "fmke", address = "github", prescriptions =
+            [#prescription{id = 1, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, drugs = ["Acetaminophen",
+                "Ibuprofen"], date_prescribed = "19/01/2018"
+            },
+            #prescription{id = 2, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, date_prescribed = "19/01/2018",
+                drugs = ["Rupatadine"], date_processed = "19/01/2018", is_processed = <<"prescription_processed">>
+            }]
+        }).
+
+encode_patient_with_prescription_references_test() ->
+    [
+        {<<"patientId">>, 1},
+        {<<"patientName">>, "fmke"},
+        {<<"patientAddress">>, "github"},
+        {<<"patientPrescriptions">>, [<<"prescription_2">>, <<"prescription_1">>]}
+    ] = encode_object(
+        #patient{id = 1, name="fmke", address="github", prescriptions=[<<"prescription_2">>, <<"prescription_1">>]}
+    ).
+
+encode_basic_pharmacy_test() ->
+    [
+        {<<"pharmacyId">>, 1},
+        {<<"pharmacyName">>, "fmke"},
+        {<<"pharmacyAddress">>, "github"},
+        {<<"pharmacyPrescriptions">>, []}
+    ] = encode_object(#pharmacy{id = 1, name = "fmke", address = "github"}).
+
+encode_pharmacy_with_nested_prescriptions_test() ->
+    [
+        {<<"pharmacyId">>, 1},
+        {<<"pharmacyName">>, "fmke"},
+        {<<"pharmacyAddress">>, "github"},
+        {<<"pharmacyPrescriptions">>, [
+            [
+                {<<"prescriptionId">>, 1},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, <<"undefined">>}
+            ],
+            [
+                {<<"prescriptionId">>, 2},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, "19/01/2018"}
+            ]
+        ]}
+    ] = encode_object(
+        #pharmacy{id = 1, name = "fmke", address = "github", prescriptions =
+            [#prescription{id = 1, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, drugs = ["Acetaminophen",
+                "Ibuprofen"], date_prescribed = "19/01/2018"
+            },
+            #prescription{id = 2, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, date_prescribed = "19/01/2018",
+                drugs = ["Rupatadine"], date_processed = "19/01/2018", is_processed = <<"prescription_processed">>
+            }]
+        }).
+
+encode_pharmacy_with_prescription_references_test() ->
+    [
+        {<<"pharmacyId">>, 1},
+        {<<"pharmacyName">>, "fmke"},
+        {<<"pharmacyAddress">>, "github"},
+        {<<"pharmacyPrescriptions">>, [<<"prescription_2">>, <<"prescription_1">>]}
+    ] = encode_object(
+        #pharmacy{id = 1, name="fmke", address="github", prescriptions=[<<"prescription_2">>, <<"prescription_1">>]}
+    ).
+
+encode_basic_medical_staff_test() ->
+    [
+        {<<"staffId">>, 1},
+        {<<"staffName">>, "fmke"},
+        {<<"staffAddress">>, "github"},
+        {<<"staffSpeciality">>, "benchmarks"},
+        {<<"staffPrescriptions">>, []}
+    ] = encode_object(#staff{id = 1, name = "fmke", address = "github", speciality = "benchmarks"}).
+
+encode_medical_staff_with_nested_prescriptions_test() ->
+    [
+        {<<"staffId">>, 1},
+        {<<"staffName">>, "fmke"},
+        {<<"staffAddress">>, "github"},
+        {<<"staffSpeciality">>, "benchmarks"},
+        {<<"staffPrescriptions">>, [
+            [
+                {<<"prescriptionId">>, 1},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, <<"undefined">>}
+            ],
+            [
+                {<<"prescriptionId">>, 2},
+                {<<"prescriptionPatientId">>, 1},
+                {<<"prescriptionPharmacyId">>, 1},
+                {<<"prescriptionPrescriberId">>, 1},
+                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
+                {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+                {<<"prescriptionDateProcessed">>, "19/01/2018"}
+            ]
+        ]}
+    ] = encode_object(
+        #staff{id = 1, name = "fmke", address = "github", speciality = "benchmarks", prescriptions =
+            [#prescription{id = 1, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, drugs = ["Acetaminophen",
+                "Ibuprofen"], date_prescribed = "19/01/2018"
+            },
+            #prescription{id = 2, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, date_prescribed = "19/01/2018",
+                drugs = ["Rupatadine"], date_processed = "19/01/2018", is_processed = <<"prescription_processed">>
+            }]
+        }).
+
+encode_medical_staff_with_prescription_references_test() ->
+    [
+        {<<"staffId">>, 1},
+        {<<"staffName">>, "fmke"},
+        {<<"staffAddress">>, "github"},
+        {<<"staffSpeciality">>, "benchmarks"},
+        {<<"staffPrescriptions">>, [<<"prescription_2">>, <<"prescription_1">>]}
+    ] = encode_object(
+        #staff{id = 1, name = "fmke", address = "github", speciality = "benchmarks", prescriptions = [
+            <<"prescription_2">>, <<"prescription_1">>
+        ]}
+    ).
+
+-endif.

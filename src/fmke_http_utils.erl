@@ -28,7 +28,7 @@ parse_body(PropertyList, BinaryJson) ->
     parse_body(PropertyList, Json, []).
 
 parse_body([], _, Accum) ->
-    Accum;
+    lists:reverse(Accum);
 parse_body([H|T], Json, Accum) ->
     {Property, Type} = H,
     true = is_atom(Type),
@@ -37,13 +37,13 @@ parse_body([H|T], Json, Accum) ->
         ParsedValue = case Type of
             csv_string -> parse_csv_string(Property, proplists:get_value(EncodedProperty, Json));
             string -> parse_string(Property, proplists:get_value(EncodedProperty, Json));
-            integer -> parse_id(proplists:get_value(EncodedProperty, Json))
+            integer -> parse_id(proplists:get_value(EncodedProperty, Json));
+            _ -> erlang:error(unknown_property_type, Type)
         end,
-        parse_body(T, Json, lists:append(Accum, [{Property, ParsedValue}]))
+        parse_body(T, Json, [{Property, ParsedValue} | Accum])
     catch
-        _:_ ->
-            %% Current property could not be found, prevent error from bubbling up
-            parse_body(T, Json, Accum)
+        %% Prevents error from bubbling up since this is a tentative approach
+        _:_ -> parse_body(T, Json, Accum)
     end.
 
 %% Does a best effort approach to parsing an integer
@@ -54,39 +54,30 @@ parse_id(Id) when is_integer(Id) andalso Id >= ?MIN_ID ->
 parse_id(Id) when is_integer(Id) ->
     erlang:error(invalid_id);
 parse_id(Id) when is_list(Id) ->
-  try
-      parse_id(list_to_integer(Id))
-  catch
-      _:_ -> erlang:error(invalid_id)
-  end;
-parse_id(Id) when is_binary(Id) ->
     try
-        parse_id(binary_to_list(Id))
+        parse_id(list_to_integer(Id))
     catch
-        error:badarg ->
-            %% could be a binary integer instead of a binary list
-            parse_id(binary_to_integer(Id));
         _:_ -> erlang:error(invalid_id)
-    end.
+    end;
+parse_id(Id) when is_binary(Id) ->
+    parse_id(binary_to_list(Id)).
 
-parse_string(Name, undefined) ->
-    erlang:error(list_to_atom("missing_" ++ atom_to_list(Name)));
+parse_string(_Name, undefined) ->
+    erlang:error(missing_string);
 parse_string(Name, String) when is_binary(String) ->
-    try
-        List = binary_to_list(String),
-        case io_lib:printable_unicode_list(List) of
-            true -> List;
-            false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
-        end
-    catch
-        error:badarg -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
+    List = binary_to_list(String),
+    case io_lib:printable_unicode_list(List) of
+        true -> List;
+        false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
     end;
 parse_string(_, String) when is_list(String) ->
     String.
 
+parse_csv_string(_Name, undefined) ->
+    erlang:error(missing_csv_string);
 parse_csv_string(Name, String) ->
     ParsedString = parse_string(Name, String),
-    lists:map(fun(Str) -> re:replace(Str, " ", "", [global, {return, list}]) end, string:tokens(ParsedString, ",")).
+    lists:map(fun(Str) -> string:trim(Str) end, string:tokens(ParsedString, ",")).
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -115,13 +106,51 @@ parse_invalid_string_as_id_test() ->
 parse_binary_string_as_id_test() ->
     ?assertError(invalid_id, parse_id(<<"d">>)).
 
+parse_invalid_binary_as_id_test() ->
+    ?assertError(invalid_id, parse_id(<<1, 17, 42>>)).
+
 parse_undefined_as_string_test() ->
-    ?assertError(missing_test, parse_string(test, undefined)).
+    ?assertError(missing_string, parse_string(test, undefined)).
 
 parse_valid_string_from_binary_test() ->
     "FMKe" = parse_string(parameter, <<"FMKe">>).
 
 parse_string_from_invalid_binary_test() ->
     ?assertError(invalid_parameter, parse_string(parameter, <<123, 200, 21>>)).
+
+parse_empty_list_of_params_with_valid_body_test() ->
+    [] = parse_body([], <<"body">>).
+
+parse_empty_body_test() ->
+    [] = parse_body([{username, string}, {password, string}], <<>>),
+    [] = parse_body([{medicine, csv_string}], <<>>).
+
+parse_property_with_invalid_type_from_valid_body_test() ->
+    [] = parse_body([{fmke, text}], <<"{\"fmke\":\"benchmark\"}">>).
+
+parse_multiple_properties_from_valid_body_test() ->
+    [{fmke, "benchmark"}, {rating, "awesome"}]
+        = parse_body([{fmke, string}, {rating, string}], <<"{\"fmke\":\"benchmark\",\"rating\":\"awesome\"}">>).
+
+parse_partial_prop_list_from_valid_body_test() ->
+    [{fmke, "benchmark"}] = parse_body([{fmke, string}, {rating, string}], <<"{\"fmke\":\"benchmark\"}">>),
+    [{fmke, "benchmark"}] = parse_body([{fmke, string}, {rating, integer}], <<"{\"fmke\":\"benchmark\"}">>),
+    [{fmke, "benchmark"}] = parse_body([{fmke, string}, {rating, csv_string}], <<"{\"fmke\":\"benchmark\"}">>).
+
+parse_deeply_nested_object_from_body_test() ->
+    [{fmke, [{<<"is">>, [{<<"a">>, [{<<"great">>, [{<<"benchmark">>, true}]}]}]}]}]
+        = parse_body([{fmke, string}], <<"{\"fmke\":{\"is\":{\"a\":{\"great\":{\"benchmark\":true}}}}}">>).
+
+parse_multi_value_data_from_body_test() ->
+    [{fmke, [<<"great">>, <<"useful">>]}] = parse_body([{fmke, string}], <<"{\"fmke\":[\"great\",\"useful\"]}">>).
+
+parse_csv_string_data_from_body_test() ->
+    [{fmke, ["benchmark", "key-value stores"]}]
+        = parse_body([{fmke, csv_string}], <<"{\"fmke\":\"benchmark,key-value stores\"}">>).
+
+parse_integer_number_from_body_test() ->
+    [{number, 20012018}] = parse_body([{number, integer}], <<"{\"number\":\"20012018\"}">>),
+    %% negative numbers are not considered valid IDs so they throw an exception
+    [] = parse_body([{number, integer}], <<"{\"number\":\"-20012018\"}">>).
 
 -endif.

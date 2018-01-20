@@ -31,7 +31,7 @@ perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
         Id = fmke_http_utils:parse_id(BinaryId),
         {Success, ServerResponse} = case fmke:get_staff_by_id(Id) of
             {error, Reason} -> {false, Reason};
-            StaffRecord -> {true, fmke_proplists:encode_object(staff, StaffRecord)}
+            StaffRecord -> {true, fmke_proplists:encode_object(StaffRecord)}
         end,
         fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
     catch error:ErrReason ->

@@ -40,6 +40,8 @@ start(_StartType, _StartArgs) ->
       #{env => #{dispatch => Dispatch}}
     ),
 
+    lager:info("Cowboy HTTP server listening on port ~p~n", [HttpPort]),
+
     %%TODO properly initialize app.
     fmke:start(InitParams).
 
