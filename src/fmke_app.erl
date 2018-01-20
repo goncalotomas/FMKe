@@ -29,8 +29,8 @@ start(_StartType, _StartArgs) ->
         {"/pharmacies/[:id]/prescriptions", fmke_http_handler_pharmacies, prescriptions},
         {"/pharmacies/[:id]/processed_prescriptions", fmke_http_handler_pharmacies, processed_prescriptions},
         {"/facilities/[:id]", fmke_http_handler_facilities, []},
-        {"/treatments/[:id]", fmke_http_handler_treatments, []},
-        {"/events/[:id]", fmke_http_handler_events, []},
+        % {"/treatments/[:id]", fmke_http_handler_treatments, []},
+        % {"/events/[:id]", fmke_http_handler_events, []},
         {"/staff/[:id]", fmke_http_handler_staff, []},
         {"/staff/[:id]/prescriptions", fmke_http_handler_staff, prescriptions}
       ]}
