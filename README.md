@@ -1,4 +1,4 @@
-# FMKe [![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe)
+# FMKe [![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe) [![Coverage Status](https://coveralls.io/repos/github/goncalotomas/FMKe/badge.svg?branch=master)](https://coveralls.io/github/goncalotomas/FMKe?branch=master)
 
 FMKe is an extendable real world benchmark for distributed key-value stores.  
 This repository contains code for the application server and a set of scripts for orchestrating deployment and local execution of micro-benchmarks.

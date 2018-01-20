@@ -31,13 +31,15 @@ read_config_file() ->
     {ok, CurrentDirectory} = file:get_cwd(),
     ConfigFile = CurrentDirectory ++ ?CONFIG_FILE_PATH,
     {ok, AppProps} = file:consult(ConfigFile),
+    read_app_props(AppProps).
 
+read_app_props(Props) ->
     %% read properties from the config file
-    HttpPort = proplists:get_value(http_port, AppProps),
-    ConnPoolSize = proplists:get_value(connection_pool_size, AppProps),
-    DbAddressList = proplists:get_value(database_addresses, AppProps),
-    DbPortList = proplists:get_value(database_ports, AppProps),
-    TargetDatabase = proplists:get_value(target_database, AppProps),
+    HttpPort = proplists:get_value(http_port, Props, ?DEFAULT_HTTP_PORT),
+    ConnPoolSize = proplists:get_value(connection_pool_size, Props, ?DEFAULT_CONN_SIZE),
+    DbAddressList = proplists:get_value(database_addresses, Props, []),
+    DbPortList = proplists:get_value(database_ports, Props, []),
+    TargetDatabase = proplists:get_value(target_database, Props),
 
     %% check for correct input from the config file
     true = is_integer(HttpPort) andalso HttpPort > 0 andalso HttpPort =< 65535,
@@ -95,56 +97,62 @@ is_alias_of_database(riak) ->
 is_alias_of_database(_DatabaseName) ->
     false.
 
+parse_db_address_list(DbAddressList) when is_tuple(DbAddressList) ->
+    parse_db_address_list([DbAddressList]);
+parse_db_address_list([]) ->
+    {error, no_addresses};
 parse_db_address_list(DbAddressList) ->
     case io_lib:printable_unicode_list(DbAddressList) of
         false ->
             parse_db_address_list_rec(DbAddressList, []);
         true ->
-            Split = string:split(DbAddressList, " "),
+            Split = string:split(string:trim(DbAddressList), " "),
             case Split of
                 [[]] -> {error, no_addresses};
-                _Other -> {ok, Split}
+                _ -> {ok, Split}
             end
     end.
 
-parse_db_address_list_rec([], Accum) ->
-    case length(Accum) > 0 of
-        true -> {ok, Accum};
-        false -> {error, no_addresses}
-    end;
+parse_db_address_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
 parse_db_address_list_rec([H|T], Accum) ->
     case is_tuple(H) of
-        true -> parse_db_address_list_rec(T, lists:append(Accum, [read_tuple_address(H)]));
+        true -> parse_db_address_list_rec(T, [read_tuple_address(H) | Accum]);
         false ->
             case io_lib:printable_unicode_list(H) of
                 false -> {error, invalid_format};
-                true -> parse_db_address_list_rec( T, lists:append(Accum, [H]))
+                true -> parse_db_address_list_rec(T, [H | Accum])
             end
     end.
 
-read_tuple_address({A, B, C, D}) when is_integer(A) andalso is_integer(B) andalso is_integer(C) andalso is_integer(D) ->
-    integer_to_list(A) ++ "." ++ integer_to_list(B) ++ "." ++ integer_to_list(C) ++ "." ++ integer_to_list(D);
+read_tuple_address({Fst, Snd, Thd, Fth}) when is_integer(Fst), is_integer(Snd), is_integer(Thd), is_integer(Fth) ->
+    integer_to_list(Fst) ++ "." ++ integer_to_list(Snd) ++ "." ++ integer_to_list(Thd) ++ "." ++ integer_to_list(Fth);
+read_tuple_address({A, B, C, D, E, F, G, H}) ->
+    A ++ ":" ++ B ++ ":" ++ C ++ ":" ++ D ++ ":" ++ E ++ ":" ++ F ++ ":" ++ G ++ ":" ++ H.
 
-read_tuple_address({A, B, C, D, E, F, G, H}) when is_list(A) andalso is_list(B) andalso is_list(C) andalso is_list(D)
-    andalso is_list(E) andalso is_list(F) andalso is_list(G) andalso is_list(H) ->
-        integer_to_list(A) ++ ":" ++ integer_to_list(B) ++ ":" ++ integer_to_list(C) ++ ":" ++ integer_to_list(D) ++ ":"
-        ++ integer_to_list(E) ++ ":" ++ integer_to_list(F) ++ integer_to_list(G) ++ ":" ++ integer_to_list(H).
-
+parse_db_port_list(DbPortList) when is_integer(DbPortList) ->
+    parse_db_port_list([DbPortList]);
+parse_db_port_list([]) ->
+    {error, no_ports};
 parse_db_port_list(DbPortList) ->
-    parse_db_port_list_rec(DbPortList, []).
+    case io_lib:printable_list(DbPortList) of
+        false ->
+            parse_db_port_list_rec(DbPortList, []);
+        true ->
+            Split = string:split(string:trim(DbPortList), " "),
+            case Split of
+                [[]] -> {error, no_ports};
+                _ -> parse_db_port_list_rec(Split, [])
+            end
+    end.
 
-parse_db_port_list_rec([], Accum) ->
-    case length(Accum) > 0 of
-        true -> {ok, Accum};
-        false -> {error, no_ports}
-    end;
+parse_db_port_list_rec([], Accum) -> {ok, lists:reverse(Accum)};
 parse_db_port_list_rec([H|T], Accum) ->
     case is_integer(H) of
-        true -> parse_db_port_list_rec(T, lists:append(Accum, [H]));
+        true -> parse_db_port_list_rec(T, [H | Accum]);
         false ->
-            case io_lib:printable_unicode_list(H) of
+            case io_lib:printable_list(H) of
                 false -> {error, invalid_format};
-                true -> parse_db_port_list_rec(T, lists:append(Accum, [list_to_integer(H)]))
+                true -> parse_db_port_list_rec(T, [list_to_integer(H) | Accum])
             end
     end.
 
@@ -166,3 +174,140 @@ supported_db(Database) when is_list(Database) ->
 
 supported_db(_Database) ->
     false.
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+empty_prop_list_test() ->
+    ?assertException(error, {badmatch, {error, no_addresses}}, read_app_props([])).
+
+invalid_http_port_config_test() ->
+    Props = [{connection_pool_size, 32}, {database_addresses, [{127, 0, 0, 1}]},
+             {database_ports, [8087]}, {target_database, riak}],
+    ?assertException(error, {badmatch, false}, read_app_props([{http_port, -443} | Props])),
+    ?assertException(error, {badmatch, false}, read_app_props([{http_port, 70000} | Props])).
+
+invalid_conn_size_config_test() ->
+    Props = [{http_port, 9090}, {database_addresses, [{127, 0, 0, 1}]},
+             {database_ports, [8087]}, {target_database, riak}],
+    ?assertException(error, {badmatch, false}, read_app_props([{connection_pool_size, -32} | Props])),
+    ?assertException(error, {badmatch, false}, read_app_props([{connection_pool_size, 0} | Props])).
+
+missing_http_port_conn_size_returns_valid_config_test() ->
+    Props = [{database_addresses, [{127, 0, 0, 1}]},
+             {database_ports, [8087]}, {target_database, riak}],
+    [
+        {driver, fmke_kv_driver}, {simplified_driver, fmke_db_driver_riak_kv}, {db_conn_hostnames, ["127.0.0.1"]},
+        {db_conn_ports, [8087]}, {db_conn_pool_size, ?DEFAULT_CONN_SIZE}, {http_port, ?DEFAULT_HTTP_PORT}
+    ] = read_app_props(Props).
+
+missing_address_list_config_test() ->
+    Props = [{database_ports, [8087]}, {target_database, riak}],
+    ?assertException(error, {badmatch, {error, no_addresses}}, read_app_props(Props)).
+
+missing_port_list_config_test() ->
+    Props = [{database_addresses, ["127.0.0.1"]}, {target_database, riak}],
+    ?assertException(error, {badmatch, {error, no_ports}}, read_app_props(Props)).
+
+unsupported_db_config_test() ->
+    Props = [{database_addresses, ["127.0.0.1"]}, {database_ports, [8087]}],
+    ?assertException(error, {badmatch, false}, read_app_props([{target_database, undefined} | Props])),
+    ?assertException(error, {badmatch, false}, read_app_props(Props)).
+
+mochiglobal_application_state_test() ->
+    undefined = ?MODULE:get(something),
+    everything = ?MODULE:get(something, everything),
+    ok = set(something, nothing),
+    nothing = ?MODULE:get(something).
+
+supports_antidote_test() ->
+    ?assert(supported_db("antidote")),
+    ?assert(supported_db(antidote)).
+
+supports_antidote_norm_test() ->
+    ?assert(supported_db("antidote_norm")),
+    ?assert(supported_db(antidote_norm)).
+
+supports_riak_test() ->
+    ?assert(supported_db("riak")),
+    ?assert(supported_db(riak)).
+
+supports_riak_norm_test() ->
+    ?assert(supported_db("riak_norm")),
+    ?assert(supported_db(riak_norm)).
+
+supports_redis_test() ->
+    ?assert(supported_db("redis")),
+    ?assert(supported_db(redis)).
+
+unsupported_database_test() ->
+    false = supported_db("undefined"),
+    false = supported_db(undefined).
+
+correct_antidote_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_antidote} = get_driver_setup("antidote"),
+    {fmke_kv_driver, fmke_db_driver_antidote} = get_driver_setup(antidote).
+
+correct_antidote_norm_driver_setup_test() ->
+    {fmke_db_driver_antidote_norm, undefined} = get_driver_setup("antidote_norm"),
+    {fmke_db_driver_antidote_norm, undefined} = get_driver_setup(antidote_norm).
+
+correct_riak_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_riak_kv} = get_driver_setup("riak"),
+    {fmke_kv_driver, fmke_db_driver_riak_kv} = get_driver_setup(riak).
+
+correct_riak_norm_driver_setup_test() ->
+    {fmke_db_driver_riak_kv_norm, undefined} = get_driver_setup("riak_norm"),
+    {fmke_db_driver_riak_kv_norm, undefined} = get_driver_setup(riak_norm).
+
+correct_redis_driver_setup_test() ->
+    {fmke_kv_driver, fmke_db_driver_redis} = get_driver_setup("redis"),
+    {fmke_kv_driver, fmke_db_driver_redis} = get_driver_setup(redis).
+
+unsupported_database_driver_setup_test() ->
+    {error, not_supported, undefined} = get_driver_setup("undefined"),
+    {error, not_supported, undefined} = get_driver_setup(undefined).
+
+parse_ipv4_tuple_address_test() ->
+    "1.2.3.4" = read_tuple_address({1, 2, 3, 4}),
+    "123.245.167.98" = read_tuple_address({123, 245, 167, 098}).
+
+parse_ipv6_tuple_address_test() ->
+    "ab:cd:ef:bb:cc:dd:ee:ff" = read_tuple_address({"ab", "cd", "ef", "bb", "cc", "dd", "ee", "ff"}).
+
+parse_empty_address_list_test() ->
+    {error, no_addresses} = parse_db_address_list([]),
+    {error, no_addresses} = parse_db_address_list(" ").
+
+parse_address_list_with_one_element_test() ->
+    {ok, ["1.2.3.4"]} = parse_db_address_list(["1.2.3.4"]).
+
+parse_address_list_from_single_address_test() ->
+    {ok, ["1.2.3.4"]} = parse_db_address_list({1, 2, 3, 4}),
+    {ok, ["1.2.3.4"]} = parse_db_address_list("1.2.3.4").
+
+parse_address_list_from_multiple_addresses_test() ->
+    {ok, ["1.2.3.4", "4.3.2.1"]} = parse_db_address_list("1.2.3.4 4.3.2.1"),
+    {ok, ["1.2.3.4", "4.3.2.1"]} = parse_db_address_list(["1.2.3.4", {4, 3, 2, 1}]),
+    {ok, ["1.2.3.4", "4.3.2.1"]} = parse_db_address_list([{1, 2, 3, 4}, {4, 3, 2, 1}]),
+    {ok, ["1.2.3.4", "Aa:fe:1001:cd:FF:12:23:34"]} = parse_db_address_list([
+        {1, 2, 3, 4}, {"Aa", "fe", "1001", "cd", "FF", "12", "23", "34"}
+    ]).
+
+parse_empty_port_list_test() ->
+    {error, no_ports} = parse_db_port_list([]),
+    {error, no_ports} = parse_db_port_list(" ").
+
+parse_port_list_with_one_element_test() ->
+    {ok, [8087]} = parse_db_port_list([8087]).
+
+parse_port_list_from_single_port_test() ->
+    {ok, [6173]} = parse_db_port_list("6173"),
+    {ok, [8087]} = parse_db_port_list(8087).
+
+parse_port_list_from_multiple_ports_test() ->
+    {ok, [8087, 8187]} = parse_db_port_list("8087 8187"),
+    {ok, [8087, 8187]} = parse_db_port_list([8087, 8187]),
+    {ok, [8087, 8187]} = parse_db_port_list([8087, "8187"]).
+
+-endif.
