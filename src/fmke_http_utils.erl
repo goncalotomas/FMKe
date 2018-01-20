@@ -54,32 +54,21 @@ parse_id(Id) when is_integer(Id) andalso Id >= ?MIN_ID ->
 parse_id(Id) when is_integer(Id) ->
     erlang:error(invalid_id);
 parse_id(Id) when is_list(Id) ->
-  try
-      parse_id(list_to_integer(Id))
-  catch
-      _:_ -> erlang:error(invalid_id)
-  end;
-parse_id(Id) when is_binary(Id) ->
     try
-        parse_id(binary_to_list(Id))
+        parse_id(list_to_integer(Id))
     catch
-        error:badarg ->
-            %% could be a binary integer instead of a binary list
-            parse_id(binary_to_integer(Id));
         _:_ -> erlang:error(invalid_id)
-    end.
+    end;
+parse_id(Id) when is_binary(Id) ->
+    parse_id(binary_to_list(Id)).
 
 parse_string(Name, undefined) ->
     erlang:error(list_to_atom("missing_" ++ atom_to_list(Name)));
 parse_string(Name, String) when is_binary(String) ->
-    try
-        List = binary_to_list(String),
-        case io_lib:printable_unicode_list(List) of
-            true -> List;
-            false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
-        end
-    catch
-        error:badarg -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
+    List = binary_to_list(String),
+    case io_lib:printable_unicode_list(List) of
+        true -> List;
+        false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
     end;
 parse_string(_, String) when is_list(String) ->
     String.
@@ -114,6 +103,9 @@ parse_invalid_string_as_id_test() ->
 
 parse_binary_string_as_id_test() ->
     ?assertError(invalid_id, parse_id(<<"d">>)).
+
+parse_invalid_binary_as_id_test() ->
+    ?assertError(invalid_id, parse_id(<<1, 17, 42>>)).
 
 parse_undefined_as_string_test() ->
     ?assertError(missing_test, parse_string(test, undefined)).
