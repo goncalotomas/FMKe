@@ -1,11 +1,7 @@
 -module (fmke_proplists).
 -include ("fmke.hrl").
 
--export([encode/2, encode_object/2]).
-
-
-encode(_Type, Object) ->
-    encode_object(Object).
+-export([encode_object/2]).
 
 encode_object(Object = #pharmacy{}) ->
     PharmacyId = Object#pharmacy.id,
