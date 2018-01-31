@@ -9,6 +9,8 @@ install:
   - make all
   - make lint
   - make xref
+before_script:
+  - epmd -daemon
 script:
   - make test
   - make bench
