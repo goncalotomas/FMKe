@@ -61,11 +61,11 @@ get_value(Val, _, _, _) -> {os_env, Val}.
 
 setup_env() ->
     %% read properties from the config file
-    HttpPort = application:get_env(?APP, http_port),
-    ConnPoolSize = application:get_env(?APP, connection_pool_size),
-    DbAddressList = application:get_env(?APP, database_addresses),
-    DbPortList = application:get_env(?APP, database_ports),
-    TargetDatabase = application:get_env(?APP, target_database),
+    {ok, HttpPort} = application:get_env(?APP, http_port),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    {ok, DbAddressList} = application:get_env(?APP, database_addresses),
+    {ok, DbPortList} = application:get_env(?APP, database_ports),
+    {ok, TargetDatabase} = application:get_env(?APP, target_database),
 
     %% check for correct input from the config file
     true = is_integer(HttpPort) andalso HttpPort > 0 andalso HttpPort =< 65535,
