@@ -7,9 +7,9 @@ services:
   - docker
 install:
   - make all
-script:
   - make lint
   - make xref
+script:
   - make eunit
   - make ct
   - make bench
