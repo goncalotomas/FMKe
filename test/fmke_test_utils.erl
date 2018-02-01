@@ -69,7 +69,7 @@ start_local_node(Name, Database, Port) ->
             io:format("Node ~p started", [Node]),
             Node;
         {error, Reason, Node} ->
-            io:format("Error starting node ~w, reason ~w, will retry", [Node, Reason]),
+            io:format("Error starting node ~p (~p), retrying...", [Node, Reason]),
             ct_slave:stop(Name),
             wait_until_offline(Node),
             start_local_node(Name, Database, Port)
