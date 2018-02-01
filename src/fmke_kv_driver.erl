@@ -52,7 +52,7 @@
 
 -define (BUILD_NESTED_MAP_OP(TopLevelKey, Key, Op), [update_map_op(TopLevelKey, [update_map_op(Key, Op)])]).
 %% TODO switch to stateful modules
--define (KV_IMPLEMENTATION(), fmke_config:get(simplified_driver)).
+-define (KV_IMPLEMENTATION(), {ok, Val} = application:get_env(?APP, simplified_driver), Val).
 
 -define(MAP, map).
 -define(REGISTER, register).
@@ -61,17 +61,17 @@
 %% Setup and teardown functions (simply pass down to db module)
 %% -------------------------------------------------------------------
 
-start(InitParams) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, InitParams, []).
+start(_Params) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-stop(State) ->
-    Driver = proplists:get_value(simplified_driver, State),
+stop(_State) ->
+    {ok, Driver} = application:get_env(?APP, simplified_driver),
     Driver:stop([]),
     gen_server:call(?MODULE, stop).
 
-init(InitParams) ->
-    Driver = proplists:get_value(simplified_driver, InitParams),
-    Driver:start(InitParams),
+init([]) ->
+    {ok, Driver} = application:get_env(?APP, simplified_driver),
+    Driver:start([]),
     {ok, Driver}.
 
 handle_cast(_Msg, State) ->

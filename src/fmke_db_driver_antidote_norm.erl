@@ -97,23 +97,16 @@
 % -type map_field_op() ::  {remove, field()}.
 % -type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
 
-start(Params) ->
-    case fmke_sup:start_link() of
-       {ok, Pid} -> start_conn_pool(Pid, Params);
-       Error -> Error
-    end.
-
-start_conn_pool(Pid, Params) ->
-    Hostnames = proplists:get_value(db_conn_hostnames, Params),
-    Ports = proplists:get_value(db_conn_ports, Params),
-    ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
+start(_Params) ->
+    {ok, Hostnames} = application:get_env(?APP, db_conn_hostnames),
+    {ok, Ports} = application:get_env(?APP, db_conn_ports),
+    {ok, ConnPoolSize} = application:get_env(?APP, db_conn_pool_size),
     {ok, _} = fmke_db_conn_pool:start([
         {db_conn_hostnames, Hostnames},
         {db_conn_ports, Ports},
         {db_conn_module, antidotec_pb_socket},
         {db_conn_pool_size, ConnPoolSize}
-    ]),
-    {ok, Pid}.
+    ]).
 
 stop(_) ->
   ok.
