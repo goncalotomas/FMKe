@@ -1,8 +1,17 @@
 -define (APP, fmke).
+-define (OPTIONS, [adapter, connection_pool_size, database_addresses, database_ports, http_port, target_database]).
+-define (DEFAULTS, #{
+    adapter => fmke_ndm_adapter,
+    connection_pool_size => 64,
+    database_addresses => ["127.0.0.1"],
+    database_ports => [8087],
+    http_port => 9090,
+    target_database => antidote
+}).
+
+-define (TIMEOUT, 60000).
 
 -define (CONFIG_FILE_PATH, "/config/fmke.config").
--define (DEFAULT_HTTP_PORT, 9090).
--define (DEFAULT_CONN_SIZE, 32).
 
 %% TODO move this to an ETS table
 -define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).

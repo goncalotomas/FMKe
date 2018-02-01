@@ -7,11 +7,12 @@ services:
   - docker
 install:
   - make all
-script:
   - make lint
   - make xref
-  - make eunit
-  - make ct
+before_script:
+  - epmd -daemon
+script:
+  - make test
   - make bench
   - make test-multiple-releases
   - rebar3 as test coveralls send

@@ -1,7 +1,7 @@
 {"1.1.0",
 [{<<"antidote_pb">>,
   {git,"https://github.com/SyncFree/antidote_pb",
-       {ref,"eb59f91ec8fa111dbbb50e399c181d1ab57bcb96"}},
+       {ref,"09a2f884a6e0b388475576701b096741d48f48fb"}},
   0},
  {<<"cowboy">>,{pkg,<<"cowboy">>,<<"2.2.0">>},0},
  {<<"cowlib">>,{pkg,<<"cowlib">>,<<"2.1.0">>},1},

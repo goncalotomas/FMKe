@@ -1,11 +1,17 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
 
+-include ("fmke.hrl").
+-define (NODENAME, 'fmke@127.0.0.1').
+-define (COOKIE, fmke).
+
 %%%-------------------------------------------------------------------
 %%% Common Test exports
 %%%-------------------------------------------------------------------
 -export([
+    suite/0,
     all/0,
+    groups/0,
     init_per_suite/1,
     end_per_suite/1,
     init_per_group/2,
@@ -34,26 +40,65 @@
 
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
-    [event_http_tests, facility_http_tests, patient_http_tests,
-    pharmacy_http_tests, prescription_http_tests, staff_http_tests,
-    treatment_http_tests].
+    [{group, antidote}, {group, redis}, {group, riak}].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
 %%%-------------------------------------------------------------------
 
+suite() ->
+    [{timetrap, {seconds, 90}}].
+
 init_per_suite(Config) ->
-    application:ensure_all_started(inets),
+    {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
+    true = erlang:set_cookie('fmke_http_api_test@127.0.0.1', ?COOKIE),
+    {ok, _} = application:ensure_all_started(inets),
     Config.
 
-end_per_suite(Config) ->
-    Config.
+end_per_suite(_Config) ->
+    net_kernel:stop(),
+    ok.
 
+groups() ->
+    [{antidote, [], [
+        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
+        prescription_http_tests, staff_http_tests, treatment_http_tests
+    ]},
+    {riak, [], [
+        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
+        prescription_http_tests, staff_http_tests, treatment_http_tests
+    ]},
+    {redis, [], [
+        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
+        prescription_http_tests, staff_http_tests, treatment_http_tests
+    ]}].
+
+init_per_group(antidote, Config) ->
+    fmke_test_utils:start_node_with_antidote_backend(?NODENAME),
+    Config;
+init_per_group(riak, Config) ->
+    fmke_test_utils:start_node_with_riak_backend(?NODENAME),
+    Config;
+init_per_group(redis, Config) ->
+    fmke_test_utils:start_node_with_redis_backend(?NODENAME),
+    Config;
 init_per_group(_, Config) ->
     Config.
 
-end_per_group(_, Config) ->
-    Config.
+end_per_group(antidote, _Config) ->
+    fmke_test_utils:stop_antidote(),
+    ct_slave:stop(?NODENAME),
+    ok;
+end_per_group(riak, _Config) ->
+    fmke_test_utils:stop_riak(),
+    ct_slave:stop(?NODENAME),
+    ok;
+end_per_group(redis, _Config) ->
+    fmke_test_utils:stop_redis(),
+    ct_slave:stop(?NODENAME),
+    ok;
+end_per_group(_, _Config) ->
+    ok.
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),

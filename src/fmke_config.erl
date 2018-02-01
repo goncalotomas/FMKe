@@ -28,18 +28,44 @@ set(Key, Value) ->
     fmke_mochiglobal:put(Key, Value).
 
 read_config_file() ->
-    {ok, CurrentDirectory} = file:get_cwd(),
-    ConfigFile = CurrentDirectory ++ ?CONFIG_FILE_PATH,
-    {ok, AppProps} = file:consult(ConfigFile),
-    read_app_props(AppProps).
+    try
+        {ok, CurrentDirectory} = file:get_cwd(),
+        ConfigFile = CurrentDirectory ++ ?CONFIG_FILE_PATH,
+        {ok, AppProps} = file:consult(ConfigFile),
+        config(AppProps),
+        setup_env()
+    catch
+        _:Reason ->
+            lager:info("Error reading from config file: ~p", [Reason]),
+            lager:info("Could not read from config file, reverting to environment and default values..."),
+            config([]),
+            setup_env()
+    end.
 
-read_app_props(Props) ->
+%% Sets all options needed to start FMKe, from the 4 following sources, ordered by priority:
+%% OS Environment, Application Environment, config file, default value
+config(ConfigProps) ->
+    lists:foreach(
+        fun(Param) ->
+            {Source, Value} = get_value(os:getenv(atom_to_list(Param)), application:get_env(?APP, Param),
+                                        proplists:get_value(Param, ConfigProps), maps:get(Param, ?DEFAULTS)),
+            lager:info("~p option '~p' read from ~p, set to ~p", [?APP, Param, Source, Value]),
+            ok = application:set_env(?APP, Param, Value)
+        end,
+    ?OPTIONS).
+
+get_value(false, undefined, undefined, Val) -> {defaults, Val};
+get_value(false, undefined, Val, _) -> {config_file, Val};
+get_value(false, {ok, Val}, _, _) -> {app_env, Val};
+get_value(Val, _, _, _) -> {os_env, Val}.
+
+setup_env() ->
     %% read properties from the config file
-    HttpPort = proplists:get_value(http_port, Props, ?DEFAULT_HTTP_PORT),
-    ConnPoolSize = proplists:get_value(connection_pool_size, Props, ?DEFAULT_CONN_SIZE),
-    DbAddressList = proplists:get_value(database_addresses, Props, []),
-    DbPortList = proplists:get_value(database_ports, Props, []),
-    TargetDatabase = proplists:get_value(target_database, Props),
+    {ok, HttpPort} = application:get_env(?APP, http_port),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    {ok, DbAddressList} = application:get_env(?APP, database_addresses),
+    {ok, DbPortList} = application:get_env(?APP, database_ports),
+    {ok, TargetDatabase} = application:get_env(?APP, target_database),
 
     %% check for correct input from the config file
     true = is_integer(HttpPort) andalso HttpPort > 0 andalso HttpPort =< 65535,
@@ -177,42 +203,6 @@ supported_db(_Database) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
-
-empty_prop_list_test() ->
-    ?assertException(error, {badmatch, {error, no_addresses}}, read_app_props([])).
-
-invalid_http_port_config_test() ->
-    Props = [{connection_pool_size, 32}, {database_addresses, [{127, 0, 0, 1}]},
-             {database_ports, [8087]}, {target_database, riak}],
-    ?assertException(error, {badmatch, false}, read_app_props([{http_port, -443} | Props])),
-    ?assertException(error, {badmatch, false}, read_app_props([{http_port, 70000} | Props])).
-
-invalid_conn_size_config_test() ->
-    Props = [{http_port, 9090}, {database_addresses, [{127, 0, 0, 1}]},
-             {database_ports, [8087]}, {target_database, riak}],
-    ?assertException(error, {badmatch, false}, read_app_props([{connection_pool_size, -32} | Props])),
-    ?assertException(error, {badmatch, false}, read_app_props([{connection_pool_size, 0} | Props])).
-
-missing_http_port_conn_size_returns_valid_config_test() ->
-    Props = [{database_addresses, [{127, 0, 0, 1}]},
-             {database_ports, [8087]}, {target_database, riak}],
-    [
-        {driver, fmke_kv_driver}, {simplified_driver, fmke_db_driver_riak_kv}, {db_conn_hostnames, ["127.0.0.1"]},
-        {db_conn_ports, [8087]}, {db_conn_pool_size, ?DEFAULT_CONN_SIZE}, {http_port, ?DEFAULT_HTTP_PORT}
-    ] = read_app_props(Props).
-
-missing_address_list_config_test() ->
-    Props = [{database_ports, [8087]}, {target_database, riak}],
-    ?assertException(error, {badmatch, {error, no_addresses}}, read_app_props(Props)).
-
-missing_port_list_config_test() ->
-    Props = [{database_addresses, ["127.0.0.1"]}, {target_database, riak}],
-    ?assertException(error, {badmatch, {error, no_ports}}, read_app_props(Props)).
-
-unsupported_db_config_test() ->
-    Props = [{database_addresses, ["127.0.0.1"]}, {database_ports, [8087]}],
-    ?assertException(error, {badmatch, false}, read_app_props([{target_database, undefined} | Props])),
-    ?assertException(error, {badmatch, false}, read_app_props(Props)).
 
 mochiglobal_application_state_test() ->
     undefined = ?MODULE:get(something),
