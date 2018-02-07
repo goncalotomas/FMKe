@@ -156,7 +156,9 @@ make_same_len(L1, [H2|_T2] = L2) when length(L1) > length(L2) -> make_same_len(L
 
 -spec get_client_lib(Database :: antidote | riak | redis) -> atom().
 get_client_lib(antidote) -> antidotec_pb_socket;
+get_client_lib(antidote_norm) -> antidotec_pb_socket;
 get_client_lib(riak) -> riakc_pb_socket;
+get_client_lib(riak_norm) -> riakc_pb_socket;
 get_client_lib(redis) -> eredis.
 
 -spec get_atom_compatible_addr(Addr :: list()) -> list().
