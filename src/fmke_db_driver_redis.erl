@@ -37,28 +37,20 @@
 %% -------------------------------------------------------------------
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
-start(_Params) ->
-    {ok, Hostnames} = application:get_env(?APP, db_conn_hostnames),
-    {ok, Ports} = application:get_env(?APP, db_conn_ports),
-    {ok, ConnPoolSize} = application:get_env(?APP, db_conn_pool_size),
-    {ok, _} = fmke_db_conn_pool:start([
-        {db_conn_hostnames, Hostnames},
-        {db_conn_ports, Ports},
-        {db_conn_module, eredis},
-        {db_conn_pool_size, ConnPoolSize}
-    ]).
+start(_) ->
+    ok.
 
-stop({Pid}) ->
-    eredis:stop(Pid).
+stop(_) ->
+    ok.
 
 %% Transactions %% Dummy transactions; Redis doesnot support transactions in a
 %% cluster setup
 start_transaction(_OldContext) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     {ok, {Pid}}.
 
 commit_transaction({Pid}) ->
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     {ok, {}}.
 
 %% -------------------------------------------------------------------

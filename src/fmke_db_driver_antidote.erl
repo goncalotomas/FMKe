@@ -45,19 +45,11 @@
     txn_id :: txid()
 }).
 
-start(_Params) ->
-    {ok, Hostnames} = application:get_env(?APP, db_conn_hostnames),
-    {ok, Ports} = application:get_env(?APP, db_conn_ports),
-    {ok, ConnPoolSize} = application:get_env(?APP, db_conn_pool_size),
-    {ok, _} = fmke_db_conn_pool:start([
-        {db_conn_hostnames, Hostnames},
-        {db_conn_ports, Ports},
-        {db_conn_module, antidotec_pb_socket},
-        {db_conn_pool_size, ConnPoolSize}
-    ]).
+start(_) ->
+    ok.
 
-stop(_Anything) ->
-  ok.
+stop(_) ->
+    ok.
 
 get(Key, RecordType, Context = #antidote_context{pid = Pid, txn_id = TxnId}) ->
   Object = create_read_bucket(Key, ?MAP), %% application records are all of type ?MAP
@@ -131,14 +123,14 @@ put_map(Key, KeyType, Value, Context = #antidote_context{pid = Pid, txn_id = Txn
 
 %% Return status {(ok | error), context}
 start_transaction(_OldContext) ->
-  Pid = poolboy:checkout(fmke_db_connection_pool),
+  Pid = fmke_db_conn_manager:checkout(),
   {ok, TxnId} = antidotec_pb:start_transaction(Pid, ignore, {}),
   {ok, #antidote_context{pid = Pid, txn_id = TxnId}}.
 
 %% Return status {(ok | error), context}
 commit_transaction(#antidote_context{pid = Pid, txn_id = TransactionId}) ->
   CmtRes = antidotec_pb:commit_transaction(Pid, TransactionId),
-  Result = poolboy:checkin(fmke_db_connection_pool, Pid),
+  Result = fmke_db_conn_manager:checkin(Pid),
   case CmtRes of
     {ok, _Something} -> {Result, #antidote_context{pid = Pid}};
     {error, unknown} -> {{error, txn_aborted}, #antidote_context{pid = Pid}}

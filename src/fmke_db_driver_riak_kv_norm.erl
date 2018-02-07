@@ -43,19 +43,11 @@
   update_prescription_medication/3
 ]).
 
-start(_Params) ->
-    {ok, Hostnames} = application:get_env(?APP, db_conn_hostnames),
-    {ok, Ports} = application:get_env(?APP, db_conn_ports),
-    {ok, ConnPoolSize} = application:get_env(?APP, db_conn_pool_size),
-    {ok,  _} = fmke_db_conn_pool:start([
-        {db_conn_hostnames, Hostnames},
-        {db_conn_ports, Ports},
-        {db_conn_module, riakc_pb_socket},
-        {db_conn_pool_size, ConnPoolSize}
-    ]).
+start(_) ->
+    ok.
 
 stop(_) ->
-  ok.
+    ok.
 
 get_riak_props(Entity, Id) when is_atom(Entity), is_integer(Id) ->
     BucketType = get_bucket_type(Entity),
@@ -74,9 +66,9 @@ get_bucket(staff) -> <<"staff">>;
 get_bucket(treatment) -> <<"treatments">>.
 
 create_if_not_exists(Entity, Fields) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result = create_if_not_exists(Pid, Entity, Fields),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 create_if_not_exists(Pid, Entity, Fields) ->
@@ -92,9 +84,9 @@ create_if_not_exists(Pid, Entity, Fields) ->
 
 %% Does kind of the opposite of create_if_not_exists/2
 update_if_already_exists(Entity, Fields) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result = update_if_already_exists(Pid, Entity, Fields),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 update_if_already_exists(Pid, Entity, Fields) ->
@@ -286,9 +278,9 @@ build_app_record(staff, Object) ->
     }.
 
 get_entity_with_prescriptions(Entity, Id) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result = get_entity_with_prescriptions(Pid, Entity, Id),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 get_entity_with_prescriptions(Pid, Entity, Id) ->
@@ -356,9 +348,9 @@ get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
 -spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_pharmacy_prescriptions(Id) ->
     Key = get_key(pharmacy, Id),
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     case {Prescriptions, ProcessedPrescriptions} of
         {{error, not_found}, {error, not_found}} -> [];
         {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
@@ -369,11 +361,11 @@ get_pharmacy_prescriptions(Id) ->
 -spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_processed_pharmacy_prescriptions(Id) ->
     PharmacyKey = get_key(pharmacy, Id),
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     [ProcessedPrescriptions] = multi_read(Pid, [
         {PharmacyKey, <<"sets">>, <<"processed_prescriptions">>}
     ]),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     case ProcessedPrescriptions of
         {error, not_found} -> [];
         PrescriptionKeys ->  PrescriptionKeys
@@ -410,9 +402,9 @@ get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
 -spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
 get_staff_prescriptions(Id) ->
     Key = get_key(staff, Id),
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     case {Prescriptions, ProcessedPrescriptions} of
         {{error, not_found}, {error, not_found}} -> [];
         {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
@@ -453,7 +445,7 @@ update_staff_details(Id, Name, Address, Speciality) ->
 -spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
 update_prescription_medication(Id, add_drugs, Drugs) ->
     {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result =
         case get_prescription_by_id(Id) of
         {error, not_found} ->
@@ -467,7 +459,7 @@ update_prescription_medication(Id, add_drugs, Drugs) ->
                                 Map),
             ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(Map1))
         end,
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result;
 
 update_prescription_medication(_Id, _Op, _Drugs) -> {error, invalid_update_operation}.
@@ -482,7 +474,7 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
     PatientKey = get_key(patient, PatientId),
     PharmacyKey = get_key(pharmacy, PharmacyId),
     PrescriberKey = get_key(staff, PrescriberId),
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     %% check required pre-conditions
     [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
       = check_keys(Pid, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
@@ -504,7 +496,7 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
             ok;
         ErrorMessage -> ErrorMessage
     end,
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 check_keys(_Pid, []) ->
@@ -534,9 +526,9 @@ create_treatment(_TreatmentId, _PatientId, _StaffId, _FacilityId, _DateStarted, 
   erlang:error(not_implemented).
 
 process_prescription(Id, Date) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result = process_prescription(Pid, Id, Date),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 process_prescription(Pid, Id, Date) ->
@@ -619,9 +611,9 @@ parse_read_result({ok, Object}) -> Object;
 parse_read_result(Result) -> erlang:error({unknown_read_result, Result}).
 
 get(Key, BucketType, BucketName) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     Result = riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key),
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     Result.
 
 get(Pid, Key, BucketType, BucketName) ->

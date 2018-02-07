@@ -44,18 +44,10 @@
 %% Setup and teardown functions
 %% -------------------------------------------------------------------
 start(_Params) ->
-    {ok, Hostnames} = application:get_env(?APP, db_conn_hostnames),
-    {ok, Ports} = application:get_env(?APP, db_conn_ports),
-    {ok, ConnPoolSize} = application:get_env(?APP, db_conn_pool_size),
-    {ok, _} = fmke_db_conn_pool:start([
-        {db_conn_hostnames, Hostnames},
-        {db_conn_ports, Ports},
-        {db_conn_module, riakc_pb_socket},
-        {db_conn_pool_size, ConnPoolSize}
-    ]).
+    ok.
 
-stop(_Context = {_, Pid, _}) ->
-    riakc_pb_socket:stop(Pid).
+stop(_) ->
+    ok.
 
 %% -------------------------------------------------------------------
 %% Data access exports - Interaction with Riak KV
@@ -290,9 +282,9 @@ get_bucket_from_entity(Entity) ->
 %% -------------------------------------------------------------------
 
 start_transaction(_Context) ->
-    Pid = poolboy:checkout(fmke_db_connection_pool),
+    Pid = fmke_db_conn_manager:checkout(),
     {ok, {Pid}}.
 
 commit_transaction(_Context = {Pid}) ->
-    poolboy:checkin(fmke_db_connection_pool, Pid),
+    fmke_db_conn_manager:checkin(Pid),
     {ok, {}}.
