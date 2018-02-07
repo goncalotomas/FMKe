@@ -230,32 +230,32 @@ multiple_node_pool_spec_test() ->
          [poolboy]}],
     ?assertEqual(ExpectedSpecs, gen_pool_specs()).
 
-single_host_single_port_setup_test() ->
+single_host_single_port_list_setup_test() ->
     {Hosts, Ports} = make_same_len(["127.0.0.1"], [8087]),
     ?assertEqual(Hosts, ["127.0.0.1"]),
     ?assertEqual(Ports, [8087]).
 
-single_host_multiple_ports_setup_test() ->
+single_host_multiple_ports_list_setup_test() ->
     {Hosts, Ports} = make_same_len(["127.0.0.1"], [8087, 8187, 8287, 8387]),
     ?assertEqual(Hosts, ["127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"]),
     ?assertEqual(Ports, [8087, 8187, 8287, 8387]).
 
-multiple_hosts_single_port_setup_test() ->
+multiple_hosts_single_port_list_setup_test() ->
     {Hosts, Ports} = make_same_len(["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"], [8087]),
     ?assertEqual(Hosts, ["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"]),
     ?assertEqual(Ports, [8087, 8087, 8087, 8087]).
 
-multiple_hosts_multiple_ports_same_length_setup_test() ->
+multiple_hosts_multiple_ports_same_length_list_setup_test() ->
     Hosts = ["8.8.8.8", "196.162.1.1"],
     Ports = [8087, 8187],
     ?assertEqual({Hosts, Ports}, make_same_len(Hosts, Ports)).
 
-multiple_hosts_multiple_ports_more_hosts_setup_test() ->
+multiple_hosts_multiple_ports_more_hosts_list_setup_test() ->
     Hosts = ["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"],
     Ports = [8087, 8187],
     ?assertEqual({Hosts, [8087, 8087, 8087, 8187]}, make_same_len(Hosts, Ports)).
 
-multiple_hosts_multiple_ports_more_ports_setup_test() ->
+multiple_hosts_multiple_ports_more_ports_list_setup_test() ->
     Hosts = ["8.8.8.8", "196.162.1.1"],
     Ports = [8087, 8187, 8287, 8387],
     ?assertEqual({["8.8.8.8", "8.8.8.8", "8.8.8.8", "196.162.1.1"], Ports}, make_same_len(Hosts, Ports)).
