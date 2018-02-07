@@ -69,6 +69,7 @@ config(ConfigProps) ->
         end,
     ?OPTIONS).
 
+-spec gen_fmke_spec() -> supervisor:child_spec().
 gen_fmke_spec() ->
     #{
         id => fmke,
@@ -77,6 +78,7 @@ gen_fmke_spec() ->
         type => worker
     }.
 
+-spec gen_web_server_spec() -> supervisor:child_spec().
 gen_web_server_spec() ->
     {ok, HttpPort} = application:get_env(?APP, http_port),
 
@@ -103,6 +105,7 @@ gen_web_server_spec() ->
         type => worker
     }.
 
+-spec gen_pool_specs() -> list(supervisor:child_spec()).
 gen_pool_specs() ->
     {ok, TargetDatabase} = application:get_env(?APP, target_database),
     {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
@@ -137,6 +140,7 @@ gen_pool_specs() ->
             poolboy:child_spec(Name, PoolArgs, WorkerArgs)
         end, Pools).
 
+-spec gen_conn_pool_mgr_spec() -> supervisor:child_spec().
 gen_conn_pool_mgr_spec() ->
     #{
         id => fmke_db_conn_manager,
@@ -150,11 +154,12 @@ get_value(false, undefined, Val, _) -> {config_file, Val};
 get_value(false, {ok, Val}, _, _) -> {app_env, Val};
 get_value(Val, _, _, _) -> {os_env, Val}.
 
+-spec make_same_len(L1 :: list(), L2 :: list()) -> {list(), list()}.
 make_same_len(L1, L2) when length(L1) == length(L2) -> {L1, L2};
 make_same_len([H1|_T1] = L1, L2) when length(L1) < length(L2) -> make_same_len([H1 | L1], L2);
 make_same_len(L1, [H2|_T2] = L2) when length(L1) > length(L2) -> make_same_len(L1, [H2 | L2]).
 
--spec get_client_lib(Database :: antidote | riak | redis) -> atom().
+-spec get_client_lib(Database :: antidote | antidote_norm | riak | riak_norm | redis) -> atom().
 get_client_lib(antidote) -> antidotec_pb_socket;
 get_client_lib(antidote_norm) -> antidotec_pb_socket;
 get_client_lib(riak) -> riakc_pb_socket;
@@ -164,3 +169,102 @@ get_client_lib(redis) -> eredis.
 -spec get_atom_compatible_addr(Addr :: list()) -> list().
 get_atom_compatible_addr(Addr) ->
     lists:flatten(string:replace(lists:flatten(string:replace(Addr, ".", ":", all)), ":", "_", all)).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                     Eunit Tests                                                    %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
+
+web_server_spec_test() ->
+    HttpPort = 8888,
+    ok = application:set_env(?APP, http_port, HttpPort),
+    #{
+        id := cowboy,
+        start := {cowboy, start_clear, [fmke_http_listener, [{port, HttpPort}], #{env := #{dispatch := _Dispatch}}]},
+        restart := permanent,
+        type := worker
+    } = gen_web_server_spec().
+
+single_node_pool_spec_test() ->
+    ok = application:set_env(?APP, target_database, riak),
+    ok = application:set_env(?APP, connection_pool_size, 1),
+    ok = application:set_env(?APP, database_addresses, ["8.8.8.8"]),
+    ok = application:set_env(?APP, database_ports, [4321]),
+    ExpectedSpec = {pool_8_8_8_8,
+         {poolboy,start_link,
+             [[{name,{local,pool_8_8_8_8}},
+               {worker_module,fmke_db_connection},
+               {size,1},
+               {max_overflow,2}],
+              [{client_lib,riakc_pb_socket},
+               {host,"8.8.8.8"},
+               {port,4321}]]},
+         permanent,5000,worker,
+         [poolboy]},
+    ?assertEqual([ExpectedSpec], gen_pool_specs()).
+
+multiple_node_pool_spec_test() ->
+    ok = application:set_env(?APP, target_database, redis),
+    ok = application:set_env(?APP, connection_pool_size, 2),
+    ok = application:set_env(?APP, database_addresses, ["8.8.8.8", "127.0.0.1"]),
+    ok = application:set_env(?APP, database_ports, [4321, 8765]),
+    ExpectedSpecs = [{pool_8_8_8_8,
+         {poolboy,start_link,
+             [[{name,{local,pool_8_8_8_8}},
+               {worker_module,fmke_db_connection},
+               {size,2},
+               {max_overflow,4}],
+              [{client_lib,eredis},{host,"8.8.8.8"},{port,4321}]]},
+         permanent,5000,worker,
+         [poolboy]},
+     {pool_127_0_0_1,
+         {poolboy,start_link,
+             [[{name,{local,pool_127_0_0_1}},
+               {worker_module,fmke_db_connection},
+               {size,2},
+               {max_overflow,4}],
+              [{client_lib,eredis},{host,"127.0.0.1"},{port,8765}]]},
+         permanent,5000,worker,
+         [poolboy]}],
+    ?assertEqual(ExpectedSpecs, gen_pool_specs()).
+
+single_host_single_port_setup_test() ->
+    {Hosts, Ports} = make_same_len(["127.0.0.1"], [8087]),
+    ?assertEqual(Hosts, ["127.0.0.1"]),
+    ?assertEqual(Ports, [8087]).
+
+single_host_multiple_ports_setup_test() ->
+    {Hosts, Ports} = make_same_len(["127.0.0.1"], [8087, 8187, 8287, 8387]),
+    ?assertEqual(Hosts, ["127.0.0.1", "127.0.0.1", "127.0.0.1", "127.0.0.1"]),
+    ?assertEqual(Ports, [8087, 8187, 8287, 8387]).
+
+multiple_hosts_single_port_setup_test() ->
+    {Hosts, Ports} = make_same_len(["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"], [8087]),
+    ?assertEqual(Hosts, ["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"]),
+    ?assertEqual(Ports, [8087, 8087, 8087, 8087]).
+
+multiple_hosts_multiple_ports_same_length_setup_test() ->
+    Hosts = ["8.8.8.8", "196.162.1.1"],
+    Ports = [8087, 8187],
+    ?assertEqual({Hosts, Ports}, make_same_len(Hosts, Ports)).
+
+multiple_hosts_multiple_ports_more_hosts_setup_test() ->
+    Hosts = ["127.0.0.1", "8.8.8.8", "196.162.1.1", "0.0.0.0"],
+    Ports = [8087, 8187],
+    ?assertEqual({Hosts, [8087, 8087, 8087, 8187]}, make_same_len(Hosts, Ports)).
+
+multiple_hosts_multiple_ports_more_ports_setup_test() ->
+    Hosts = ["8.8.8.8", "196.162.1.1"],
+    Ports = [8087, 8187, 8287, 8387],
+    ?assertEqual({["8.8.8.8", "8.8.8.8", "8.8.8.8", "196.162.1.1"], Ports}, make_same_len(Hosts, Ports)).
+
+get_atom_from_ipv4_addr_test() ->
+    ?assertEqual('127_0_0_1', list_to_atom(get_atom_compatible_addr("127.0.0.1"))).
+
+get_atom_from_ipv6_addr_test() ->
+    ?assertEqual('2001_0db8_85a3_0000_0000_8a2e_0370_7334',
+        list_to_atom(get_atom_compatible_addr("2001:0db8:85a3:0000:0000:8a2e:0370:7334"))).
+
+-endif.
