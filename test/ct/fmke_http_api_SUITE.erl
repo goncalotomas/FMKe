@@ -47,7 +47,7 @@ all() ->
 %%%-------------------------------------------------------------------
 
 suite() ->
-    [{timetrap, {seconds, 120}}].
+    [{timetrap, {seconds, 180}}].
 
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
