@@ -12,7 +12,10 @@
     stop_redis/0,
     start_node_with_antidote_backend/1,
     start_node_with_riak_backend/1,
-    start_node_with_redis_backend/1
+    start_node_with_redis_backend/1,
+    start_norm_node_with_antidote_backend/1,
+    start_norm_node_with_riak_backend/1,
+    stop_node/1
 ]).
 
 start_antidote() ->
@@ -37,6 +40,14 @@ start_redis() ->
 stop_redis() ->
     os:cmd("docker stop redis && docker rm redis").
 
+start_norm_node_with_antidote_backend(Name) ->
+    fmke_test_utils:start_antidote(),
+    start_local_node(Name, antidote_norm, 8087).
+
+start_norm_node_with_riak_backend(Name) ->
+    fmke_test_utils:start_riak(),
+    start_local_node(Name, riak_norm, 8087).
+
 start_node_with_antidote_backend(Name) ->
     fmke_test_utils:start_antidote(),
     start_local_node(Name, antidote, 8087).
@@ -53,7 +64,8 @@ start_local_node(Name, Database, Port) ->
     io:format("Trying to spawn node ~p and connect it to ~p running on port ~p...", [Name, Database, Port]),
     CodePath = lists:filter(fun filelib:is_dir/1, code:get_path()),
     %% have the slave nodes monitor the runner node, so they can't outlive it
-    NodeConfig = [{monitor_master, true}, {startup_functions, [{code, set_path, [CodePath]}]}],
+    NodeConfig = [{monitor_master, true}, {kill_if_fail, true}, {boot_timeout, 5}, {init_timeout, 3},
+        {startup_timeout, 1}, {startup_functions, [{code, set_path, [CodePath]}]}],
     case ct_slave:start(Name, NodeConfig) of
         {ok, Node} ->
             ok = rpc:call(Node, application, set_env, [?APP, target_database, Database]),
@@ -69,7 +81,7 @@ start_local_node(Name, Database, Port) ->
             io:format("Node ~p started", [Node]),
             Node;
         {error, Reason, Node} ->
-            io:format("Error starting node ~w, reason ~w, will retry", [Node, Reason]),
+            io:format("Error starting node ~p (~p), retrying...", [Node, Reason]),
             ct_slave:stop(Name),
             wait_until_offline(Node),
             start_local_node(Name, Database, Port)
@@ -93,7 +105,13 @@ wait_until_result(Fun, Result, Retry, Delay) when Retry > 0 ->
             wait_until_result(Fun, Result, Retry-1, Delay)
 end.
 
--spec get_client_lib(Database :: antidote | riak | redis) -> atom().
+stop_node(Node) ->
+    ct_slave:stop(Node),
+    wait_until_offline(Node).
+
+-spec get_client_lib(Database :: antidote | antidote_norm | riak | riak_norm | redis) -> atom().
 get_client_lib(antidote) -> antidote_pb;
+get_client_lib(antidote_norm) -> antidote_pb;
 get_client_lib(riak) -> riak_pb;
+get_client_lib(riak_norm) -> riak_pb;
 get_client_lib(redis) -> eredis.

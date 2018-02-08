@@ -97,26 +97,11 @@
 % -type map_field_op() ::  {remove, field()}.
 % -type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
 
-start(Params) ->
-    case fmke_sup:start_link() of
-       {ok, Pid} -> start_conn_pool(Pid, Params);
-       Error -> Error
-    end.
-
-start_conn_pool(Pid, Params) ->
-    Hostnames = proplists:get_value(db_conn_hostnames, Params),
-    Ports = proplists:get_value(db_conn_ports, Params),
-    ConnPoolSize = proplists:get_value(db_conn_pool_size, Params),
-    {ok, _} = fmke_db_conn_pool:start([
-        {db_conn_hostnames, Hostnames},
-        {db_conn_ports, Ports},
-        {db_conn_module, antidotec_pb_socket},
-        {db_conn_pool_size, ConnPoolSize}
-    ]),
-    {ok, Pid}.
+start(_) ->
+    ok.
 
 stop(_) ->
-  ok.
+    ok.
 
 create_if_not_exists(Entity, Fields) ->
     Txn = txn_start(),
@@ -584,7 +569,7 @@ error_to_binary(Reason) -> list_to_binary(lists:flatten(io_lib:format("~p", [Rea
 %% A wrapper for Antidote's start_transaction function
 -spec txn_start() -> txid().
 txn_start() ->
-  Pid = poolboy:checkout(fmke_db_connection_pool),
+  Pid = fmke_db_conn_manager:checkout(),
   {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, ignore, {}),
   {Pid, TxnDetails}.
 
@@ -616,7 +601,7 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
 -spec txn_commit(TxnDetails :: txid()) -> ok.
 txn_commit({Pid, TxnDetails}) ->
   {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
-  poolboy:checkin(fmke_db_connection_pool, Pid).
+  fmke_db_conn_manager:checkin(Pid).
 
 
 %% ------------------------------------------------------------------------------------------------
