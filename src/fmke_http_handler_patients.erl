@@ -31,7 +31,7 @@ perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
         Id = fmke_http_utils:parse_id(BinaryId),
         {Success, ServerResponse} = case fmke:get_patient_by_id(Id) of
             {error, Reason} -> {false, Reason};
-            PatientRecord -> {true, fmke_proplists:encode_object(PatientRecord)}
+            PatientRecord -> {true, fmke_json:encode(PatientRecord)}
         end,
         fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
     catch error:ErrReason ->
