@@ -38,33 +38,8 @@ compile:
 console: rel
 	./_build/default/rel/fmke/bin/env console
 
-ct: all
-	./travis.sh ct antidote
-	./travis.sh ct antidote_norm
-	./travis.sh ct redis
-	./travis.sh ct riak
-	./travis.sh ct riak_norm
-
-ct-antidote: rel
-	./travis.sh ct antidote
-
-ct-antidote-norm: rel
-	./travis.sh ct antidote_norm
-
-ct-redis: rel
-	./travis.sh ct redis
-
-ct-riak: rel
-	./travis.sh ct riak
-
-ct-riak-norm: rel
-	./travis.sh ct riak_norm
-
 dialyzer:
 	${REBAR} dialyzer
-
-eunit:
-	rebar3 eunit
 
 kv_driver_test:
 	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
@@ -142,6 +117,10 @@ stop-redis:
 stop-riak:
 	./scripts/stop_data_store.sh riak
 
+test: all
+	rebar3 eunit
+	rebar3 ct
+
 test-multiple-releases:
 	rm -rf _build/default/rel
 	./scripts/start_data_store.sh antidote
@@ -161,3 +140,6 @@ test-multiple-releases:
 	./_build/default/rel/fmke/bin/env stop
 	./_build/default/rel/fmke_test/bin/env_test stop
 	./scripts/stop_data_store.sh antidote
+
+xref:
+	rebar3 xref

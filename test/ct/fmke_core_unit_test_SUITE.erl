@@ -3,11 +3,16 @@
 -include("fmke.hrl").
 -include("fmk_kv.hrl").
 
+-define (NODENAME, 'fmke@127.0.0.1').
+-define (COOKIE, fmke).
+
 %%%-------------------------------------------------------------------
 %%% Common Test exports
 %%%-------------------------------------------------------------------
 -export([
+    suite/0,
     all/0,
+    groups/0,
     init_per_suite/1,
     end_per_suite/1,
     init_per_group/2,
@@ -34,30 +39,88 @@
 %%% Common Test Callbacks
 %%%-------------------------------------------------------------------
 
+suite() ->
+    [{timetrap, {seconds, 180}}].
+
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
-    [event_unit_tests, facility_unit_tests, patient_unit_tests,
-    pharmacy_unit_tests, prescription_unit_tests, staff_unit_tests,
-    treatment_unit_tests].
+    [{group, antidote}, {group, antidote_norm}, {group, redis}, {group, riak}, {group, riak_norm}].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
 %%%-------------------------------------------------------------------
 
 init_per_suite(Config) ->
-    TargetNode = 'fmke@127.0.0.1',
-    {ok, _} = net_kernel:start(['fmke_ct_test@127.0.0.1', longnames]),
-    true = erlang:set_cookie('fmke_ct_test@127.0.0.1', fmke),
-    [{node, TargetNode} | Config].
-
-end_per_suite(Config) ->
+    {ok, _} = net_kernel:start(['fmke_ct_test@127.0.0.1']),
+    true = erlang:set_cookie('fmke_ct_test@127.0.0.1', ?COOKIE),
     Config.
 
+end_per_suite(_Config) ->
+    net_kernel:stop(),
+    ok.
+
+groups() ->
+    [{antidote, [shuffle, sequence], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+    ]},
+    {antidote_norm, [shuffle, sequence], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+    ]},
+    {riak, [shuffle, sequence], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+    ]},
+    {riak_norm, [shuffle, sequence], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+    ]},
+    {redis, [shuffle, sequence], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+    ]}].
+
+init_per_group(antidote, Config) ->
+    Node = fmke_test_utils:start_node_with_antidote_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(antidote_norm, Config) ->
+    Node = fmke_test_utils:start_norm_node_with_antidote_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(riak, Config) ->
+    Node = fmke_test_utils:start_node_with_riak_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(riak_norm, Config) ->
+    Node = fmke_test_utils:start_norm_node_with_riak_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(redis, Config) ->
+    Node = fmke_test_utils:start_node_with_redis_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
 init_per_group(_, Config) ->
     Config.
 
-end_per_group(_, Config) ->
-    Config.
+end_per_group(antidote, _Config) ->
+    fmke_test_utils:stop_antidote(),
+    fmke_test_utils:stop_node(?NODENAME);
+end_per_group(antidote_norm, _Config) ->
+    fmke_test_utils:stop_antidote(),
+    fmke_test_utils:stop_node(?NODENAME);
+end_per_group(riak, _Config) ->
+    fmke_test_utils:stop_riak(),
+    fmke_test_utils:stop_node(?NODENAME);
+end_per_group(riak_norm, _Config) ->
+    fmke_test_utils:stop_riak(),
+    fmke_test_utils:stop_node(?NODENAME);
+end_per_group(redis, _Config) ->
+    fmke_test_utils:stop_redis(),
+    fmke_test_utils:stop_node(?NODENAME);
+end_per_group(_, _Config) ->
+    ok.
 
 init_per_testcase(facility_unit_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),

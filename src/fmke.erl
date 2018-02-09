@@ -8,6 +8,7 @@
 %% Public API for FMK Core
 %%-----------------------------------------------------------------------------
 -export([
+    start_link/1,
     create_patient/3,
     create_pharmacy/3,
     create_facility/4,
@@ -31,8 +32,6 @@
     update_prescription_medication/3
   ]).
 
--export ([start/1, stop/0]).
-
 %% gen_server callbacks
 -export([
   init/1,
@@ -40,20 +39,45 @@
   handle_call/3
 ]).
 
-%% TODO switch to stateful modules
--define (DB_DRIVER(), fmke_config:get(driver)).
 -define (SERVER, ?MODULE).
 
-start(InitParams) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, InitParams, []).
+start_link(_Params) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
-stop() ->
-    gen_server:call(?MODULE, stop).
-
-init(InitParams) ->
-    Driver = proplists:get_value(driver, InitParams),
-    Driver:start(InitParams),
+init([]) ->
+    % {ok, Adapter} = application:get_env(?APP, adapter),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    {ok, Addresses} = application:get_env(?APP, database_addresses),
+    {ok, Ports} = application:get_env(?APP, database_ports),
+    {ok, Database} = application:get_env(?APP, target_database),
+    {Driver, DriverImpl} = get_driver_setup(Database),
+    % TODO this is going to be removed in a future release, since drivers will not need these parameters
+    ok = application:set_env(?APP, driver, Driver),
+    ok = application:set_env(?APP, simplified_driver, DriverImpl),
+    ok = application:set_env(?APP, db_conn_hostnames, Addresses),
+    ok = application:set_env(?APP, db_conn_ports, Ports),
+    ok = application:set_env(?APP, db_conn_pool_size, ConnPoolSize),
+    Driver:start([]),
     {ok, Driver}.
+
+get_driver_setup(Database) when is_list(Database) ->
+    get_driver_setup(list_to_atom(Database));
+
+get_driver_setup(Database) when is_atom(Database) ->
+    %% TODO maybe I should find a better way to do this... later.
+    DriverSetups = #{
+      antidote => {fmke_kv_driver, fmke_db_driver_antidote},
+      antidote_norm => {fmke_db_driver_antidote_norm, undefined},
+      redis => {fmke_kv_driver, fmke_db_driver_redis},
+      riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
+      riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv},
+      riak_norm => {fmke_db_driver_riak_kv_norm, undefined},
+      riak_kv_norm => {fmke_db_driver_riak_kv_norm, undefined}
+    },
+    case maps:find(Database, DriverSetups) of
+        {ok, Value} -> Value;
+        error -> {error, not_supported, Database}
+    end.
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
