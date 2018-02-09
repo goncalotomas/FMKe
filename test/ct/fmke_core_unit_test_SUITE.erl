@@ -40,7 +40,7 @@
 %%%-------------------------------------------------------------------
 
 suite() ->
-    [{timetrap, {seconds, 180}}].
+    [{timetrap, {minutes, 3}}].
 
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
