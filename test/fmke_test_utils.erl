@@ -15,8 +15,13 @@
     start_node_with_redis_backend/1,
     start_norm_node_with_antidote_backend/1,
     start_norm_node_with_riak_backend/1,
+    start_node_with_mock_redis_cluster/1,
     stop_node/1
 ]).
+
+-define (ANTIDOTE_PORT, 8087).
+-define (RIAK_PORT, 8087).
+-define (REDIS_PORT, 6379).
 
 start_antidote() ->
     os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
@@ -42,26 +47,38 @@ stop_redis() ->
 
 start_norm_node_with_antidote_backend(Name) ->
     fmke_test_utils:start_antidote(),
-    start_local_node(Name, antidote_norm, 8087).
+    start_local_node(Name, antidote_norm, ?ANTIDOTE_PORT).
 
 start_norm_node_with_riak_backend(Name) ->
     fmke_test_utils:start_riak(),
-    start_local_node(Name, riak_norm, 8087).
+    start_local_node(Name, riak_norm, ?RIAK_PORT).
 
 start_node_with_antidote_backend(Name) ->
     fmke_test_utils:start_antidote(),
-    start_local_node(Name, antidote, 8087).
+    start_local_node(Name, antidote, ?ANTIDOTE_PORT).
 
 start_node_with_riak_backend(Name) ->
     fmke_test_utils:start_riak(),
-    start_local_node(Name, riak, 8087).
+    start_local_node(Name, riak, ?RIAK_PORT).
 
 start_node_with_redis_backend(Name) ->
     fmke_test_utils:start_redis(),
-    start_local_node(Name, redis, 6379).
+    start_local_node(Name, redis, ?REDIS_PORT).
+
+start_node_with_mock_redis_cluster(Name) ->
+    fmke_test_utils:start_redis(),
+    %% Uses two different loopback addresses to create pools (one IPv4, one IPv6)
+    start_local_node(Name, redis, ["127.0.0.1", "0:0:0:0:0:0:0:1"], [?REDIS_PORT, ?REDIS_PORT]).
 
 start_local_node(Name, Database, Port) ->
-    io:format("Trying to spawn node ~p and connect it to ~p running on port ~p...", [Name, Database, Port]),
+    start_local_node(Name, Database, ["127.0.0.1"], [Port]).
+
+start_local_node(Name, Database, Hostnames, Ports) ->
+    io:format(
+        "Trying to spawn node ~p and connect it to ~p...~n"
+        "Using list of hostnames: ~p...~n"
+        "Using list of ports: ~p~n",
+        [Name, Database, Hostnames, Ports]),
     CodePath = lists:filter(fun filelib:is_dir/1, code:get_path()),
     %% have the slave nodes monitor the runner node, so they can't outlive it
     NodeConfig = [{monitor_master, true}, {kill_if_fail, true}, {boot_timeout, 5}, {init_timeout, 3},
@@ -70,8 +87,8 @@ start_local_node(Name, Database, Port) ->
         {ok, Node} ->
             ok = rpc:call(Node, application, set_env, [?APP, target_database, Database]),
             ok = rpc:call(Node, application, set_env, [?APP, connection_pool_size, 64]),
-            ok = rpc:call(Node, application, set_env, [?APP, database_addresses, ["127.0.0.1"]]),
-            ok = rpc:call(Node, application, set_env, [?APP, database_ports, [Port]]),
+            ok = rpc:call(Node, application, set_env, [?APP, database_addresses, Hostnames]),
+            ok = rpc:call(Node, application, set_env, [?APP, database_ports, Ports]),
             ok = rpc:call(Node, application, set_env, [?APP, http_port, 9090]),
 
             ClientLib = get_client_lib(Database),
@@ -84,7 +101,7 @@ start_local_node(Name, Database, Port) ->
             io:format("Error starting node ~p (~p), retrying...", [Node, Reason]),
             ct_slave:stop(Name),
             wait_until_offline(Node),
-            start_local_node(Name, Database, Port)
+            start_local_node(Name, Database, Hostnames, Ports)
     end.
 
 wait_until_offline(Node) ->
