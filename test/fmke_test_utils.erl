@@ -45,6 +45,9 @@ start_redis() ->
 stop_redis() ->
     os:cmd("docker stop redis && docker rm redis").
 
+stop_all() ->
+    os:cmd("docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
+
 start_norm_node_with_antidote_backend(Name) ->
     fmke_test_utils:start_antidote(),
     start_local_node(Name, antidote_norm, ?ANTIDOTE_PORT).

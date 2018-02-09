@@ -105,19 +105,19 @@ init_per_group(_, Config) ->
     Config.
 
 end_per_group(antidote, _Config) ->
-    fmke_test_utils:stop_antidote(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME);
 end_per_group(antidote_norm, _Config) ->
-    fmke_test_utils:stop_antidote(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME);
 end_per_group(riak, _Config) ->
-    fmke_test_utils:stop_riak(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME);
 end_per_group(riak_norm, _Config) ->
-    fmke_test_utils:stop_riak(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME);
 end_per_group(redis, _Config) ->
-    fmke_test_utils:stop_redis(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME);
 end_per_group(_, _Config) ->
     ok.

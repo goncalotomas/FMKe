@@ -36,9 +36,9 @@ init_per_suite(Config) ->
 %% Config0 = Config1 = [tuple()]
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    net_kernel:stop(),
-    fmke_test_utils:stop_redis(),
+    fmke_test_utils:stop_all(),
     fmke_test_utils:stop_node(?NODENAME),
+    net_kernel:stop(),
     ok.
 
 %%--------------------------------------------------------------------
