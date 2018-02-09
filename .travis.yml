@@ -18,6 +18,11 @@ script:
   - rebar3 as test coveralls send
 after_failure:
   - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/ct.latest.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/console.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/crash.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/lib.fmke.logs/suite.log
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"
