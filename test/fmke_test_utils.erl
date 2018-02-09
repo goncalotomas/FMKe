@@ -77,7 +77,7 @@ start_node_with_redis_backend(Name) ->
 start_node_with_mock_redis_cluster(Name) ->
     fmke_test_utils:start_redis(),
     %% Uses two different loopback addresses to create pools (one IPv4, one IPv6)
-    start_local_node(Name, redis, ["127.0.0.1", "0:0:0:0:0:0:0:1"], [?REDIS_PORT, ?REDIS_PORT]).
+    start_local_node(Name, redis, ["127.0.0.1", "::1"], [?REDIS_PORT, ?REDIS_PORT]).
 
 start_local_node(Name, Database, Port) ->
     start_local_node(Name, Database, ["127.0.0.1"], [Port]).
