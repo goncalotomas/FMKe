@@ -7,15 +7,16 @@
     start_antidote/0,
     start_riak/0,
     start_redis/0,
-    stop_antidote/0,
-    stop_riak/0,
-    stop_redis/0,
     start_node_with_antidote_backend/1,
     start_node_with_riak_backend/1,
     start_node_with_redis_backend/1,
     start_norm_node_with_antidote_backend/1,
     start_norm_node_with_riak_backend/1,
     start_node_with_mock_redis_cluster/1,
+    stop_all/0,
+    stop_antidote/0,
+    stop_riak/0,
+    stop_redis/0,
     stop_node/1
 ]).
 
