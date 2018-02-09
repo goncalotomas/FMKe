@@ -85,8 +85,8 @@ encode(list_prescriptions, NestedObject) ->
     end.
 
 encode_string_list([]) -> [];
-encode_string_list([H|T]) when is_binary(H) -> [binary_to_list(H) | encode_string_list(T)];
-encode_string_list([H|T]) when is_list(H) -> [H | encode_string_list(T)].
+encode_string_list([H|T]) when is_binary(H) -> [H | encode_string_list(T)];
+encode_string_list([H|T]) when is_list(H) -> [list_to_binary(H) | encode_string_list(T)].
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -118,7 +118,7 @@ encode_patient_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionDrugs">>, [<<"Acetaminophen">>, <<"Ibuprofen">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, <<"undefined">>}
@@ -128,7 +128,7 @@ encode_patient_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionDrugs">>, [<<"Rupatadine">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, "19/01/2018"}
@@ -173,7 +173,7 @@ encode_pharmacy_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionDrugs">>, [<<"Acetaminophen">>, <<"Ibuprofen">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, <<"undefined">>}
@@ -183,7 +183,7 @@ encode_pharmacy_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionDrugs">>, [<<"Rupatadine">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, "19/01/2018"}
@@ -230,7 +230,7 @@ encode_medical_staff_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Acetaminophen", "Ibuprofen"]},
+                {<<"prescriptionDrugs">>, [<<"Acetaminophen">>, <<"Ibuprofen">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_not_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, <<"undefined">>}
@@ -240,7 +240,7 @@ encode_medical_staff_with_nested_prescriptions_test() ->
                 {<<"prescriptionPatientId">>, 1},
                 {<<"prescriptionPharmacyId">>, 1},
                 {<<"prescriptionPrescriberId">>, 1},
-                {<<"prescriptionDrugs">>, ["Rupatadine"]},
+                {<<"prescriptionDrugs">>, [<<"Rupatadine">>]},
                 {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
                 {<<"prescriptionDatePrescribed">>, "19/01/2018"},
                 {<<"prescriptionDateProcessed">>, "19/01/2018"}
