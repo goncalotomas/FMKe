@@ -84,8 +84,9 @@ encode(list_prescriptions, NestedObject) ->
         false -> lists:map(fun encode/1, NestedObject)
     end.
 
-encode_string_list(not_found) -> [];
-encode_string_list(List) -> List.
+encode_string_list([]) -> [];
+encode_string_list([H|T]) when is_binary(H) -> [binary_to_list(H) | encode_string_list(T)];
+encode_string_list([H|T]) when is_list(H) -> [H | encode_string_list(T)].
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
