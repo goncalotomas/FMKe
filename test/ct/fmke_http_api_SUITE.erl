@@ -99,23 +99,9 @@ init_per_group(redis, Config) ->
 init_per_group(_, Config) ->
     Config.
 
-end_per_group(antidote, _Config) ->
-    fmke_test_utils:stop_all(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(antidote_norm, _Config) ->
-    fmke_test_utils:stop_all(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(riak, _Config) ->
-    fmke_test_utils:stop_all(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(riak_norm, _Config) ->
-    fmke_test_utils:stop_all(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(redis, _Config) ->
-    fmke_test_utils:stop_all(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(_, _Config) ->
-    ok.
+end_per_group(_Group, _Config) ->
+    fmke_test_utils:stop_node(?NODENAME),
+    fmke_test_utils:stop_all().
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),

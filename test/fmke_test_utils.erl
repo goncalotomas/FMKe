@@ -25,29 +25,34 @@
 -define (REDIS_PORT, 6379).
 
 start_antidote() ->
-    os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
+    Result = os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
            "-p \"4368:4368\" -p \"8085:8085\" -p \"8087:8087\" -p \"8099:8099\" -p \"9100:9100\" mweber/antidotedb"),
+    io:format("Starting antidote...~n~p~n", [Result]),
     timer:sleep(5000).
 
 stop_antidote() ->
     os:cmd("docker stop antidote && docker rm antidote").
 
 start_riak() ->
-    os:cmd("docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak"),
+    Result = os:cmd("docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1"
+            " goncalotomas/riak"),
+    io:format("Starting riak...~n~p~n", [Result]),
     timer:sleep(17500).
 
 stop_riak() ->
     os:cmd("docker stop riak && docker rm riak").
 
 start_redis() ->
-    os:cmd("docker run -d --name redis -p \"6379:6379\" redis"),
+    Result = os:cmd("docker run -d --name redis -p \"6379:6379\" redis"),
+    io:format("Starting redis...~n~p~n", [Result]),
     timer:sleep(4000).
 
 stop_redis() ->
     os:cmd("docker stop redis && docker rm redis").
 
 stop_all() ->
-    os:cmd("docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
+    Result = os:cmd("docker stop $(docker ps -aq) && docker rm $(docker ps -aq)"),
+    io:format("Stopping all containers...~n~p~n", [Result]).
 
 start_norm_node_with_antidote_backend(Name) ->
     fmke_test_utils:start_antidote(),
