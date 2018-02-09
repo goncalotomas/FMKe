@@ -9,7 +9,7 @@
 -export([start_link/0]).
 
 %% gen_server callbacks
--export([init/1, handle_cast/2, handle_call/3]).
+-export([init/1, handle_cast/2, handle_info/2, handle_call/3]).
 
 %% conn_manager API
 -export([checkout/0, checkin/1]).
@@ -40,17 +40,26 @@ handle_call(checkout, _From, State) ->
            queue = Queue} = State,
     Pool = queue:head(Queue),
     Pid = poolboy:checkout(Pool),
+    true = link(Pid),
     MapState = maps:put(Pid, Pool, PidOwners),
     QueueState = queue:snoc(queue:tail(Queue), Pool),
     {reply, Pid, #state{queue = QueueState, pid_owners = MapState}};
 
 handle_call({checkin, Pid}, _From, State) ->
-    #state{pid_owners = PidOwners,
-           queue = Queue} = State,
-    Owner = maps:get(Pid, PidOwners, queue:head(Queue)),
-    MapState = maps:remove(Pid, PidOwners),
-    Result = poolboy:checkin(Owner, Pid),
-    {reply, Result, State#state{pid_owners = MapState}};
+    #state{pid_owners = PidOwners} = State,
+    case maps:get(Pid, PidOwners, no_such_pid) of
+        no_such_pid ->
+            {reply, no_such_pid, State};
+        Owner ->
+            MapState = maps:remove(Pid, PidOwners),
+            Result = poolboy:checkin(Owner, Pid),
+            {reply, Result, State#state{pid_owners = MapState}}
+    end;
 
 handle_call(_Msg, _From, State) ->
     {noreply, State}.
+
+handle_info({'EXIT', Pid, _Reason}, State) ->
+    #state{pid_owners = PidOwners} = State,
+    MapState = maps:remove(Pid, PidOwners),
+    {noreply, State#state{pid_owners = MapState}}.
