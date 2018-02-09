@@ -40,7 +40,7 @@ stop_riak() ->
 
 start_redis() ->
     os:cmd("docker run -d --name redis -p \"6379:6379\" redis"),
-    timer:sleep(2500).
+    timer:sleep(4000).
 
 stop_redis() ->
     os:cmd("docker stop redis && docker rm redis").
