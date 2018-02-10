@@ -32,7 +32,8 @@
     pharmacy_unit_tests/1,
     prescription_unit_tests/1,
     staff_unit_tests/1,
-    treatment_unit_tests/1
+    treatment_unit_tests/1,
+    status_tests/1
 ]).
 
 %%%-------------------------------------------------------------------
@@ -60,25 +61,25 @@ end_per_suite(_Config) ->
     ok.
 
 groups() ->
-    [{antidote, [shuffle, sequence], [
+    [{antidote, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]},
-    {antidote_norm, [shuffle, sequence], [
+    {antidote_norm, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]},
-    {riak, [shuffle, sequence], [
+    {riak, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]},
-    {riak_norm, [shuffle, sequence], [
+    {riak_norm, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]},
-    {redis, [shuffle, sequence], [
+    {redis, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]}].
 
 init_per_group(antidote, Config) ->
@@ -634,15 +635,72 @@ treatment_unit_tests(_Config) ->
     % {skip, "Treatments not implemented in this version of FMKe."}.
     ok.
 
+%%%-------------------------------------------------------------------
+%%% status tests
+%%%-------------------------------------------------------------------
+
+status_tests(Config) ->
+    {ok, TargetDatabase} = rpc(Config, application, get_env, [?APP, target_database]),
+    {ok, Addresses} = rpc(Config, application, get_env, [?APP, database_addresses]),
+    {ok, Ports} = rpc(Config, application, get_env, [?APP, database_ports]),
+    {ok, ConnPoolSize} = rpc(Config, application, get_env, [?APP, connection_pool_size]),
+    {ok, HttpPort} = rpc(Config, application, get_env, [?APP, http_port]),
+    ok = application:set_env(?APP, connection_pool_size, ConnPoolSize),
+    ok = application:set_env(?APP, target_database, TargetDatabase),
+    ok = application:set_env(?APP, database_addresses, Addresses),
+    ok = application:set_env(?APP, database_ports, Ports),
+    ok = application:set_env(?APP, http_port, HttpPort),
+    PropList = rpc(Config, get_status, []),
+    true = ([] =/= PropList),
+    check_status(PropList).
+
+check_status([]) -> ok;
+check_status([{fmke_up, true} | Other]) -> check_status(Other);
+check_status([{connection_manager_up, true} | Other]) -> check_status(Other);
+check_status([{web_server_up, true} | Other]) -> check_status(Other);
+check_status([{connection_pool_size, PoolSize} | Other]) ->
+    {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
+    check_status(Other);
+check_status([{target_database, Target} | Other]) ->
+    {ok, Target} = application:get_env(?APP, target_database),
+    check_status(Other);
+check_status([{database_addresses, BinAddresses} | Other]) ->
+    {ok, Addresses} = application:get_env(?APP, database_addresses),
+    ListAddresses = lists:map(fun binary_to_list/1, BinAddresses),
+    true = (ListAddresses == Addresses),
+    check_status(Other);
+check_status([{database_ports, Ports} | Other]) ->
+    {ok, Ports} = application:get_env(?APP, database_ports),
+    check_status(Other);
+check_status([{http_port, Port} | Other]) ->
+    {ok, Port} = application:get_env(?APP, http_port),
+    check_status(Other);
+check_status([{pools, Pools} | Other]) ->
+    lists:map(
+        fun({_PoolName, PoolData}) ->
+            true = ([] =/= PoolData),
+            ok = check_pool_status(PoolData)
+        end, Pools),
+    check_status(Other).
+
+check_pool_status([]) -> ok;
+check_pool_status([{pool_is_up, true} | Other]) -> check_pool_status(Other);
+check_pool_status([{pool_status, ready} | Other]) -> check_pool_status(Other);
+check_pool_status([{current_overflow, 0} | Other]) -> check_pool_status(Other);
+check_pool_status([{worker_pool_size, S} | Other]) ->
+    {ok, S} = application:get_env(?APP, connection_pool_size),
+    check_pool_status(Other).
 
 %%%-------------------------------------------------------------------
 %%% Auxiliary functions
 %%%-------------------------------------------------------------------
-
-rpc(Config, Op, Params) ->
-    %%TODO get Node from configuration proplist
+rpc(Config, Mod, Fun, Args) ->
     Node = ?config(node, Config),
-    rpc:block_call(Node, fmke, Op, Params).
+    rpc:block_call(Node, Mod, Fun, Args).
+
+rpc(Config, Fun, Args) ->
+    Node = ?config(node, Config),
+    rpc:block_call(Node, fmke, Fun, Args).
 
 gen_key(Entity,Id) ->
     list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
