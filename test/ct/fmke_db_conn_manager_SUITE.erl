@@ -114,9 +114,12 @@ checkin_unknown_pid_is_recognized_by_manager(_Config) ->
 
 dead_pid_is_cleaned_from_manager_state(_Config) ->
     Pid = checkout(),
+    rpc(erlang, send, [fmke_db_conn_manager, {'EXIT', Pid, died}]),
+    true = (undefined =/= rpc(erlang, process_info, [Pid])),
+    timer:sleep(500),
+    no_such_pid = checkin(Pid),
     true = rpc(erlang, exit, [Pid, die]),
-    undefined = rpc(erlang, process_info, [Pid]),
-    no_such_pid = checkin(Pid).
+    undefined = rpc(erlang, process_info, [Pid]).
 
 get_pids(Pool) ->
     Results = rpc(gen_server, call, [Pool, get_all_workers]),
