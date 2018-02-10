@@ -12,15 +12,9 @@ init(Req, Opts) ->
 handle_req(<<"GET">>, _, Req) ->
     fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [id], []);
 
-handle_req(<<"POST">>, false, Req) ->
-    fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, false, ?ERR_MISSING_BODY);
-
 handle_req(<<"POST">>, true, Req) ->
     Properties = [{id, integer}, {name, string}, {address, string}, {speciality, string}],
     fmke_gen_http_handler:handle_req(?MODULE, <<"POST">>, Req, [], Properties);
-
-handle_req(<<"PUT">>, false, Req) ->
-    fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, false, ?ERR_MISSING_BODY);
 
 handle_req(<<"PUT">>, true, Req) ->
     Properties = [{name, string}, {address, string}, {speciality, string}],
