@@ -79,7 +79,7 @@ all() ->
 
 get_pool_names(_Config) ->
     {ok, Pools} = rpc(application, get_env, [?APP, pools]),
-    [pool_127_0_0_1, pool_0_0_0_0_0_0_0_1] = Pools.
+    [pool_127_0_0_1, pool___1] = Pools.
 
 round_robin_policy(_Config) ->
     Pids = checkout_multiple(6),
