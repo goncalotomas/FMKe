@@ -1,6 +1,6 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
-
+-include ("fmk_http.hrl").
 -include ("fmke.hrl").
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
@@ -180,7 +180,9 @@ event_http_tests(_Config) ->
 
 
 facility_http_tests(Config) ->
-    %%TODO add tests with missing/wrong parameters in PUT and POST requests
+    %%TODO add tests with wrong parameters in PUT and POST requests
+    facility_handler_rejects_empty_post_request(Config),
+    facility_handler_rejects_empty_put_request(Config),
     get_unexisting_facility(Config),
     add_unexisting_facility(Config),
     get_existing_facility(Config),
@@ -188,6 +190,18 @@ facility_http_tests(Config) ->
     update_existing_facility(Config),
     update_unexistent_facility(Config),
     get_facility_after_update(Config).
+
+facility_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/facilities", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+facility_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{facility, FacilityId, _, _, _}] = ets:lookup(TabId, facility),
+    PropList = bad_req_http_put("/facilities/"++integer_to_list(FacilityId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_facility(Config) ->
     TabId = ?config(table, Config),
@@ -268,6 +282,8 @@ get_facility_after_update(Config) ->
 
 
 patient_http_tests(Config) ->
+    patient_handler_rejects_empty_post_request(Config),
+    patient_handler_rejects_empty_put_request(Config),
     get_unexisting_patient(Config),
     add_unexisting_patient(Config),
     get_existing_patient(Config),
@@ -275,6 +291,18 @@ patient_http_tests(Config) ->
     update_existing_patient(Config),
     update_unexistent_patient(Config),
     get_patient_after_update(Config).
+
+patient_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/patients", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+patient_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{patient, PatientId, _, _}] = ets:lookup(TabId, patient),
+    PropList = bad_req_http_put("/patients/"++integer_to_list(PatientId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_patient(Config) ->
     TabId = ?config(table, Config),
@@ -353,6 +381,8 @@ get_patient_after_update(Config) ->
 
 
 pharmacy_http_tests(Config) ->
+    pharmacy_handler_rejects_empty_post_request(Config),
+    pharmacy_handler_rejects_empty_put_request(Config),
     get_unexisting_pharmacy(Config),
     add_unexisting_pharmacy(Config),
     get_existing_pharmacy(Config),
@@ -360,6 +390,18 @@ pharmacy_http_tests(Config) ->
     update_existing_pharmacy(Config),
     update_unexistent_pharmacy(Config),
     get_pharmacy_after_update(Config).
+
+pharmacy_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/pharmacies", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+pharmacy_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmacyId, _, _}] = ets:lookup(TabId, pharmacy),
+    PropList = bad_req_http_put("/pharmacies/"++integer_to_list(PharmacyId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_pharmacy(Config) ->
     TabId = ?config(table, Config),
@@ -438,6 +480,8 @@ get_pharmacy_after_update(Config) ->
 
 
 prescription_http_tests(Config) ->
+    prescription_handler_rejects_empty_post_request(Config),
+    prescription_handler_rejects_empty_put_request(Config),
     add_required_entities(Config),
     get_unexisting_prescription(Config),
     process_unexisting_prescription(Config),
@@ -450,6 +494,18 @@ prescription_http_tests(Config) ->
     add_medication_to_processed_prescription(Config),
     process_already_processed_prescription(Config),
     get_prescription_after_updates(Config).
+
+prescription_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/prescriptions", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+prescription_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
+    PropList = bad_req_http_put("/prescriptions/"++integer_to_list(Id), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 add_required_entities(Config) ->
     TabId = ?config(table, Config),
@@ -655,7 +711,8 @@ get_prescription_after_updates(Config) ->
 
 
 staff_http_tests(Config) ->
-    %%TODO test with missing parameters in PUT and POST requests
+    staff_handler_rejects_empty_post_request(Config),
+    staff_handler_rejects_empty_put_request(Config),
     get_unexisting_staff(Config),
     add_unexisting_staff(Config),
     get_existing_staff(Config),
@@ -663,6 +720,18 @@ staff_http_tests(Config) ->
     update_existing_staff(Config),
     update_unexistent_staff(Config),
     get_staff_after_update(Config).
+
+staff_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/staff", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+staff_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    PropList = bad_req_http_put("/staff/"++integer_to_list(StaffId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_staff(Config) ->
     TabId = ?config(table, Config),
@@ -771,11 +840,11 @@ get_returns_valid_status() ->
     check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 post_returns_valid_status() ->
-    StatusPropList = http_post("/", []),
+    StatusPropList = http_post("/", <<>>),
     check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 put_returns_valid_status() ->
-    StatusPropList = http_put("/", []),
+    StatusPropList = http_put("/", <<>>),
     check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 check_status([]) -> ok;
@@ -832,16 +901,25 @@ http_get(Url) ->
 http_post(Url, Data) ->
     http_req_w_body(post, Url, Data).
 
+bad_req_http_post(Url, Data) ->
+    http_req_w_body(post, Url, Data, 400).
+
 http_put(Url, Data) ->
     http_req_w_body(put, Url, Data).
 
+bad_req_http_put(Url, Data) ->
+    http_req_w_body(put, Url, Data, 400).
+
 http_req_w_body(Method, Url, Data) ->
+    http_req_w_body(Method, Url, Data, 200).
+
+http_req_w_body(Method, Url, Data, ExpectedReturn) ->
     FullUrl = "http://localhost:9090" ++ Url,
     Headers = [],
     HttpOptions = [],
     Options = [{sync, true}],
     Json = jsx:encode(Data),
-    {ok, {{_, 200, _}, _, Body}} = httpc:request(Method, {FullUrl, Headers, "application/json", Json}, HttpOptions, Options),
+    {ok, {{_, ExpectedReturn, _}, _, Body}} = httpc:request(Method, {FullUrl, Headers, "application/json", Json}, HttpOptions, Options),
     jsx:decode(list_to_binary(Body)).
 
 build_facility_props(PropValues) ->
