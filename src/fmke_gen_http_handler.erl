@@ -34,6 +34,23 @@ init(Mod, Req, State) ->
 -spec handle_req(Mod::atom(), Method::binary(), Req::cowboy_req:req(),
                  UrlParams::list(atom()),
                  BodyParams::list({atom(), integer | string})) -> cowboy_req:req().
+handle_req(Mod, <<"GET">>, Req, UrlParams, _) ->
+    try
+        Bindings = cowboy_req:bindings(Req),
+        UrlParamsFound = lists:foldl(fun(Param, Accum) ->
+            case maps:get(Param, Bindings, undefined) of
+                undefined -> Accum;
+                Val -> [{Param, Val} | Accum]
+            end
+        end, [], UrlParams),
+        Mod:perform_operation(<<"GET">>, Req, lists:reverse(UrlParamsFound), [])
+    catch
+        error:ErrReason ->
+            handle_reply(Mod, Req, {error, internal}, false, ErrReason);
+        _:ExReason ->
+            handle_reply(Mod, Req, {error, internal}, false, ExReason)
+    end;
+
 handle_req(Mod, Method, Req, UrlParams, BodyParams) ->
     try
         {ok, Body, Req1} = cowboy_req:read_body(Req),
@@ -45,13 +62,18 @@ handle_req(Mod, Method, Req, UrlParams, BodyParams) ->
             end
         end, [], UrlParams),
         BodyParamsFound = fmke_http_utils:parse_body(BodyParams, Body),
-        case proplists:get_keys(BodyParamsFound) =:= proplists:get_keys(BodyParams) of
-            true ->
-                %% All body params that were requested have been found
-                Mod:perform_operation(Method, Req1, UrlParamsFound, BodyParamsFound);
-            false ->
-                %% Some body parameters are missing, let Mod decide what to do
-                Mod:perform_operation(Method, Req1, UrlParamsFound, {incomplete, BodyParamsFound})
+        case BodyParamsFound of
+            [] ->
+                handle_reply(Mod, Req, {error, bad_req}, false, ?ERR_MISSING_BODY);
+            _List ->
+                case proplists:get_keys(BodyParamsFound) =:= proplists:get_keys(BodyParams) of
+                    true ->
+                        %% All body params that were requested have been found
+                        Mod:perform_operation(Method, Req1, UrlParamsFound, BodyParamsFound);
+                    false ->
+                        %% Some body parameters are missing, let Mod decide what to do
+                        Mod:perform_operation(Method, Req1, UrlParamsFound, {incomplete, BodyParamsFound})
+                end
         end
     catch
         error:ErrReason ->
