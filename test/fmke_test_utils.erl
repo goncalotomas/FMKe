@@ -132,6 +132,7 @@ wait_until_result(Fun, Result, Retry, Delay) when Retry > 0 ->
 end.
 
 stop_node(Node) ->
+    rpc:call(Node, application, stop, [?APP]),
     ct_slave:stop(Node),
     wait_until_offline(Node).
 
