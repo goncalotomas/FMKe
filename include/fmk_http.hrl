@@ -1,4 +1,4 @@
--define (ERR_MISSING_BODY, <<"Missing request body.">>).
+-define (ERR_MISSING_BODY, <<"Missing request body or incomplete list of fields.">>).
 -define (ERR_BODY_IN_A_GET_REQUEST, <<"Get requests with body don't make sense.">>).
 -define (ERR_INVALID_PATIENT_ID, <<"Invalid user id.">>).
 -define (ERR_INVALID_FACILITY_ID, <<"Invalid facility id.">>).
