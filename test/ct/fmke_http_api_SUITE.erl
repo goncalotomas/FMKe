@@ -771,10 +771,12 @@ get_returns_valid_status() ->
     check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 post_returns_valid_status() ->
-    ok.
+    StatusPropList = http_post("/", []),
+    check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 put_returns_valid_status() ->
-    ok.
+    StatusPropList = http_put("/", []),
+    check_status(proplists:get_value(<<"result">>, StatusPropList)).
 
 check_status([]) -> ok;
 check_status([{<<"fmke_up">>, true} | Other]) -> check_status(Other);
