@@ -1,6 +1,6 @@
+sudo: false
 dist: trusty
 language: erlang
-sudo: false
 otp_release:
   - 20.2
 services:
@@ -11,11 +11,19 @@ install:
   - make xref
 before_script:
   - epmd -daemon
+  - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
   - make test
-  - make bench
   - make test-multiple-releases
   - rebar3 as test coveralls send
+  # - make bench
+after_failure:
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/ct.latest.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/console.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/crash.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/lib.fmke.logs/suite.log
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"

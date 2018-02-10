@@ -44,8 +44,8 @@
 %             IntegerStaffId = binary_to_integer(StaffMemberId),
 %             StringTimestamp = binary_to_list(Timestamp),
 %             StringDescription = binary_to_list(Description),
-%             Resp = fmke:create_event(IntegerId, IntegerTreatmentId,
-%                                           IntegerStaffId, StringTimestamp, StringDescription),
+%             Resp = fmke:create_event(IntegerId, IntegerTreatmentId, IntegerStaffId,
+%                                            StringTimestamp, StringDescription),
 %             Success = Resp =:= ok,
 %             JsonReply =  lists:flatten(io_lib:format(
 %                 "{\"success\": \"~p\", \"result\": \"~p\"}",
@@ -68,7 +68,7 @@
 %             JsonReply = case Success of
 %                 true ->
 %                     lists:flatten(io_lib:format(
-%                         ("{\"success\": \"~p\", \"result\": " ++ fmke_proplists:encode(event, ServerResponse) ++ "}"),
+%                         ("{\"success\": \"~p\", \"result\": " ++ fmke_json:encode(event, ServerResponse) ++ "}"),
 %                         [Success]
 %                     ));
 %                 false ->

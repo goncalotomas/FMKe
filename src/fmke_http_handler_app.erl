@@ -1,26 +1,28 @@
 -module (fmke_http_handler_app).
 -include ("fmk_http.hrl").
+-include ("fmke.hrl").
 
--export([init/2]).
+-behaviour(fmke_gen_http_handler).
 
-init(Req0, Opts) ->
+-export([init/2, handle_req/3, perform_operation/4]).
+
+init(Req, Opts) ->
+    fmke_gen_http_handler:init(?MODULE, Req, Opts).
+
+handle_req(<<"GET">>, _, Req) ->
+    fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [], []);
+
+handle_req(<<"POST">>, _, Req) ->
+    fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [], []);
+
+handle_req(<<"PUT">>, _, Req) ->
+    fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [], []).
+
+perform_operation(<<"GET">>, Req, [], []) ->
     try
-        Method = cowboy_req:method(Req0),
-        HasBody = cowboy_req:has_body(Req0),
-        Req = handle_req(Method, HasBody, Req0),
-        {ok, Req, Opts}
-    catch
-    Err:Reason ->
-        ErrorMessage = io_lib:format("Error ~p:~n~p~n~p~n", [Err, Reason, erlang:get_stacktrace()]),
-        lager:error(ErrorMessage),
-        Req2 = cowboy_req:reply(500, #{}, ErrorMessage, Req0),
-        {ok, Req2, Opts}
+        StatusPropList = fmke:get_status(),
+        fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, true, proplists:delete(http_port, StatusPropList) )
+    catch error:ErrReason ->
+        lager:debug("Error getting status:~n~p~n", [erlang:get_stacktrace()]),
+        fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
     end.
-
-handle_req(<<"GET">>, true, Req) ->
-    cowboy_req:reply(400, #{}, ?ERR_BODY_IN_A_GET_REQUEST, Req);
-handle_req(<<"GET">>, false, Req) ->
-    JsonReply = "FMKe is running!",
-    cowboy_req:reply(200, #{
-        <<"content-type">> => <<"application/json">>
-    }, JsonReply, Req).

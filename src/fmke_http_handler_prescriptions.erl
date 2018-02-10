@@ -12,16 +12,10 @@ init(Req, Opts) ->
 handle_req(<<"GET">>, _, Req) ->
     fmke_gen_http_handler:handle_req(?MODULE, <<"GET">>, Req, [id], []);
 
-handle_req(<<"POST">>, false, Req) ->
-    fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, false, ?ERR_MISSING_BODY);
-
 handle_req(<<"POST">>, true, Req) ->
     Properties = [{id, integer}, {patient_id, integer}, {prescriber_id, integer},
         {pharmacy_id, integer}, {date_prescribed, string}, {drugs, csv_string}],
     fmke_gen_http_handler:handle_req(?MODULE, <<"POST">>, Req, [], Properties);
-
-handle_req(<<"PUT">>, false, Req) ->
-    fmke_gen_http_handler:handle_reply(?MODULE, Req, {err, bad_req}, false, ?ERR_MISSING_BODY);
 
 handle_req(<<"PUT">>, true, Req) ->
     Properties = [{date_processed, string}, {drugs, csv_string}],
@@ -32,7 +26,7 @@ perform_operation(<<"GET">>, Req, [{id, BinaryId}], []) ->
         Id = fmke_http_utils:parse_id(BinaryId),
         {Success, ServerResponse} = case fmke:get_prescription_by_id(Id) of
             {error, Reason} -> {false, Reason};
-            PrescriptionRecord -> {true, fmke_proplists:encode_object(PrescriptionRecord)}
+            PrescriptionRecord -> {true, fmke_json:encode(PrescriptionRecord)}
         end,
         fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, Success, ServerResponse)
     catch error:ErrReason ->

@@ -1,6 +1,6 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
-
+-include ("fmk_http.hrl").
 -include ("fmke.hrl").
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
@@ -31,7 +31,8 @@
     pharmacy_http_tests/1,
     prescription_http_tests/1,
     staff_http_tests/1,
-    treatment_http_tests/1
+    treatment_http_tests/1,
+    status_http_tests/1
 ]).
 
 %%%-------------------------------------------------------------------
@@ -47,7 +48,7 @@ all() ->
 %%%-------------------------------------------------------------------
 
 suite() ->
-    [{timetrap, {seconds, 180}}].
+    [{timetrap, {minutes, 3}}].
 
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
@@ -62,23 +63,23 @@ end_per_suite(_Config) ->
 groups() ->
     [{antidote, [], [
         event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests
+        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
     ]},
     {antidote_norm, [], [
         event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests
+        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
     ]},
     {riak, [], [
         event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests
+        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
     ]},
     {riak_norm, [], [
         event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests
+        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
     ]},
     {redis, [], [
         event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests
+        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
     ]}].
 
 init_per_group(antidote, Config) ->
@@ -99,23 +100,9 @@ init_per_group(redis, Config) ->
 init_per_group(_, Config) ->
     Config.
 
-end_per_group(antidote, _Config) ->
-    fmke_test_utils:stop_antidote(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(antidote_norm, _Config) ->
-    fmke_test_utils:stop_antidote(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(riak, _Config) ->
-    fmke_test_utils:stop_riak(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(riak_norm, _Config) ->
-    fmke_test_utils:stop_riak(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(redis, _Config) ->
-    fmke_test_utils:stop_redis(),
-    fmke_test_utils:stop_node(?NODENAME);
-end_per_group(_, _Config) ->
-    ok.
+end_per_group(_Group, _Config) ->
+    fmke_test_utils:stop_node(?NODENAME),
+    fmke_test_utils:stop_all().
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
@@ -193,7 +180,9 @@ event_http_tests(_Config) ->
 
 
 facility_http_tests(Config) ->
-    %%TODO add tests with missing/wrong parameters in PUT and POST requests
+    %%TODO add tests with wrong parameters in PUT and POST requests
+    facility_handler_rejects_empty_post_request(Config),
+    facility_handler_rejects_empty_put_request(Config),
     get_unexisting_facility(Config),
     add_unexisting_facility(Config),
     get_existing_facility(Config),
@@ -201,6 +190,18 @@ facility_http_tests(Config) ->
     update_existing_facility(Config),
     update_unexistent_facility(Config),
     get_facility_after_update(Config).
+
+facility_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/facilities", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+facility_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{facility, FacilityId, _, _, _}] = ets:lookup(TabId, facility),
+    PropList = bad_req_http_put("/facilities/"++integer_to_list(FacilityId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_facility(Config) ->
     TabId = ?config(table, Config),
@@ -281,6 +282,8 @@ get_facility_after_update(Config) ->
 
 
 patient_http_tests(Config) ->
+    patient_handler_rejects_empty_post_request(Config),
+    patient_handler_rejects_empty_put_request(Config),
     get_unexisting_patient(Config),
     add_unexisting_patient(Config),
     get_existing_patient(Config),
@@ -288,6 +291,18 @@ patient_http_tests(Config) ->
     update_existing_patient(Config),
     update_unexistent_patient(Config),
     get_patient_after_update(Config).
+
+patient_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/patients", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+patient_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{patient, PatientId, _, _}] = ets:lookup(TabId, patient),
+    PropList = bad_req_http_put("/patients/"++integer_to_list(PatientId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_patient(Config) ->
     TabId = ?config(table, Config),
@@ -366,6 +381,8 @@ get_patient_after_update(Config) ->
 
 
 pharmacy_http_tests(Config) ->
+    pharmacy_handler_rejects_empty_post_request(Config),
+    pharmacy_handler_rejects_empty_put_request(Config),
     get_unexisting_pharmacy(Config),
     add_unexisting_pharmacy(Config),
     get_existing_pharmacy(Config),
@@ -373,6 +390,18 @@ pharmacy_http_tests(Config) ->
     update_existing_pharmacy(Config),
     update_unexistent_pharmacy(Config),
     get_pharmacy_after_update(Config).
+
+pharmacy_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/pharmacies", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+pharmacy_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmacyId, _, _}] = ets:lookup(TabId, pharmacy),
+    PropList = bad_req_http_put("/pharmacies/"++integer_to_list(PharmacyId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_pharmacy(Config) ->
     TabId = ?config(table, Config),
@@ -451,6 +480,8 @@ get_pharmacy_after_update(Config) ->
 
 
 prescription_http_tests(Config) ->
+    prescription_handler_rejects_empty_post_request(Config),
+    prescription_handler_rejects_empty_put_request(Config),
     add_required_entities(Config),
     get_unexisting_prescription(Config),
     process_unexisting_prescription(Config),
@@ -463,6 +494,18 @@ prescription_http_tests(Config) ->
     add_medication_to_processed_prescription(Config),
     process_already_processed_prescription(Config),
     get_prescription_after_updates(Config).
+
+prescription_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/prescriptions", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+prescription_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
+    PropList = bad_req_http_put("/prescriptions/"++integer_to_list(Id), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 add_required_entities(Config) ->
     TabId = ?config(table, Config),
@@ -668,7 +711,8 @@ get_prescription_after_updates(Config) ->
 
 
 staff_http_tests(Config) ->
-    %%TODO test with missing parameters in PUT and POST requests
+    staff_handler_rejects_empty_post_request(Config),
+    staff_handler_rejects_empty_put_request(Config),
     get_unexisting_staff(Config),
     add_unexisting_staff(Config),
     get_existing_staff(Config),
@@ -676,6 +720,18 @@ staff_http_tests(Config) ->
     update_existing_staff(Config),
     update_unexistent_staff(Config),
     get_staff_after_update(Config).
+
+staff_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/staff", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+staff_handler_rejects_empty_put_request(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    PropList = bad_req_http_put("/staff/"++integer_to_list(StaffId), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
 get_unexisting_staff(Config) ->
     TabId = ?config(table, Config),
@@ -760,6 +816,71 @@ treatment_http_tests(_Config) ->
     % {skip, "Treatments not implemented in this version of FMKe."}.
     ok.
 
+%%%-------------------------------------------------------------------
+%%% status tests
+%%%-------------------------------------------------------------------
+
+status_http_tests(_Config) ->
+    {ok, TargetDatabase} = rpc(application, get_env, [?APP, target_database]),
+    {ok, Addresses} = rpc(application, get_env, [?APP, database_addresses]),
+    {ok, Ports} = rpc(application, get_env, [?APP, database_ports]),
+    {ok, ConnPoolSize} = rpc(application, get_env, [?APP, connection_pool_size]),
+    {ok, HttpPort} = rpc(application, get_env, [?APP, http_port]),
+    ok = application:set_env(?APP, connection_pool_size, ConnPoolSize),
+    ok = application:set_env(?APP, target_database, TargetDatabase),
+    ok = application:set_env(?APP, database_addresses, Addresses),
+    ok = application:set_env(?APP, database_ports, Ports),
+    ok = application:set_env(?APP, http_port, HttpPort),
+    get_returns_valid_status(),
+    post_returns_valid_status(),
+    put_returns_valid_status().
+
+get_returns_valid_status() ->
+    StatusPropList = http_get("/"),
+    check_status(proplists:get_value(<<"result">>, StatusPropList)).
+
+post_returns_valid_status() ->
+    StatusPropList = http_post("/", <<>>),
+    check_status(proplists:get_value(<<"result">>, StatusPropList)).
+
+put_returns_valid_status() ->
+    StatusPropList = http_put("/", <<>>),
+    check_status(proplists:get_value(<<"result">>, StatusPropList)).
+
+check_status([]) -> ok;
+check_status([{<<"fmke_up">>, true} | Other]) -> check_status(Other);
+check_status([{<<"connection_manager_up">>, true} | Other]) -> check_status(Other);
+check_status([{<<"web_server_up">>, true} | Other]) -> check_status(Other);
+check_status([{<<"connection_pool_size">>, PoolSize} | Other]) ->
+    {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
+    check_status(Other);
+check_status([{<<"target_database">>, Target} | Other]) ->
+    {ok, TargetDatabase} = application:get_env(?APP, target_database),
+    true = (list_to_atom(binary_to_list(Target)) == TargetDatabase),
+    check_status(Other);
+check_status([{<<"database_addresses">>, BinAddresses} | Other]) ->
+    ListAddresses = lists:map(fun binary_to_list/1, BinAddresses),
+    {ok, Addresses} = application:get_env(?APP, database_addresses),
+    true = (ListAddresses == Addresses),
+    check_status(Other);
+check_status([{<<"database_ports">>, Ports} | Other]) ->
+    {ok, Ports} = application:get_env(?APP, database_ports),
+    check_status(Other);
+check_status([{<<"pools">>, Pools} | Other]) ->
+    lists:map(
+        fun({_PoolName, PoolData}) ->
+            true = ([] =/= PoolData),
+            ok = check_pool_status(PoolData)
+        end, Pools),
+    check_status(Other).
+
+check_pool_status([]) -> ok;
+check_pool_status([{<<"pool_is_up">>, true} | Other]) -> check_pool_status(Other);
+check_pool_status([{<<"pool_status">>, <<"ready">>} | Other]) -> check_pool_status(Other);
+check_pool_status([{<<"current_overflow">>, 0} | Other]) -> check_pool_status(Other);
+check_pool_status([{<<"worker_pool_size">>, S} | Other]) ->
+    {ok, S} = application:get_env(?APP, connection_pool_size),
+    check_pool_status(Other).
 
 %%%-------------------------------------------------------------------
 %%% Auxiliary functions
@@ -780,16 +901,25 @@ http_get(Url) ->
 http_post(Url, Data) ->
     http_req_w_body(post, Url, Data).
 
+bad_req_http_post(Url, Data) ->
+    http_req_w_body(post, Url, Data, 400).
+
 http_put(Url, Data) ->
     http_req_w_body(put, Url, Data).
 
+bad_req_http_put(Url, Data) ->
+    http_req_w_body(put, Url, Data, 400).
+
 http_req_w_body(Method, Url, Data) ->
+    http_req_w_body(Method, Url, Data, 200).
+
+http_req_w_body(Method, Url, Data, ExpectedReturn) ->
     FullUrl = "http://localhost:9090" ++ Url,
     Headers = [],
     HttpOptions = [],
     Options = [{sync, true}],
     Json = jsx:encode(Data),
-    {ok, {{_, 200, _}, _, Body}} = httpc:request(Method, {FullUrl, Headers, "application/json", Json}, HttpOptions, Options),
+    {ok, {{_, ExpectedReturn, _}, _, Body}} = httpc:request(Method, {FullUrl, Headers, "application/json", Json}, HttpOptions, Options),
     jsx:decode(list_to_binary(Body)).
 
 build_facility_props(PropValues) ->
@@ -814,6 +944,9 @@ build_generic_props([], [], Accum) ->
     Accum;
 build_generic_props([H1|T1], [H2|T2], Accum) ->
     build_generic_props(T1, T2, lists:append(Accum, [{H1,H2}])).
+
+rpc(Mod, Fun, Args) ->
+    rpc:block_call(?NODENAME, Mod, Fun, Args).
 
 gen_key(Entity,Id) ->
     list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).

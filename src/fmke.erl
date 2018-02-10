@@ -24,6 +24,7 @@
     get_staff_by_id/1,
     get_staff_prescriptions/1,
     get_staff_treatments/1,
+    get_status/0,
     process_prescription/2,
     update_patient_details/3,
     update_pharmacy_details/3,
@@ -60,9 +61,6 @@ init([]) ->
     Driver:start([]),
     {ok, Driver}.
 
-get_driver_setup(Database) when is_list(Database) ->
-    get_driver_setup(list_to_atom(Database));
-
 get_driver_setup(Database) when is_atom(Database) ->
     %% TODO maybe I should find a better way to do this... later.
     DriverSetups = #{
@@ -78,6 +76,30 @@ get_driver_setup(Database) when is_atom(Database) ->
         {ok, Value} -> Value;
         error -> {error, not_supported, Database}
     end.
+
+get_status() ->
+    Status = is_alive(fmke),
+    ConnManagerStatus = is_alive(fmke_db_conn_manager),
+    WebServerStatus = is_alive(cowboy_sup),
+    {ok, Pools} = application:get_env(?APP, pools),
+    PoolStatuses = lists:map(
+                        fun(Pool) ->
+                            PoolUp = is_alive(Pool),
+                            {PoolStatus, CurrPoolSize, CurrOverflow, _Monitors} = gen_server:call(Pool, status),
+                            [
+                                {pool_is_up, PoolUp}, {pool_status, PoolStatus},
+                                {worker_pool_size, CurrPoolSize}, {current_overflow, CurrOverflow}
+                            ]
+                        end, Pools),
+    PoolDetails = lists:zip(Pools, PoolStatuses),
+    {ok, TargetDatabase} = application:get_env(?APP, target_database),
+    {ok, HttpPort} = application:get_env(?APP, http_port),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    {ok, Addresses} = application:get_env(?APP, database_addresses),
+    {ok, Ports} = application:get_env(?APP, database_ports),
+    [{fmke_up, Status}, {connection_manager_up, ConnManagerStatus}, {web_server_up, WebServerStatus},
+     {target_database, TargetDatabase}, {connection_pool_size, ConnPoolSize}, {http_port, HttpPort},
+     {database_addresses, lists:map(fun list_to_binary/1, Addresses)}, {database_ports, Ports}, {pools, PoolDetails}].
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
@@ -259,3 +281,10 @@ update_prescription_medication(Id, Operation, Drugs) ->
 
 process_prescription(Id, Date) ->
     gen_server:call(?MODULE, {process_prescription, Id, Date}).
+
+%%-----------------------------------------------------------------------------
+%% Helper functions
+%%-----------------------------------------------------------------------------
+
+is_alive(Proc) ->
+    undefined =/= whereis(Proc).
