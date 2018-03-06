@@ -30,8 +30,6 @@
 -type nested_set_update() :: {create_set, key(), [term()]}.
 -type nested_map_update() :: {create_map, key(), map_update()} | {update_map, key(), map_update()}.
 
--type entity() :: patient | pharmacy | facility | staff | prescription | treatment | event.
--type app_record() :: #patient{} | #pharmacy{} | #facility{} | #staff{} | #prescription{}.
 
 %% callbacks
 -callback start(term()) -> {ok, context()} | {error, reason()}. %TODO: precise typespec
