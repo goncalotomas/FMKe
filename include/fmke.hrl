@@ -17,11 +17,6 @@
 -define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
 -define(SUPPORTED_KVS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
 
--type id() :: non_neg_integer().
--type field() :: binary().
--type reason() :: term().
--type crdt() :: term().
-
 -record(prescription, {
     id :: id()
     ,patient_id :: id()
@@ -65,3 +60,14 @@
     ,speciality :: string()
     ,prescriptions = [] :: list(#prescription{})
 }).
+
+-type id() :: non_neg_integer().
+-type field() :: binary().
+-type reason() :: term().
+-type crdt() :: term().
+-type app_record() :: #facility{} |
+                      #patient{} |
+                      #pharmacy{} |
+                      #prescription{} |
+                      #staff{}.
+-type entity() :: facility | patient | pharmacy | prescription | staff.
