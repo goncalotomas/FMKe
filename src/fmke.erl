@@ -42,40 +42,12 @@
 
 -define (SERVER, ?MODULE).
 
-start_link(_Params) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
-init([]) ->
-    % {ok, Adapter} = application:get_env(?APP, adapter),
-    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
-    {ok, Addresses} = application:get_env(?APP, database_addresses),
-    {ok, Ports} = application:get_env(?APP, database_ports),
-    {ok, Database} = application:get_env(?APP, target_database),
-    {Driver, DriverImpl} = get_driver_setup(Database),
-    % TODO this is going to be removed in a future release, since drivers will not need these parameters
-    ok = application:set_env(?APP, driver, Driver),
-    ok = application:set_env(?APP, simplified_driver, DriverImpl),
-    ok = application:set_env(?APP, db_conn_hostnames, Addresses),
-    ok = application:set_env(?APP, db_conn_ports, Ports),
-    ok = application:set_env(?APP, db_conn_pool_size, ConnPoolSize),
-    Driver:start([]),
-    {ok, Driver}.
-
-get_driver_setup(Database) when is_atom(Database) ->
-    %% TODO maybe I should find a better way to do this... later.
-    DriverSetups = #{
-      antidote => {fmke_kv_driver, fmke_db_driver_antidote},
-      antidote_norm => {fmke_db_driver_antidote_norm, undefined},
-      redis => {fmke_kv_driver, fmke_db_driver_redis},
-      riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
-      riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv},
-      riak_norm => {fmke_db_driver_riak_kv_norm, undefined},
-      riak_kv_norm => {fmke_db_driver_riak_kv_norm, undefined}
-    },
-    case maps:find(Database, DriverSetups) of
-        {ok, Value} -> Value;
-        error -> {error, not_supported, Database}
-    end.
+init([Adapter]) ->
+    lager:info("~p will use the ~p adapter~n", [?MODULE, Adapter]),
+    {ok, Adapter}.
 
 get_status() ->
     Status = is_alive(fmke),
@@ -104,65 +76,65 @@ get_status() ->
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
-handle_call({create_patient, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:create_patient(Id, Name, Address), Driver};
+handle_call({create_patient, Id, Name, Address}, _From, Adapter) ->
+    {reply, Adapter:create_patient(Id, Name, Address), Adapter};
 
-handle_call({create_pharmacy, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:create_pharmacy(Id, Name, Address), Driver};
+handle_call({create_pharmacy, Id, Name, Address}, _From, Adapter) ->
+    {reply, Adapter:create_pharmacy(Id, Name, Address), Adapter};
 
-handle_call({create_facility, Id, Name, Address, Type}, _From, Driver) ->
-    {reply, Driver:create_facility(Id, Name, Address, Type), Driver};
+handle_call({create_facility, Id, Name, Address, Type}, _From, Adapter) ->
+    {reply, Adapter:create_facility(Id, Name, Address, Type), Adapter};
 
-handle_call({create_staff, Id, Name, Address, Speciality}, _From, Driver) ->
-    {reply, Driver:create_staff(Id, Name, Address, Speciality), Driver};
+handle_call({create_staff, Id, Name, Address, Speciality}, _From, Adapter) ->
+    {reply, Adapter:create_staff(Id, Name, Address, Speciality), Adapter};
 
-handle_call({create_prescription, Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}, _From, Driver) ->
-    {reply, Driver:create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs), Driver};
+handle_call({create_prescription, Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}, _From, Adapter) ->
+    {reply, Adapter:create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs), Adapter};
 
-handle_call({get_facility_by_id, Id}, _From, Driver) ->
-    {reply, Driver:get_facility_by_id(Id), Driver};
+handle_call({get_facility_by_id, Id}, _From, Adapter) ->
+    {reply, Adapter:get_facility_by_id(Id), Adapter};
 
-handle_call({get_patient_by_id, Id}, _From, Driver) ->
-    {reply, Driver:get_patient_by_id(Id), Driver};
+handle_call({get_patient_by_id, Id}, _From, Adapter) ->
+    {reply, Adapter:get_patient_by_id(Id), Adapter};
 
-handle_call({get_pharmacy_by_id, Id}, _From, Driver) ->
-    {reply, Driver:get_pharmacy_by_id(Id), Driver};
+handle_call({get_pharmacy_by_id, Id}, _From, Adapter) ->
+    {reply, Adapter:get_pharmacy_by_id(Id), Adapter};
 
-handle_call({get_pharmacy_prescriptions, Id}, _From, Driver) ->
-    {reply, Driver:get_pharmacy_prescriptions(Id), Driver};
+handle_call({get_pharmacy_prescriptions, Id}, _From, Adapter) ->
+    {reply, Adapter:get_pharmacy_prescriptions(Id), Adapter};
 
-handle_call({get_processed_pharmacy_prescriptions, Id}, _From, Driver) ->
-    {reply, Driver:get_processed_pharmacy_prescriptions(Id), Driver};
+handle_call({get_processed_pharmacy_prescriptions, Id}, _From, Adapter) ->
+    {reply, Adapter:get_processed_pharmacy_prescriptions(Id), Adapter};
 
-handle_call({get_prescription_by_id, Id}, _From, Driver) ->
-    {reply, Driver:get_prescription_by_id(Id), Driver};
+handle_call({get_prescription_by_id, Id}, _From, Adapter) ->
+    {reply, Adapter:get_prescription_by_id(Id), Adapter};
 
-handle_call({get_prescription_medication, Id}, _From, Driver) ->
-    {reply, Driver:get_prescription_medication(Id), Driver};
+handle_call({get_prescription_medication, Id}, _From, Adapter) ->
+    {reply, Adapter:get_prescription_medication(Id), Adapter};
 
-handle_call({get_staff_by_id, Id}, _From, Driver) ->
-    {reply, Driver:get_staff_by_id(Id), Driver};
+handle_call({get_staff_by_id, Id}, _From, Adapter) ->
+    {reply, Adapter:get_staff_by_id(Id), Adapter};
 
-handle_call({get_staff_prescriptions, Id}, _From, Driver) ->
-    {reply, Driver:get_staff_prescriptions(Id), Driver};
+handle_call({get_staff_prescriptions, Id}, _From, Adapter) ->
+    {reply, Adapter:get_staff_prescriptions(Id), Adapter};
 
-handle_call({update_patient_details, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:update_patient_details(Id, Name, Address), Driver};
+handle_call({update_patient_details, Id, Name, Address}, _From, Adapter) ->
+    {reply, Adapter:update_patient_details(Id, Name, Address), Adapter};
 
-handle_call({update_pharmacy_details, Id, Name, Address}, _From, Driver) ->
-    {reply, Driver:update_pharmacy_details(Id, Name, Address), Driver};
+handle_call({update_pharmacy_details, Id, Name, Address}, _From, Adapter) ->
+    {reply, Adapter:update_pharmacy_details(Id, Name, Address), Adapter};
 
-handle_call({update_facility_details, Id, Name, Address, Type}, _From, Driver) ->
-    {reply, Driver:update_facility_details(Id, Name, Address, Type), Driver};
+handle_call({update_facility_details, Id, Name, Address, Type}, _From, Adapter) ->
+    {reply, Adapter:update_facility_details(Id, Name, Address, Type), Adapter};
 
-handle_call({update_staff_details, Id, Name, Address, Speciality}, _From, Driver) ->
-    {reply, Driver:update_staff_details(Id, Name, Address, Speciality), Driver};
+handle_call({update_staff_details, Id, Name, Address, Speciality}, _From, Adapter) ->
+    {reply, Adapter:update_staff_details(Id, Name, Address, Speciality), Adapter};
 
-handle_call({update_prescription_medication, Id, Operation, Drugs}, _From, Driver) ->
-    {reply, Driver:update_prescription_medication(Id, Operation, Drugs), Driver};
+handle_call({update_prescription_medication, Id, Operation, Drugs}, _From, Adapter) ->
+    {reply, Adapter:update_prescription_medication(Id, Operation, Drugs), Adapter};
 
-handle_call({process_prescription, Id, Date}, _From, Driver) ->
-    {reply, Driver:process_prescription(Id, Date), Driver}.
+handle_call({process_prescription, Id, Date}, _From, Adapter) ->
+    {reply, Adapter:process_prescription(Id, Date), Adapter}.
 
 %%-----------------------------------------------------------------------------
 %% Create functions - no transactional context
