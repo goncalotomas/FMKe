@@ -19,3 +19,4 @@ rebar3.crashdump
 tests/
 .DS_Store
 .idea/
+config/fmke.config
