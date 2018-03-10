@@ -1,17 +1,23 @@
 -define (APP, fmke).
--define (OPTIONS, [adapter, connection_pool_size, database_addresses, database_ports, http_port, target_database]).
+-define (OPTIONS, [
+    adapter, connection_pool_size, database_addresses, database_ports, http_port,
+    target_database, data_model, optimized_driver
+]).
 -define (DEFAULTS, #{
     adapter => fmke_ndm_adapter,
     connection_pool_size => 64,
     database_addresses => ["127.0.0.1"],
     database_ports => [8087],
     http_port => 9090,
-    target_database => antidote
+    target_database => riak,
+    data_model => nested,
+    optimized_driver => false
 }).
 
--define (TIMEOUT, 60000).
+-define(TIMEOUT, 60000).
 
--define (CONFIG_FILE_PATH, "/config/fmke.config").
+-define(CONFIG_FILE_PATH, "/config/fmke.config").
+-define(ETS_TABLE_NAME, fmke_ets).
 
 %% TODO move this to an ETS table
 -define(SUPPORTED_DBS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
