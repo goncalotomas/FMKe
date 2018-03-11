@@ -1,7 +1,7 @@
 %% Generally useful HTTP parsing functions. Required for gen_http_handler and for
 %% other modules that may wish to manually parse a specific field.
 -module (fmke_http_utils).
--include ("fmk_http.hrl").
+-include ("fmke_http.hrl").
 
 %%%-------------------------------------------------------------------
 %%% API
