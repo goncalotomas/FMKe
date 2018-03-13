@@ -1,7 +1,7 @@
 -module(fmke_core_unit_test_SUITE).
 -include_lib("common_test/include/ct.hrl").
 -include("fmke.hrl").
--include("fmk_kv.hrl").
+-include("fmke_kv.hrl").
 
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
@@ -45,7 +45,15 @@ suite() ->
 
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
-    [{group, antidote}, {group, antidote_norm}, {group, redis}, {group, riak}, {group, riak_norm}].
+    [
+        {group, antidote}
+        ,{group, antidote_norm}
+        ,{group, redis}
+        ,{group, riak}
+        ,{group, riak_norm}
+        ,{group, ets_nested}
+        ,{group, ets_non_nested}
+    ].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
@@ -80,6 +88,14 @@ groups() ->
     {redis, [shuffle], [
         event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
         prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
+    ]},
+    {ets_nested, [shuffle], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
+    ]},
+    {ets_non_nested, [shuffle], [
+        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
     ]}].
 
 init_per_group(antidote, Config) ->
@@ -100,6 +116,14 @@ init_per_group(riak_norm, Config) ->
     [{node, Node} | Config];
 init_per_group(redis, Config) ->
     Node = fmke_test_utils:start_node_with_redis_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(ets_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_nested_ets_backend(?NODENAME),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(ets_non_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_non_nested_ets_backend(?NODENAME),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(_, Config) ->
@@ -207,10 +231,7 @@ get_existing_facility(Config) ->
     TabId = ?config(table, Config),
     [{facility, Id, Name, Address, Type}] = ets:lookup(TabId, facility),
     #facility{id=RemId, name=RemName, address=RemAddress, type=RemType} = rpc(Config, get_facility_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = list_to_binary(Type) =:= RemType.
+    cmp_facs([Id, Name, Address, Type], [RemId, RemName, RemAddress, RemType]).
 
 add_existing_facility(Config) ->
     TabId = ?config(table, Config),
@@ -232,10 +253,13 @@ get_facility_after_update(Config) ->
     TabId = ?config(table, Config),
     [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
     #facility{id=RemId, name=RemName, address=RemAddress, type=RemType} = rpc(Config, get_facility_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = list_to_binary(Type) =:= RemType.
+    cmp_facs([Id, Name, Address, Type], [RemId, RemName, RemAddress, RemType]).
+
+cmp_facs([Id1, Name1, Address1, Type1], [Id2, Name2, Address2, Type2]) ->
+    true = Id1 =:= Id2 orelse list_to_binary(integer_to_list(Id1)) =:= Id2,
+    true = Name1 =:= Name2 orelse list_to_binary(Name1) =:= Name2,
+    true = Address1 =:= Address2 orelse list_to_binary(Address1) =:= Address2,
+    true = Type1 =:= Type2 orelse list_to_binary(Type1) =:= Type2.
 
 %%%-------------------------------------------------------------------
 %%% patient endpoint tests
@@ -265,10 +289,7 @@ get_existing_patient(Config) ->
     TabId = ?config(table, Config),
     [{patient, Id, Name, Address}] = ets:lookup(TabId, patient),
     #patient{id=RemId, name=RemName, address=RemAddress, prescriptions=RemPrscs} = rpc(Config, get_patient_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = [] =:= RemPrscs.
+    cmp_pats([Id, Name, Address, []], [RemId, RemName, RemAddress, RemPrscs]).
 
 add_existing_patient(Config) ->
     TabId = ?config(table, Config),
@@ -290,10 +311,13 @@ get_patient_after_update(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
     #patient{id=RemId, name=RemName, address=RemAddress, prescriptions=RemPrscs} = rpc(Config, get_patient_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = [] =:= RemPrscs.
+    cmp_pats([Id, Name, Address, []], [RemId, RemName, RemAddress, RemPrscs]).
+
+cmp_pats([Id1, Name1, Address1, Prescs1], [Id2, Name2, Address2, Prescs2]) ->
+    true = Id1 =:= Id2 orelse list_to_binary(integer_to_list(Id1)) =:= Id2,
+    true = Name1 =:= Name2 orelse list_to_binary(Name1) =:= Name2,
+    true = Address1 =:= Address2 orelse list_to_binary(Address1) =:= Address2,
+    true = Prescs1 =:= Prescs2.
 
 
 %%%-------------------------------------------------------------------
@@ -324,10 +348,7 @@ get_existing_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{pharmacy, Id, Name, Address}] = ets:lookup(TabId, pharmacy),
     #pharmacy{id=RemId, name=RemName, address=RemAddress, prescriptions=RemPrescs} = rpc(Config, get_pharmacy_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = [] =:= RemPrescs.
+    cmp_pharms([Id, Name, Address, []], [RemId, RemName, RemAddress, RemPrescs]).
 
 add_existing_pharmacy(Config) ->
     TabId = ?config(table, Config),
@@ -349,11 +370,13 @@ get_pharmacy_after_update(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
     #pharmacy{id=RemId, name=RemName, address=RemAddress, prescriptions=RemPrescs} = rpc(Config, get_pharmacy_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = [] =:= RemPrescs.
+    cmp_pharms([Id, Name, Address, []], [RemId, RemName, RemAddress, RemPrescs]).
 
+cmp_pharms([Id1, Name1, Address1, Prescs1], [Id2, Name2, Address2, Prescs2]) ->
+    true = Id1 =:= Id2 orelse list_to_binary(integer_to_list(Id1)) =:= Id2,
+    true = Name1 =:= Name2 orelse list_to_binary(Name1) =:= Name2,
+    true = Address1 =:= Address2 orelse list_to_binary(Address1) =:= Address2,
+    true = Prescs1 =:= Prescs2.
 
 %%%-------------------------------------------------------------------
 %%% prescription endpoint tests
@@ -429,20 +452,8 @@ get_existing_prescription(Config) ->
         ,is_processed = RemIsProcessed
     } = rpc(Config, get_prescription_by_id, [Id]),
 
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(integer_to_list(PatId)) =:= RemPatId,
-    true = list_to_binary(integer_to_list(PharmId)) =:= RemPharmId,
-    true = list_to_binary(integer_to_list(PrescId)) =:= RemPrescriberId,
-    true = list_to_binary(DatePresc) =:= RemDatePresc,
-    true = <<"undefined">> =:= RemDateProc,
-    true = ?PRESCRIPTION_NOT_PROCESSED_VALUE =:= RemIsProcessed,
-
-    BinDrugs = lists:sort(lists:map(fun list_to_binary/1, Drugs)),
-    BinDrugs = lists:sort(RemDrugs),
-
-    io:format("### KEY ###~n~p~n", [gen_key(prescription, Id)]),
-    io:format("### EXPECTED ###~nID=~p~n", [PatId]),
-    io:format("~p~n", [rpc(Config, get_patient_by_id, [PatId])]),
+    cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, <<"undefined">>, Drugs, ?PRESCRIPTION_NOT_PROCESSED_VALUE],
+                [RemId, RemPatId, RemPrescriberId, RemPharmId, RemDatePresc, RemDateProc, RemDrugs, RemIsProcessed]),
 
     %% check for same prescription inside patient, pharmacy and staff
     #patient{
@@ -518,16 +529,9 @@ get_prescription_after_updates(Config) ->
         ,is_processed = RemIsProcessed
     } = rpc(Config, get_prescription_by_id, [Id]),
 
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(integer_to_list(PatId)) =:= RemPatId,
-    true = list_to_binary(integer_to_list(PharmId)) =:= RemPharmId,
-    true = list_to_binary(integer_to_list(PrescId)) =:= RemPrescriberId,
-    true = list_to_binary(DatePresc) =:= RemDatePresc,
-    true = list_to_binary(DateProc) =:= RemDateProc,
-    true = ?PRESCRIPTION_PROCESSED_VALUE =:= RemIsProcessed,
-
-    BinDrugs = lists:sort(lists:map(fun list_to_binary/1, lists:append(Drugs, AdditionalDrugs))),
-    BinDrugs = lists:sort(RemDrugs),
+    cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, DateProc, lists:append(Drugs, AdditionalDrugs),
+                    ?PRESCRIPTION_PROCESSED_VALUE], [RemId, RemPatId, RemPrescriberId, RemPharmId, RemDatePresc,
+                            RemDateProc, RemDrugs, RemIsProcessed]),
 
     %% check for same prescription inside patient, pharmacy and staff
     #patient{
@@ -562,6 +566,18 @@ get_prescription_after_updates(Config) ->
     true = lists:member(PrescriptionObject, StaffPrescriptions)
             orelse lists:member(PrescriptionKey, StaffPrescriptions).
 
+cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, DateProc, Drugs, IsProcessed],
+            [Id2, PatId2, PrescId2, PharmId2, DatePresc2, DateProc2, Drugs2, IsProcessed2]) ->
+    true = Id =:= Id2 orelse list_to_binary(integer_to_list(Id)) =:= Id2,
+    true = PatId =:= PatId2 orelse list_to_binary(integer_to_list(PatId)) =:= PatId2,
+    true = PrescId =:= PrescId2 orelse list_to_binary(integer_to_list(PrescId)) =:= PrescId2,
+    true = PharmId =:= PharmId2 orelse list_to_binary(integer_to_list(PharmId)) =:= PharmId2,
+    true = DatePresc =:= DatePresc2 orelse list_to_binary(DatePresc) =:= DatePresc2,
+    true = DateProc =:= DateProc2 orelse list_to_binary(DateProc) =:= DateProc2,
+    true = IsProcessed =:= IsProcessed2,
+
+    true = lists:sort(Drugs) =:= lists:sort(Drugs2) orelse
+                lists:map(fun list_to_binary/1, lists:sort(Drugs)) =:= lists:sort(Drugs2).
 
 %%%-------------------------------------------------------------------
 %%% staff endpoint tests
@@ -592,11 +608,7 @@ get_existing_staff(Config) ->
     [{staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, staff),
     #staff{id=RemId, name=RemName, address=RemAddress, speciality=RemSpecial, prescriptions=RemPrescs} =
         rpc(Config, get_staff_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = list_to_binary(Speciality) =:= RemSpecial,
-    true = [] =:= RemPrescs.
+    cmp_staff([Id, Name, Address, Speciality, []], [RemId, RemName, RemAddress, RemSpecial, RemPrescs]).
 
 add_existing_staff(Config) ->
     TabId = ?config(table, Config),
@@ -619,11 +631,14 @@ get_staff_after_update(Config) ->
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
     #staff{id=RemId, name=RemName, address=RemAddress, speciality=RemSpecial, prescriptions=RemPrescs} =
         rpc(Config, get_staff_by_id, [Id]),
-    true = list_to_binary(integer_to_list(Id)) =:= RemId,
-    true = list_to_binary(Name) =:= RemName,
-    true = list_to_binary(Address) =:= RemAddress,
-    true = list_to_binary(Speciality) =:= RemSpecial,
-    true = [] =:= RemPrescs.
+    cmp_staff([Id, Name, Address, Speciality, []], [RemId, RemName, RemAddress, RemSpecial, RemPrescs]).
+
+cmp_staff([Id1, Name1, Address1, Speciality1, Prescs1], [Id2, Name2, Address2, Speciality2, Prescs2]) ->
+    true = Id1 =:= Id2 orelse list_to_binary(integer_to_list(Id1)) =:= Id2,
+    true = Name1 =:= Name2 orelse list_to_binary(Name1) =:= Name2,
+    true = Address1 =:= Address2 orelse list_to_binary(Address1) =:= Address2,
+    true = Speciality1 =:= Speciality2 orelse list_to_binary(Speciality1) =:= Speciality2,
+    true = Prescs1 =:= Prescs2.
 
 
 %%%-------------------------------------------------------------------
@@ -656,7 +671,7 @@ status_tests(Config) ->
 
 check_status([]) -> ok;
 check_status([{fmke_up, true} | Other]) -> check_status(Other);
-check_status([{connection_manager_up, true} | Other]) -> check_status(Other);
+check_status([{connection_manager_up, _Status} | Other]) -> check_status(Other);
 check_status([{web_server_up, true} | Other]) -> check_status(Other);
 check_status([{connection_pool_size, PoolSize} | Other]) ->
     {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
