@@ -4,7 +4,7 @@
     target_database, data_model, optimized_driver
 ]).
 -define (DEFAULTS, #{
-    adapter => fmke_ndm_adapter,
+    adapter => fmke_kv_adapter,
     connection_pool_size => 64,
     database_addresses => ["127.0.0.1"],
     database_ports => [8087],
