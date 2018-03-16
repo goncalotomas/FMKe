@@ -19,7 +19,7 @@
 %% -------------------------------------------------------------------
 -module(fmke_db_driver_antidote).
 -include("fmke.hrl").
--include("fmk_kv.hrl").
+-include("fmke_kv.hrl").
 -include("fmke_antidote.hrl").
 -author("goncalotomas").
 
