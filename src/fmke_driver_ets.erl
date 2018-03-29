@@ -50,8 +50,8 @@ handle_call({get, Keys}, _From, DataModel) ->
     Results = lists:map(
                     fun({Key, Type}) ->
                         case ets:lookup(?ETS_TABLE_NAME, Key) of
-                            [] -> {error, not_found};
-                            [{Key, Value}] -> pack(DataModel, Value, Type)
+                            [] ->               {error, not_found};
+                            [{Key, Value}] ->   pack(DataModel, Value, Type)
                         end
                     end, Keys),
     {reply, {Results, []}, DataModel};
