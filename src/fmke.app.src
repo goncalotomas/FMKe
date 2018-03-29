@@ -6,6 +6,7 @@
   {applications,
    [kernel,
     stdlib,
+    runtime_tools,
     tools,
     poolboy,
     lager,
