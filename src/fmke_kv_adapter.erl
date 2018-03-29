@@ -153,7 +153,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
     end,
 
     Reply = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Result;
+        ok -> Result;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Reply, {Driver, DataModel}};
@@ -173,7 +173,7 @@ handle_call({create, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
     end,
 
     Result = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Reply;
+        ok -> Reply;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Result, {Driver, DataModel}};
@@ -196,6 +196,7 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
                     {WResult, Context3};
                 {?PRESCRIPTION_NOT_PROCESSED_VALUE, nested} ->
                     P = chg_presc(Record, Action),
+                    % io:format("fmke_kv_adapter: P= ~p", [P]),
                     PatKey = gen_key(patient, P#prescription.patient_id),
                     PharmKey = gen_key(pharmacy, P#prescription.pharmacy_id),
                     StaffKey = gen_key(staff, P#prescription.prescriber_id),
@@ -204,10 +205,12 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
                             {PharmKey, pharmacy},
                             {StaffKey, staff}
                         ], Context2),
+                    BinId = list_to_binary(integer_to_list(Id)),
                     NPat = Pat#patient{prescriptions =
                                             lists:map(
                                                 fun(Pscp) -> case Pscp#prescription.id of
                                                     Id -> P;
+                                                    BinId -> P;
                                                     _ -> Pscp
                                                 end end, Pat#patient.prescriptions)},
                     NPharm = Pharm#pharmacy{prescriptions =
@@ -219,6 +222,7 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
                     NStaff = Staff#staff{prescriptions =
                                             lists:map(
                                                 fun(Pscp) -> case Pscp#prescription.id of
+                                                    % Id -> io:format("WROTE IT!"),P;
                                                     Id -> P;
                                                     _ -> Pscp
                                                 end end, Staff#staff.prescriptions)},
@@ -233,7 +237,7 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
     end,
 
     Result = case Driver:commit_transaction(Context5, []) of
-        {ok, _} -> Reply;
+        ok -> Reply;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Result, {Driver, DataModel}};
@@ -253,7 +257,7 @@ handle_call({update, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
     end,
 
     Result = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Reply;
+        ok -> Reply;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Result, {Driver, DataModel}};
@@ -262,7 +266,7 @@ handle_call({read, Entity, Id}, _From, {Driver, DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     {[RResult], Context2} = Driver:get([{gen_key(Entity, Id), Entity}], Context),
     Result = case Driver:commit_transaction(Context2, []) of
-        {ok, _} -> RResult;
+        ok -> RResult;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Result, {Driver, DataModel}};
@@ -285,7 +289,7 @@ handle_call({read, staff, Id, [prescriptions]}, _From, {Driver, DataModel}) ->
             end
     end,
     Reply = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Result;
+        ok -> Result;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Reply, {Driver, DataModel}};
@@ -308,7 +312,7 @@ handle_call({read, pharmacy, Id, [prescriptions]}, _From, {Driver, DataModel}) -
             end
     end,
     Reply = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Result;
+        ok -> Result;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Reply, {Driver, DataModel}};
@@ -332,7 +336,7 @@ handle_call({read, pharmacy, Id, [prescriptions], FilterFun}, _From, {Driver, Da
             end
     end,
     Reply = case Driver:commit_transaction(Context4, []) of
-        {ok, _} -> Result;
+        ok -> Result;
         {error, Reason} -> {error, Reason}
     end,
     {reply, Reply, {Driver, DataModel}};
@@ -343,7 +347,7 @@ handle_call({read, prescription, Id, [drugs]}, _From, {Driver, DataModel}) ->
     Result = case Driver:commit_transaction(Context2, []) of
         {error, Reason} ->
             {error, Reason};
-        {ok, _} ->
+        ok ->
             case RResult of
                 {error, not_found} ->
                     {error, no_such_prescription};
@@ -403,5 +407,7 @@ gen_key(pharmacy, Id) ->        binary_str_w_int("pharmacy_", Id);
 gen_key(prescription, Id) ->    binary_str_w_int("prescription_", Id);
 gen_key(staff, Id) ->           binary_str_w_int("staff_", Id).
 
-binary_str_w_int(Str, Int) ->
-  list_to_binary(unicode:characters_to_list([Str, integer_to_list(Int)])).
+binary_str_w_int(Str, Int) when is_binary(Int) ->
+    list_to_binary(unicode:characters_to_list([Str, binary_to_list(Int)]));
+binary_str_w_int(Str, Int) when is_integer(Int) ->
+    list_to_binary(unicode:characters_to_list([Str, integer_to_list(Int)])).
