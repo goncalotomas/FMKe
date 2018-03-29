@@ -48,7 +48,7 @@
   ]).
 
 start(Driver) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], [Driver]).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Driver], []).
 
 stop() ->
     gen_server:call(?MODULE, stop).
