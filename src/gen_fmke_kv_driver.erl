@@ -32,7 +32,6 @@
 
 -include("fmke.hrl").
 
--type key() :: binary().
 -type value() :: term().
 -type context() :: term().
 -type options() :: list({atom(), term()}).
@@ -53,7 +52,7 @@
 %% prescription key inside the patient, and we consider this to be a "normalized" (non-nested) data layout.
 %% Implementing a driver may be done for a single data layout, ignoring the other completely. When test executions are
 %% run, only valid data model implementations are considered for performance results.
--callback start(DataModel::data_model()) -> ok.
+-callback start(DataModel::data_model()) -> {error, term()} | {ok, pid()}.
 
 %% Teardown hook, called when the application is stopped.
 -callback stop() -> ok.
@@ -78,7 +77,7 @@
 %% client library (if supported) and returning the Pid to the connection pool.
 %%
 %% See some implementations in the fmke_db_adapter_driver_antidote.erl and fmke_db_adapter_driver_riak.erl modules.
--callback commit_transaction(OperationContext::context(), Options::options()) -> {ok, Result::txn_result()}.
+-callback commit_transaction(OperationContext::context(), Options::options()) -> Result::txn_result().
 
 %% ---------------------------------------------------------------------------------------------------------------------
 %% Key value callbacks
