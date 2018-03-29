@@ -108,7 +108,7 @@ handle_call(start_transaction, _From, DataModel) ->
 handle_call({commit_transaction, Pid}, _From, DataModel) ->
     %% Interaction with database is complete for current operation, return pid to connection pool
     fmke_db_conn_manager:checkin(Pid),
-    {reply, {ok, []}, DataModel};
+    {reply, ok, DataModel};
 
 handle_call({get, Keys, Pid}, _From, DataModel) ->
     Results = lists:map(
@@ -116,8 +116,6 @@ handle_call({get, Keys, Pid}, _From, DataModel) ->
                         Bucket = get_bucket(Type),
                         case riakc_pb_socket:fetch_type(Pid, {?BUCKET_TYPE, Bucket}, Key) of
                             {error, {notfound, map}} ->
-                                {error, not_found};
-                            {{ok, []}} ->
                                 {error, not_found};
                             {ok, Value} ->
                                 pack(DataModel, Type, Value);
@@ -139,7 +137,6 @@ handle_call({put, Entries, Pid}, _From, DataModel) ->
 
 %% Parses a value obtained from Riak into a common application record format.
 -spec pack(atom(), entity(), riakc_map:map()) -> app_record().
-%% TODO in pack patient, see if there are nested prescriptions
 pack(_, facility, Fac) ->
     [Id, Name, Address, Type] = lists:map(fun(F) -> riakc_map:fetch(F, Fac) end, ?FAC_FIELDS),
     #facility{id = Id, name = Name, address = Address, type = Type};
@@ -179,7 +176,14 @@ unpack(_, facility, #facility{id = Id, name = Name, address = Address, type = Ty
     riakc_map:update({?FACILITY_ADDRESS_KEY, register}, update_reg(Address),
     riakc_map:update({?FACILITY_TYPE_KEY, register}, update_reg(Type), riakc_map:new()))));
 
-unpack(_, patient, #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
+unpack(nested, patient, #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
+    riakc_map:update({?PATIENT_ID_KEY, register}, update_reg(Id),
+    riakc_map:update({?PATIENT_NAME_KEY, register}, update_reg(Name),
+    riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address),
+    riakc_map:update({?PATIENT_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
+    riakc_map:new()))));
+
+unpack(non_nested, patient, #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
     riakc_map:update({?PATIENT_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PATIENT_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address),
@@ -189,7 +193,9 @@ unpack(nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, pres
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PHARMACY_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?PHARMACY_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun(P) -> pack(nested, prescription, P) end, Prescriptions)), riakc_map:new()))));
+    riakc_map:update({?PHARMACY_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
+    riakc_map:new()))));
+
 unpack(non_nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PHARMACY_NAME_KEY, register}, update_reg(Name),
@@ -208,7 +214,16 @@ unpack(_, prescription, #prescription{id = Id, patient_id = PatientId, prescribe
     riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register}, update_reg(IsProcessed),
     riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set}, update_set(Drugs), riakc_map:new()))))))));
 
-unpack(_, staff,
+unpack(nested, staff,
+            #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}) ->
+    riakc_map:update({?STAFF_ID_KEY, register}, update_reg(Id),
+    riakc_map:update({?STAFF_NAME_KEY, register}, update_reg(Name),
+    riakc_map:update({?STAFF_ADDRESS_KEY, register}, update_reg(Address),
+    riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality),
+    riakc_map:update({?STAFF_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
+    riakc_map:new())))));
+
+unpack(non_nested, staff,
             #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}) ->
     riakc_map:update({?STAFF_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?STAFF_NAME_KEY, register}, update_reg(Name),
@@ -223,6 +238,7 @@ update_set(Vs) -> fun(S) -> riakc_set:add_elements(lists:map(fun bin/1, Vs), S) 
 
 bin(V) when is_list(V) -> list_to_binary(V);
 bin(V) when is_binary(V) -> V;
+bin(V) when is_integer(V) -> list_to_binary(integer_to_list(V));
 bin(V) -> term_to_binary(V).
 
 %% An alternative to riakc_map:fetch/2 that returns a default value if the key can't be fetched
@@ -239,7 +255,23 @@ fetch_prescs(DataModel, Map, Key) ->
     Prescs = fetch(Map, Key, set, []),
     parse_prescs(DataModel, Prescs).
 
-parse_prescs(nested, Prescs) -> lists:map(fun(P) -> pack(nested, prescription, P) end, Prescs);
+unpack_nested(#prescription{id = Id, patient_id = PatientId, prescriber_id = PrescriberId,
+                            pharmacy_id = PharmacyId, date_prescribed = DatePrescribed,
+                            date_processed = DateProcessed, drugs = Drugs, is_processed = IsProcessed}) ->
+    #prescription{
+        id = bin(Id),
+        patient_id = bin(PatientId),
+        prescriber_id = bin(PrescriberId),
+        pharmacy_id = bin(PharmacyId),
+        date_prescribed = bin(DatePrescribed),
+        date_processed = bin(DateProcessed),
+        drugs = lists:map(fun bin/1, Drugs),
+        is_processed = bin(IsProcessed)
+    }.
+
+parse_prescs(nested, Prescs) ->
+    lager:info("UNPACKING NESTED PRESCRIPTIONS!~nPrescs = ~p", [Prescs]),
+    lists:map(fun(P) -> binary_to_term(P) end, Prescs);
 parse_prescs(non_nested, Prescs) -> Prescs.
 
 %% Returns the name of the Riak bucket where entities of a certain type should be stored.
