@@ -23,7 +23,6 @@
     get_prescription_medication/1,
     get_staff_by_id/1,
     get_staff_prescriptions/1,
-    get_staff_treatments/1,
     get_status/0,
     process_prescription/2,
     update_patient_details/3,
@@ -175,53 +174,48 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
 %%-----------------------------------------------------------------------------
 
 %% Fetches a patient by ID.
--spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
+-spec get_patient_by_id(id()) -> #patient{} | {error, reason()}.
 get_patient_by_id(Id) ->
     gen_server:call(?MODULE, {get_patient_by_id, Id}).
 
 %% Fetches a facility by id.
--spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
+-spec get_facility_by_id(id()) -> #facility{} | {error, reason()}.
 get_facility_by_id(Id) ->
     gen_server:call(?MODULE, {get_facility_by_id, Id}).
 
 %% Fetches a pharmacy by ID.
--spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
+-spec get_pharmacy_by_id(id()) -> #pharmacy{} | {error, reason()}.
 get_pharmacy_by_id(Id) ->
     gen_server:call(?MODULE, {get_pharmacy_by_id, Id}).
 
 %% Fetches a prescription by ID.
--spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
+-spec get_prescription_by_id(id()) -> #prescription{} | {error, reason()}.
 get_prescription_by_id(Id) ->
     gen_server:call(?MODULE, {get_prescription_by_id, Id}).
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
--spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+-spec get_pharmacy_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
 get_pharmacy_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_pharmacy_prescriptions, Id}).
 
--spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
+-spec get_processed_pharmacy_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
 get_processed_pharmacy_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_processed_pharmacy_prescriptions, Id}).
 
 %% Fetches prescription medication by ID.
--spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
+-spec get_prescription_medication(id()) -> [binary()] | {error, reason()}.
 get_prescription_medication(Id) ->
     gen_server:call(?MODULE, {get_prescription_medication, Id}).
 
 %% Fetches a staff member by ID.
--spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
+-spec get_staff_by_id(id()) -> #staff{} | {error, reason()}.
 get_staff_by_id(Id) ->
     gen_server:call(?MODULE, {get_staff_by_id, Id}).
 
 %% Fetches a list of prescriptions given a certain staff member ID.
--spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
+-spec get_staff_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
 get_staff_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_staff_prescriptions, Id}).
-
-%% Fetches a list of treatments given a certain staff member ID.
--spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
-get_staff_treatments(_Id) ->
-    erlang:error(not_implemented).
 
 %%-----------------------------------------------------------------------------
 %% Update functions - no transactional context
