@@ -68,13 +68,12 @@ encode(Object = #prescription{}) ->
     PrescriptionIsProcessed = Object#prescription.is_processed,
     PrescriptionDatePrescribed = Object#prescription.date_prescribed,
     PrescriptionDateProcessed = Object#prescription.date_processed,
-    JsonDrugs = encode_string_list(PrescriptionDrugs),
     [
         {<<"prescriptionId">>, PrescriptionId},
         {<<"prescriptionPatientId">>, PrescriptionPatientId},
         {<<"prescriptionPharmacyId">>, PrescriptionPharmacyId},
         {<<"prescriptionPrescriberId">>, PrescriptionPrescriberId},
-        {<<"prescriptionDrugs">>, JsonDrugs},
+        {<<"prescriptionDrugs">>, encode_string_list(PrescriptionDrugs)},
         {<<"prescriptionIsProcessed">>, PrescriptionIsProcessed},
         {<<"prescriptionDatePrescribed">>, PrescriptionDatePrescribed},
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
@@ -99,10 +98,8 @@ encode_string_list(L) ->
 encode_string_list([], Accum) ->
     lists:reverse(Accum);
 encode_string_list([H|T], Accum) when is_list(H) ->
-    io:format("THISI S NOT THE RIGHT THING?????????????????????????????"),
     encode_string_list(T, [list_to_binary(H) | Accum]);
 encode_string_list([H|T], Accum) when is_binary(H) ->
-    io:format("THISI S NOT THE RIGHT THING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
     encode_string_list(T, [H | Accum]).
 
 % encode_string_list([]) -> [];
@@ -111,6 +108,27 @@ encode_string_list([H|T], Accum) when is_binary(H) ->
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+encode_prescription_obj_list_test() ->
+    ?assertEqual([[
+        {<<"prescriptionId">>, 2},
+        {<<"prescriptionPatientId">>, 1},
+        {<<"prescriptionPharmacyId">>, 1},
+        {<<"prescriptionPrescriberId">>, 1},
+        {<<"prescriptionDrugs">>, [<<"Rupatadine">>]},
+        {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
+        {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+        {<<"prescriptionDateProcessed">>, "20/01/2018"}
+    ]],
+    encode_list_prescriptions([
+        #prescription{id = 2, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, date_prescribed = "19/01/2018",
+                      drugs = ["Rupatadine"], date_processed = "20/01/2018",
+                      is_processed = <<"prescription_processed">>
+                      }
+    ])).
+
+encode_prescription_ref_list_test() ->
+    [<<"prescription1">>, <<"prescription2">>] = encode_list_prescriptions([<<"prescription1">>, <<"prescription2">>]).
 
 encode_string_list_test() ->
     [<<"b">>, <<"D">>] = encode_string_list(["b", <<"D">>]).
