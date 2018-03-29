@@ -1,12 +1,12 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 %% Database driver for AntidoteDB, featuring a normalized data model (no CRDT nesting).
 %% ---------------------------------------------------------------------------------------------------------------------
--module (fmke_db_driver_antidote_norm).
+-module (fmke_driver_opt_antidote).
 
 -behaviour (fmke_gen_driver).
 
 -include ("fmke.hrl").
--include ("fmk_kv.hrl").
+-include ("fmke_kv.hrl").
 
 -export([
   start/1,
