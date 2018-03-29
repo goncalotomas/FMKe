@@ -4,12 +4,14 @@
 
 -export([encode/1]).
 
+-spec encode(Object :: app_record()) -> jsx:json_term().
+
 encode(Object = #pharmacy{}) ->
     PharmacyId = Object#pharmacy.id,
     PharmacyName = Object#pharmacy.name,
     PharmacyAddress = Object#pharmacy.address,
     PharmacyPrescriptions = Object#pharmacy.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, PharmacyPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(PharmacyPrescriptions),
     [
         {<<"pharmacyId">>, PharmacyId},
         {<<"pharmacyName">>, PharmacyName},
@@ -34,7 +36,7 @@ encode(Object = #patient{}) ->
     PatientName = Object#patient.name,
     PatientAddress = Object#patient.address,
     PatientPrescriptions = Object#patient.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, PatientPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(PatientPrescriptions),
     [
         {<<"patientId">>, PatientId},
         {<<"patientName">>, PatientName},
@@ -48,7 +50,7 @@ encode(Object = #staff{}) ->
     StaffAddress = Object#staff.address,
     StaffSpeciality = Object#staff.speciality,
     StaffPrescriptions = Object#staff.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, StaffPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(StaffPrescriptions),
     [
         {<<"staffId">>, StaffId},
         {<<"staffName">>, StaffName},
@@ -78,18 +80,40 @@ encode(Object = #prescription{}) ->
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
     ].
 
-encode(list_prescriptions, NestedObject) ->
-    case is_list(NestedObject) andalso (length(NestedObject)>0) andalso is_binary(hd(NestedObject)) of
-        true -> NestedObject;
-        false -> lists:map(fun encode/1, NestedObject)
-    end.
+-spec encode_list_prescriptions(L :: list(binary() | #prescription{})) -> list(binary()).
+encode_list_prescriptions(L) ->
+    encode_list_prescriptions(L, []).
 
-encode_string_list([]) -> [];
-encode_string_list([H|T]) when is_binary(H) -> [H | encode_string_list(T)];
-encode_string_list([H|T]) when is_list(H) -> [list_to_binary(H) | encode_string_list(T)].
+encode_list_prescriptions([], Accum) ->
+    lists:reverse(Accum);
+encode_list_prescriptions([H|T], Accum) when is_binary(H) ->
+    encode_list_prescriptions(T, [H | Accum]);
+encode_list_prescriptions([H|T], Accum) when is_record(H, prescription) ->
+    encode_list_prescriptions(T, [encode(H) | Accum]).
+
+
+-spec encode_string_list(L :: list(string() | binary())) -> list(binary()).
+encode_string_list(L) ->
+    encode_string_list(L, []).
+
+encode_string_list([], Accum) ->
+    lists:reverse(Accum);
+encode_string_list([H|T], Accum) when is_list(H) ->
+    io:format("THISI S NOT THE RIGHT THING?????????????????????????????"),
+    encode_string_list(T, [list_to_binary(H) | Accum]);
+encode_string_list([H|T], Accum) when is_binary(H) ->
+    io:format("THISI S NOT THE RIGHT THING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"),
+    encode_string_list(T, [H | Accum]).
+
+% encode_string_list([]) -> [];
+% encode_string_list([H|T]) when is_binary(H) -> [H | encode_string_list(T)];
+% encode_string_list([H|T]) when is_list(H) -> [list_to_binary(H) | encode_string_list(T)].
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+encode_string_list_test() ->
+    [<<"b">>, <<"D">>] = encode_string_list(["b", <<"D">>]).
 
 encode_basic_facility_test() ->
     [
