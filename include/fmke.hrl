@@ -30,7 +30,7 @@
     ,prescriber_id :: id()
     ,date_prescribed :: field()
     ,date_processed = <<"undefined">> :: field()
-    ,drugs :: list(field())
+    ,drugs :: list(string() | binary())
     ,is_processed = <<"prescription_not_processed">> :: field()
 }).
 
@@ -38,7 +38,7 @@
     id :: id()
     ,name :: string()
     ,address :: string()
-    ,prescriptions = [] :: list(#prescription{})
+    ,prescriptions = [] :: list(#prescription{} | key())
     % ,treatments=[] :: list(#treatment{})
     % ,events=[] :: list(#event{})
 }).
@@ -47,7 +47,7 @@
     id :: id()
     ,name :: string()
     ,address :: string()
-    ,prescriptions = [] :: list(#prescription{})
+    ,prescriptions = [] :: list(#prescription{} | key())
 }).
 
 -record(facility, {
@@ -64,7 +64,7 @@
     ,name :: string()
     ,address :: string()
     ,speciality :: string()
-    ,prescriptions = [] :: list(#prescription{})
+    ,prescriptions = [] :: list(#prescription{} | key())
 }).
 
 -type id() :: non_neg_integer().
@@ -77,3 +77,4 @@
                       #prescription{} |
                       #staff{}.
 -type entity() :: facility | patient | pharmacy | prescription | staff.
+-type key() :: binary().
