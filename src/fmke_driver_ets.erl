@@ -38,7 +38,7 @@ start_transaction(_Opts) ->
     {ok, []}.
 
 commit_transaction(_Context, _Opts) ->
-    {ok, []}.
+    ok.
 
 get(Keys, _Context) ->
     gen_server:call(?MODULE, {get, Keys}).
