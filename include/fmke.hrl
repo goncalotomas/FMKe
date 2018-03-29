@@ -24,10 +24,10 @@
 -define(SUPPORTED_KVS, [antidote, antidote_norm, riak_kv, riak_kv_norm, redis]).
 
 -record(prescription, {
-    id :: id()
-    ,patient_id :: id()
-    ,pharmacy_id :: id()
-    ,prescriber_id :: id()
+    id :: id() | binary()
+    ,patient_id :: id() | binary()
+    ,pharmacy_id :: id() | binary()
+    ,prescriber_id :: id() | binary()
     ,date_prescribed :: field()
     ,date_processed = <<"undefined">> :: field()
     ,drugs :: list(string() | binary())
