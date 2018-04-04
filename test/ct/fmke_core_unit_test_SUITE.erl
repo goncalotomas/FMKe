@@ -5,6 +5,8 @@
 
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
+-define (TEST_BATTERY, [event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
+                        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests]).
 
 %%%-------------------------------------------------------------------
 %%% Common Test exports
@@ -46,11 +48,12 @@ suite() ->
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
     [
-        {group, antidote}
-        ,{group, antidote_norm}
-        ,{group, redis}
-        ,{group, riak}
-        ,{group, riak_norm}
+        % {group, simple_antidote_nested}
+        % ,{group, simple_antidote_non_nested}
+        % ,{group, opt_antidote}
+        % ,{group, redis}
+        % {group, simple_riak_nested}
+        {group, simple_riak_non_nested}
         ,{group, ets_nested}
         ,{group, ets_non_nested}
     ].
@@ -69,61 +72,57 @@ end_per_suite(_Config) ->
     ok.
 
 groups() ->
-    [{antidote, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {antidote_norm, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {riak, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {riak_norm, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {redis, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {ets_nested, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]},
-    {ets_non_nested, [shuffle], [
-        event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests
-    ]}].
+    [
+        % {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
+        % ,{opt_antidote, [shuffle], ?TEST_BATTERY}
+        % ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
+        {simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
+        % ,{opt_riak, [shuffle], ?TEST_BATTERY}
+        ,{ets_nested, [shuffle], ?TEST_BATTERY}
+        ,{ets_non_nested, [shuffle], ?TEST_BATTERY}
+    ].
 
-init_per_group(antidote, Config) ->
-    Node = fmke_test_utils:start_node_with_antidote_backend(?NODENAME),
+init_per_group(simple_antidote_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_antidote_backend(?NODENAME, false, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(antidote_norm, Config) ->
-    Node = fmke_test_utils:start_norm_node_with_antidote_backend(?NODENAME),
+init_per_group(simple_antidote_non_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_antidote_backend(?NODENAME, false, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(riak, Config) ->
-    Node = fmke_test_utils:start_node_with_riak_backend(?NODENAME),
+init_per_group(opt_antidote, Config) ->
+    Node = fmke_test_utils:start_node_with_antidote_backend(?NODENAME, true, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(riak_norm, Config) ->
-    Node = fmke_test_utils:start_norm_node_with_riak_backend(?NODENAME),
+init_per_group(simple_riak_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_riak_backend(?NODENAME, false, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(redis, Config) ->
-    Node = fmke_test_utils:start_node_with_redis_backend(?NODENAME),
+init_per_group(simple_riak_non_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_riak_backend(?NODENAME, false, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(opt_riak, Config) ->
+    Node = fmke_test_utils:start_node_with_riak_backend(?NODENAME, true, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_redis_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_redis_backend(?NODENAME, false, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_redis_non_nested, Config) ->
+    Node = fmke_test_utils:start_node_with_redis_backend(?NODENAME, false, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(ets_nested, Config) ->
-    Node = fmke_test_utils:start_node_with_nested_ets_backend(?NODENAME),
+    Node = fmke_test_utils:start_node_with_ets_backend(?NODENAME, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(ets_non_nested, Config) ->
-    Node = fmke_test_utils:start_node_with_non_nested_ets_backend(?NODENAME),
+    Node = fmke_test_utils:start_node_with_ets_backend(?NODENAME, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(_, Config) ->
@@ -431,7 +430,7 @@ add_medication_to_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
     {error, no_such_prescription} = rpc(Config, update_prescription_medication, [Id,
-        add_drugs, ["RandomDrug1, RandomDrug2, RandomDrug3"]]).
+        add_drugs, ["RandomDrug1", "RandomDrug2", "RandomDrug3"]]).
 
 add_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -463,9 +462,8 @@ get_existing_prescription(Config) ->
         ,prescriptions = PatientPrescriptions
     } = rpc(Config, get_patient_by_id, [PatId]),
 
-    PrescriptionKey = gen_key(prescription, Id),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
+    true = chk_presc_or_ref_in_list(PrescriptionObject, PatientPrescriptions)
+            orelse lists:member({prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}, PatientPrescriptions),
 
     #pharmacy{
         id = _BinPharmId
@@ -474,8 +472,8 @@ get_existing_prescription(Config) ->
         ,prescriptions = PharmacyPrescriptions
     } = rpc(Config, get_pharmacy_by_id, [PharmId]),
 
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
+    true = chk_presc_or_ref_in_list(PrescriptionObject, PharmacyPrescriptions)
+            orelse lists:member({prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}, PharmacyPrescriptions),
 
     #staff{
         id = _BinPrescId
@@ -485,8 +483,8 @@ get_existing_prescription(Config) ->
         ,prescriptions = StaffPrescriptions
     } = rpc(Config, get_staff_by_id, [PrescId]),
 
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
+    true = chk_presc_or_ref_in_list(PrescriptionObject, StaffPrescriptions)
+            orelse lists:member({prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}, StaffPrescriptions).
 
 add_existing_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -541,9 +539,7 @@ get_prescription_after_updates(Config) ->
         ,prescriptions = PatientPrescriptions
     } = rpc(Config, get_patient_by_id, [PatId]),
 
-    PrescriptionKey = gen_key(prescription, Id),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
+    true = chk_presc_or_ref_in_list(PrescriptionObject, PatientPrescriptions),
 
     #pharmacy{
         id = _BinPharmId
@@ -552,8 +548,7 @@ get_prescription_after_updates(Config) ->
         ,prescriptions = PharmacyPrescriptions
     } = rpc(Config, get_pharmacy_by_id, [PharmId]),
 
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
+    true = chk_presc_or_ref_in_list(PrescriptionObject, PharmacyPrescriptions),
 
     #staff{
         id = _BinPrescId
@@ -563,8 +558,17 @@ get_prescription_after_updates(Config) ->
         ,prescriptions = StaffPrescriptions
     } = rpc(Config, get_staff_by_id, [PrescId]),
 
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
+    true = chk_presc_or_ref_in_list(PrescriptionObject, StaffPrescriptions).
+
+cmp_prescs(#prescription{id = Id, patient_id = PatId, prescriber_id = PrescId, pharmacy_id = PharmId,
+                         date_prescribed = DatePresc, date_processed = DateProc, drugs = Drugs,
+                         is_processed = IsProcessed}, Second) ->
+    cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, DateProc, Drugs, IsProcessed], Second);
+
+cmp_prescs(First, #prescription{id = Id, patient_id = PatId, prescriber_id = PrescId, pharmacy_id = PharmId,
+                                date_prescribed = DatePresc, date_processed = DateProc, drugs = Drugs,
+                                is_processed = IsProcessed}) ->
+    cmp_prescs(First, [Id, PatId, PrescId, PharmId, DatePresc, DateProc, Drugs, IsProcessed]);
 
 cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, DateProc, Drugs, IsProcessed],
             [Id2, PatId2, PrescId2, PharmId2, DatePresc2, DateProc2, Drugs2, IsProcessed2]) ->
@@ -578,6 +582,25 @@ cmp_prescs([Id, PatId, PrescId, PharmId, DatePresc, DateProc, Drugs, IsProcessed
 
     true = lists:sort(Drugs) =:= lists:sort(Drugs2) orelse
                 lists:map(fun list_to_binary/1, lists:sort(Drugs)) =:= lists:sort(Drugs2).
+
+chk_presc_or_ref_in_list(P, L) ->
+    chk_presc_or_ref_in_list(P, L, false).
+
+chk_presc_or_ref_in_list(_, [], Accum) ->
+    Accum;
+chk_presc_or_ref_in_list(P, [H|T], Accum) ->
+    cmp_prescs_or_key(P, H) orelse chk_presc_or_ref_in_list(P, T, Accum).
+
+cmp_prescs_or_key(P1, P2) ->
+    case gen_key(prescription, presc_id(P1)) =:= P2 of
+        true -> true;
+        false -> cmp_prescs(P1, P2)
+    end.
+
+presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_integer(Id) -> Id;
+presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_binary(Id) -> list_to_integer(binary_to_list(Id));
+presc_id([Id, _, _, _, _, _, _, _]) when is_integer(Id) -> Id;
+presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary_to_list(Id)).
 
 %%%-------------------------------------------------------------------
 %%% staff endpoint tests
