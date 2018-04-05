@@ -53,7 +53,7 @@ start(Driver) ->
 stop() ->
     gen_server:call(?MODULE, stop).
 
-init([Driver]) ->
+init([[Driver, _DataModel]]) ->
     {ok, Driver}.
 
 handle_cast(_Msg, State) ->
