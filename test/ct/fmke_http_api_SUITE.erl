@@ -42,25 +42,25 @@
 %%% Common Test Callbacks
 %%%-------------------------------------------------------------------
 
+suite() ->
+    [{timetrap, {minutes, 3}}].
+
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
     [
-        % {group, antidote}
-        % ,{group, antidote_norm}
+        % {group, simple_antidote_nested}
+        % ,{group, simple_antidote_non_nested}
+        {group, opt_antidote}
         % ,{group, redis}
-        % ,{group, riak}
-        % ,{group, riak_norm}
-        % ,{group, ets}
-        {group, ets_nested}
+        % {group, simple_riak_nested}
+        ,{group, simple_riak_non_nested}
+        ,{group, ets_nested}
         ,{group, ets_non_nested}
     ].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
 %%%-------------------------------------------------------------------
-
-suite() ->
-    [{timetrap, {minutes, 3}}].
 
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
@@ -209,7 +209,6 @@ event_http_tests(_Config) ->
 
 
 facility_http_tests(Config) ->
-    %%TODO add tests with wrong parameters in PUT and POST requests
     facility_handler_rejects_empty_post_request(Config),
     facility_handler_rejects_empty_put_request(Config),
     get_unexisting_facility(Config),
@@ -253,15 +252,13 @@ get_existing_facility(Config) ->
     PropListJson = http_get("/facilities/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     FacilityObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"facilityId">>, FacilityObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"facilityName">>, FacilityObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
-    BinaryType = list_to_binary(Type),
-    BinaryType = proplists:get_value(<<"facilityType">>, FacilityObject).
+    JsonId = proplists:get_value(<<"facilityId">>, FacilityObject),
+    JsonName = proplists:get_value(<<"facilityName">>, FacilityObject),
+    JsonAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
+    JsonType = proplists:get_value(<<"facilityType">>, FacilityObject),
+    ExpectedFacility = #facility{id = Id, name = Name, address = Address, type = Type},
+    JsonFacility = #facility{id = JsonId, name = JsonName, address = JsonAddress, type = JsonType},
+    true = fmke_test_utils:compare_facilities(ExpectedFacility, JsonFacility).
 
 add_existing_facility(Config) ->
     TabId = ?config(table, Config),
@@ -294,15 +291,13 @@ get_facility_after_update(Config) ->
     PropListJson = http_get("/facilities/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     FacilityObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"facilityId">>, FacilityObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"facilityName">>, FacilityObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
-    BinaryType = list_to_binary(Type),
-    BinaryType = proplists:get_value(<<"facilityType">>, FacilityObject).
+    JsonId = proplists:get_value(<<"facilityId">>, FacilityObject),
+    JsonName = proplists:get_value(<<"facilityName">>, FacilityObject),
+    JsonAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
+    JsonType = proplists:get_value(<<"facilityType">>, FacilityObject),
+    ExpectedFacility = #facility{id = Id, name = Name, address = Address, type = Type},
+    JsonFacility = #facility{id = JsonId, name = JsonName, address = JsonAddress, type = JsonType},
+    true = fmke_test_utils:compare_facilities(ExpectedFacility, JsonFacility).
 
 
 %%%-------------------------------------------------------------------
@@ -354,15 +349,12 @@ get_existing_patient(Config) ->
     PropListJson = http_get("/patients/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PatientObject = proplists:get_value(<<"result">>,PropListJson),
-
     JsonId = proplists:get_value(<<"patientId">>, PatientObject),
     JsonName = proplists:get_value(<<"patientName">>, PatientObject),
     JsonAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
-
-    true = JsonId =:= Id orelse JsonId =:= list_to_binary(integer_to_list(Id)),
-    true = JsonName =:= Name orelse JsonName =:= list_to_binary(Name),
-    true = JsonAddress =:= Address orelse JsonAddress =:= list_to_binary(Address),
-    [] = proplists:get_value(<<"patientPrescriptions">>, PatientObject).
+    ExpectedPatient = #patient{id = Id, name = Name, address = Address},
+    JsonPatient = #patient{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_patients(ExpectedPatient, JsonPatient).
 
 add_existing_patient(Config) ->
     TabId = ?config(table, Config),
@@ -395,14 +387,12 @@ get_patient_after_update(Config) ->
     PropListJson = http_get("/patients/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PatientObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"patientId">>, PatientObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"patientName">>, PatientObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
-    [] = proplists:get_value(<<"patientPrescriptions">>, PatientObject).
+    JsonId = proplists:get_value(<<"patientId">>, PatientObject),
+    JsonName = proplists:get_value(<<"patientName">>, PatientObject),
+    JsonAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
+    ExpectedPatient = #patient{id = Id, name = Name, address = Address},
+    JsonPatient = #patient{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_patients(ExpectedPatient, JsonPatient).
 
 
 %%%-------------------------------------------------------------------
@@ -454,14 +444,12 @@ get_existing_pharmacy(Config) ->
     PropListJson = http_get("/pharmacies/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PharmacyObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
-    [] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject).
+    JsonId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
+    JsonName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
+    JsonAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
+    ExpectedPharmacy = #pharmacy{id = Id, name = Name, address = Address},
+    JsonPharmacy = #pharmacy{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_pharmacies(ExpectedPharmacy, JsonPharmacy).
 
 add_existing_pharmacy(Config) ->
     TabId = ?config(table, Config),
@@ -494,14 +482,12 @@ get_pharmacy_after_update(Config) ->
     PropListJson = http_get("/pharmacies/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PharmacyObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
-    [] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject).
+    JsonId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
+    JsonName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
+    JsonAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
+    ExpectedPharmacy = #pharmacy{id = Id, name = Name, address = Address},
+    JsonPharmacy = #pharmacy{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_pharmacies(ExpectedPharmacy, JsonPharmacy).
 
 
 %%%-------------------------------------------------------------------
@@ -784,16 +770,13 @@ get_existing_staff(Config) ->
     PropListJson = http_get("/staff/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     StaffObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"staffId">>, StaffObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"staffName">>, StaffObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
-    BinarySpeciality = list_to_binary(Speciality),
-    BinarySpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject),
-    [] = proplists:get_value(<<"staffPrescriptions">>, StaffObject).
+    JsonId = proplists:get_value(<<"staffId">>, StaffObject),
+    JsonName = proplists:get_value(<<"staffName">>, StaffObject),
+    JsonAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
+    JsonSpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject),
+    ExpectedStaff = #staff{id = Id, name = Name, address = Address, speciality = Speciality},
+    JsonStaff = #staff{id = JsonId, name = JsonName, address = JsonAddress, speciality = JsonSpeciality},
+    true = fmke_test_utils:compare_staff(ExpectedStaff, JsonStaff).
 
 add_existing_staff(Config) ->
     TabId = ?config(table, Config),
@@ -826,15 +809,13 @@ get_staff_after_update(Config) ->
     PropListJson = http_get("/staff/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     StaffObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"staffId">>, StaffObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"staffName">>, StaffObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
-    BinarySpeciality = list_to_binary(Speciality),
-    BinarySpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject).
+    JsonId = proplists:get_value(<<"staffId">>, StaffObject),
+    JsonName = proplists:get_value(<<"staffName">>, StaffObject),
+    JsonAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
+    JsonSpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject),
+    ExpectedStaff = #staff{id = Id, name = Name, address = Address, speciality = Speciality},
+    JsonStaff = #staff{id = JsonId, name = JsonName, address = JsonAddress, speciality = JsonSpeciality},
+    true = fmke_test_utils:compare_staff(ExpectedStaff, JsonStaff).
 
 
 %%%-------------------------------------------------------------------
