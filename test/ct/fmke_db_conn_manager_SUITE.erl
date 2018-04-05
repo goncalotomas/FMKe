@@ -27,7 +27,7 @@ suite() ->
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_db_conn_mgr_test@127.0.0.1']),
     true = erlang:set_cookie('fmke_db_conn_mgr_test@127.0.0.1', ?COOKIE),
-    fmke_test_utils:start_node_with_mock_redis_cluster(?NODENAME, false, non_nested),
+    fmke_test_setup:start_node_with_mock_redis_cluster(?NODENAME, false, non_nested),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
 
@@ -36,8 +36,8 @@ init_per_suite(Config) ->
 %% Config0 = Config1 = [tuple()]
 %%--------------------------------------------------------------------
 end_per_suite(_Config) ->
-    fmke_test_utils:stop_node(?NODENAME),
-    fmke_test_utils:stop_all(),
+    fmke_test_setup:stop_node(?NODENAME),
+    fmke_test_setup:stop_all(),
     net_kernel:stop(),
     ok.
 

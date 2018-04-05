@@ -1,6 +1,6 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
--include ("fmk_http.hrl").
+-include ("fmke_http.hrl").
 -include ("fmke.hrl").
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
@@ -35,13 +35,25 @@
     status_http_tests/1
 ]).
 
+-define(TEST_BATTERY, [event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
+                       prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests]).
+
 %%%-------------------------------------------------------------------
 %%% Common Test Callbacks
 %%%-------------------------------------------------------------------
 
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
-    [{group, antidote}, {group, antidote_norm}, {group, redis}, {group, riak}, {group, riak_norm}].
+    [
+        % {group, antidote}
+        % ,{group, antidote_norm}
+        % ,{group, redis}
+        % ,{group, riak}
+        % ,{group, riak_norm}
+        % ,{group, ets}
+        {group, ets_nested}
+        ,{group, ets_non_nested}
+    ].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
@@ -61,48 +73,65 @@ end_per_suite(_Config) ->
     ok.
 
 groups() ->
-    [{antidote, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {antidote_norm, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {riak, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {riak_norm, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {redis, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]}].
+    [
+        {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{opt_antidote, [shuffle], ?TEST_BATTERY}
+        ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{opt_riak, [shuffle], ?TEST_BATTERY}
+        ,{ets_nested, [shuffle], ?TEST_BATTERY}
+        ,{ets_non_nested, [shuffle], ?TEST_BATTERY}
+    ].
 
-init_per_group(antidote, Config) ->
-    fmke_test_utils:start_node_with_antidote_backend(?NODENAME),
-    Config;
-init_per_group(antidote_norm, Config) ->
-    fmke_test_utils:start_norm_node_with_antidote_backend(?NODENAME),
-    Config;
-init_per_group(riak, Config) ->
-    fmke_test_utils:start_node_with_riak_backend(?NODENAME),
-    Config;
-init_per_group(riak_norm, Config) ->
-    fmke_test_utils:start_norm_node_with_riak_backend(?NODENAME),
-    Config;
-init_per_group(redis, Config) ->
-    fmke_test_utils:start_node_with_redis_backend(?NODENAME),
-    Config;
+init_per_group(simple_antidote_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_antidote_non_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(opt_antidote, Config) ->
+    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_riak_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, false, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_riak_non_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, false, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(opt_riak, Config) ->
+    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, true, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_redis_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(simple_redis_non_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(ets_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(ets_non_nested, Config) ->
+    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
 init_per_group(_, Config) ->
     Config.
 
 end_per_group(_Group, _Config) ->
-    fmke_test_utils:stop_node(?NODENAME),
-    fmke_test_utils:stop_all().
+    fmke_test_setup:stop_node(?NODENAME),
+    fmke_test_setup:stop_all().
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
@@ -326,12 +355,13 @@ get_existing_patient(Config) ->
     true = proplists:get_value(<<"success">>,PropListJson),
     PatientObject = proplists:get_value(<<"result">>,PropListJson),
 
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"patientId">>, PatientObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"patientName">>, PatientObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
+    JsonId = proplists:get_value(<<"patientId">>, PatientObject),
+    JsonName = proplists:get_value(<<"patientName">>, PatientObject),
+    JsonAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
+
+    true = JsonId =:= Id orelse JsonId =:= list_to_binary(integer_to_list(Id)),
+    true = JsonName =:= Name orelse JsonName =:= list_to_binary(Name),
+    true = JsonAddress =:= Address orelse JsonAddress =:= list_to_binary(Address),
     [] = proplists:get_value(<<"patientPrescriptions">>, PatientObject).
 
 add_existing_patient(Config) ->
