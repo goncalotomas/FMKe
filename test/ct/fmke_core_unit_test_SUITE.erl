@@ -50,10 +50,10 @@ all() ->
     [
         % {group, simple_antidote_nested}
         % ,{group, simple_antidote_non_nested}
-        % ,{group, opt_antidote}
+        {group, opt_antidote}
         % ,{group, redis}
         % {group, simple_riak_nested}
-        {group, simple_riak_non_nested}
+        ,{group, simple_riak_non_nested}
         ,{group, ets_nested}
         ,{group, ets_non_nested}
     ].
@@ -73,14 +73,14 @@ end_per_suite(_Config) ->
 
 groups() ->
     [
-        % {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
-        % ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
-        % ,{opt_antidote, [shuffle], ?TEST_BATTERY}
-        % ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
-        % ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
-        % ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
-        {simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
-        % ,{opt_riak, [shuffle], ?TEST_BATTERY}
+        {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{opt_antidote, [shuffle], ?TEST_BATTERY}
+        ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{opt_riak, [shuffle], ?TEST_BATTERY}
         ,{ets_nested, [shuffle], ?TEST_BATTERY}
         ,{ets_non_nested, [shuffle], ?TEST_BATTERY}
     ].
