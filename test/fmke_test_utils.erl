@@ -1,137 +1,120 @@
--module(fmke_test_utils).
--include_lib("common_test/include/ct.hrl").
+%%%-------------------------------------------------------------------
+%% This helper module exports utility functions that help in comparing
+%% the value of FMKe entities coming from different environments.
+%%%-------------------------------------------------------------------
 
--include ("fmke.hrl").
+-module(fmke_test_utils).
+
+-include("fmke.hrl").
 
 -export ([
-    start_antidote/0,
-    start_riak/0,
-    start_redis/0,
-    start_node_with_antidote_backend/3,
-    start_node_with_ets_backend/2,
-    start_node_with_redis_backend/3,
-    start_node_with_riak_backend/3,
-    start_node_with_mock_redis_cluster/3,
-    stop_all/0,
-    stop_antidote/0,
-    stop_riak/0,
-    stop_redis/0,
-    stop_node/1
+    compare_facilities/2
+    ,compare_patients/2
+    ,compare_pharmacies/2
+    ,compare_prescriptions/2
+    ,compare_staff/2
+    ,search_prescription/2
 ]).
 
--define(ANTIDOTE_PORT, 8087).
--define(RIAK_PORT, 8087).
--define(REDIS_PORT, 6379).
+%% Compares 2 facilities in the form of a list of fields, where the first argument is the expected result.
+-spec compare_facilities(Fac1 :: #facility{}, Fac2 :: #facility{}) -> boolean().
 
-start_antidote() ->
-    Result = os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
-                    "-p \"4368:4368\" -p \"8085:8085\" -p \"8087:8087\" -p \"8099:8099\" -p \"9100:9100\" "
-                    "mweber/antidotedb"),
-    io:format("Starting antidote...~n~p~n", [Result]),
-    timer:sleep(5000).
+compare_facilities(#facility{} = Fac1, #facility{} = Fac2) ->
+    integer_compare(Fac1#facility.id, Fac2#facility.id)
+    andalso string_compare(Fac1#facility.name, Fac2#facility.name)
+    andalso string_compare(Fac1#facility.address, Fac2#facility.address)
+    andalso string_compare(Fac1#facility.type, Fac2#facility.type).
 
-stop_antidote() ->
-    os:cmd("docker stop antidote && docker rm antidote").
+%% Compares 2 facilities in the form of a list of fields, where the first argument is the expected result.
+-spec compare_patients(Pat1 :: #patient{}, Pat2 :: #patient{}) -> boolean().
 
-start_riak() ->
-    Result = os:cmd("docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" "
-                    "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak"),
-    io:format("Starting riak...~n~p~n", [Result]),
-    timer:sleep(30000).
+compare_patients(#patient{} = Pat1, #patient{} = Pat2) ->
+    integer_compare(Pat1#patient.id, Pat2#patient.id)
+    andalso string_compare(Pat1#patient.name, Pat2#patient.name)
+    andalso string_compare(Pat1#patient.address, Pat2#patient.address)
+    andalso list_compare(Pat1#patient.prescriptions, Pat2#patient.prescriptions).
 
-stop_riak() ->
-    os:cmd("docker stop riak && docker rm riak").
+-spec compare_pharmacies(Pharm1 :: #pharmacy{}, Pharm2 :: #pharmacy{}) -> boolean().
 
-start_redis() ->
-    Result = os:cmd("docker run -d --name redis -p \"6379:6379\" redis"),
-    io:format("Starting redis...~n~p~n", [Result]),
-    timer:sleep(4000).
+compare_pharmacies(#pharmacy{} = Pat1, #pharmacy{} = Pat2) ->
+    integer_compare(Pat1#pharmacy.id, Pat2#pharmacy.id)
+    andalso string_compare(Pat1#pharmacy.name, Pat2#pharmacy.name)
+    andalso string_compare(Pat1#pharmacy.address, Pat2#pharmacy.address)
+    andalso list_compare(Pat1#pharmacy.prescriptions, Pat2#pharmacy.prescriptions).
 
-stop_redis() ->
-    os:cmd("docker stop redis && docker rm redis").
+-spec compare_prescriptions(Presc1 :: #prescription{}, Presc2 :: #prescription{}) -> boolean().
 
-stop_all() ->
-    Result = os:cmd("docker stop $(docker ps -aq) && docker rm $(docker ps -aq)"),
-    io:format("Stopping all containers...~n~p~n", [Result]).
+compare_prescriptions(#prescription{} = Presc1, #prescription{} = Presc2) ->
+    integer_compare(Presc1#prescription.id, Presc2#prescription.id)
+    andalso integer_compare(Presc1#prescription.patient_id, Presc2#prescription.patient_id)
+    andalso integer_compare(Presc1#prescription.prescriber_id, Presc2#prescription.prescriber_id)
+    andalso integer_compare(Presc1#prescription.pharmacy_id, Presc2#prescription.pharmacy_id)
+    andalso string_compare(Presc1#prescription.date_prescribed, Presc2#prescription.date_prescribed)
+    andalso string_compare(Presc1#prescription.date_processed, Presc2#prescription.date_processed)
+    andalso string_compare(Presc1#prescription.is_processed, Presc2#prescription.is_processed)
+    andalso list_compare(Presc1#prescription.drugs, Presc2#prescription.drugs).
 
-start_node_with_antidote_backend(Name, Optimized, DataModel) ->
-    fmke_test_utils:start_antidote(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, antidote},
-                      {database_ports, [?ANTIDOTE_PORT]}]).
+-spec compare_staff(Staff1 :: #staff{}, Staff2 :: #staff{}) -> boolean().
 
-start_node_with_ets_backend(Name, DataModel) ->
-    start_node(Name, [{data_model, DataModel}, {target_database, ets}]).
+compare_staff(#staff{} = Staff1, #staff{} = Staff2) ->
+    integer_compare(Staff1#staff.id, Staff2#staff.id)
+    andalso string_compare(Staff1#staff.name, Staff2#staff.name)
+    andalso string_compare(Staff1#staff.address, Staff2#staff.address)
+    andalso string_compare(Staff1#staff.speciality, Staff2#staff.speciality)
+    andalso list_compare(Staff1#staff.prescriptions, Staff2#staff.prescriptions).
 
-start_node_with_riak_backend(Name, Optimized, DataModel) ->
-    fmke_test_utils:start_riak(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, riak},
-                      {database_ports, [?RIAK_PORT]}]).
+-spec search_prescription(Presc :: #prescription{}, L :: list(#prescription{} | binary())) -> boolean().
 
-start_node_with_redis_backend(Name, Optimized, DataModel) ->
-    fmke_test_utils:start_redis(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
-                      {database_ports, [?REDIS_PORT]}]).
+search_prescription(Presc, List) ->
+    search_prescription(Presc, List, false).
 
-start_node_with_mock_redis_cluster(Name, Optimized, DataModel) ->
-    fmke_test_utils:start_redis(),
-    %% Uses two different loopback addresses to create pools (one IPv4, one IPv6)
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
-                      {database_addresses, ["127.0.0.1", "::1"]}, {database_ports, [?REDIS_PORT]}]).
+search_prescription(_, [], Accum) ->
+    Accum;
+search_prescription(P, [H|T], Accum) ->
+    cmp_prescs_or_key(P, H) orelse search_prescription(P, T, Accum).
 
-start_node(Name, Opts) ->
-    CodePath = lists:filter(fun filelib:is_dir/1, code:get_path()),
-    %% have the slave nodes monitor the runner node, so they can't outlive it
-    NodeConfig = [{monitor_master, true}, {kill_if_fail, true}, {boot_timeout, 5}, {init_timeout, 3},
-        {startup_timeout, 1}, {startup_functions, [{code, set_path, [CodePath]}]}],
-    %% start ct_slave node
-    case ct_slave:start(Name, NodeConfig) of
-        {ok, Node} ->
-            StartupOpts = lists:ukeymerge(1, lists:sort(Opts), lists:sort(maps:to_list(?DEFAULTS))),
-            lists:map(
-                fun({Opt, Val}) ->
-                    rpc:call(Node, application, set_env, [?APP, Opt, Val])
-                end, StartupOpts),
+%% helper functions
 
-            {target_database, Database} = lists:keyfind(target_database, 1, StartupOpts),
-            ok = load_client_lib(Node, Database),
-            %% start the application remotely
-            {ok, _} = rpc:call(Node, application, ensure_all_started, [?APP]),
-            io:format("Node ~p started", [Node]),
-            Node;
-        {error, Reason, Node} ->
-            io:format("Error starting node ~p (~p), retrying...", [Node, Reason]),
-            ct_slave:stop(Name),
-            wait_until_offline(Node),
-            start_node(Name, Opts)
+integer_compare(Int1, Int2) when Int1 =:= Int2 -> true;
+integer_compare(Int1, Int2) when is_binary(Int2) -> list_to_binary(integer_to_list(Int1)) =:= Int2.
+
+string_compare(Str1, Str2) when Str1 =:= Str2 -> true;
+string_compare(Str1, Str2) when is_binary(Str2) -> list_to_binary(Str1) =:= Str2.
+
+list_compare(L1, L2) ->
+    lists:sort(L1) =:= lists:sort(L2) orelse lists:map(fun list_to_binary/1, lists:sort(L1)) =:= lists:sort(L2).
+
+cmp_prescs_or_key(P1, P2) ->
+    case gen_key(prescription, presc_id(P1)) =:= P2 of
+        true -> true;
+        false -> compare_prescriptions(P1, P2)
     end.
 
-wait_until_offline(Node) ->
-    wait_until(fun() -> pang == net_adm:ping(Node) end, 60*2, 500).
+gen_key(Entity,Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
 
-wait_until(Fun, Retry, Delay) when Retry > 0 ->
-    wait_until_result(Fun, true, Retry, Delay).
+presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_integer(Id) -> Id;
+presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_binary(Id) -> list_to_integer(binary_to_list(Id));
+presc_id([Id, _, _, _, _, _, _, _]) when is_integer(Id) -> Id;
+presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary_to_list(Id)).
 
-wait_until_result(Fun, Result, Retry, Delay) when Retry > 0 ->
-    Res = Fun(),
-    case Res of
-        Result ->
-            ok;
-        _ when Retry == 1 ->
-            {fail, Res};
-        _ ->
-            timer:sleep(Delay),
-            wait_until_result(Fun, Result, Retry-1, Delay)
-end.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                     Eunit Tests                                                    %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-stop_node(Node) ->
-    rpc:call(Node, application, stop, [?APP]),
-    ct_slave:stop(Node),
-    wait_until_offline(Node).
+-ifdef(TEST).
+-include_lib("eunit/include/eunit.hrl").
 
+simple_patient_comparison_test() ->
+    ?assert(compare_patients([1, "a", "b", "c", []], [1, "a", "b", "c", []])).
 
-load_client_lib(Node, antidote) ->          rpc:call(Node, application, load, [antidote_pb]);
-load_client_lib(Node, antidote_norm) ->     load_client_lib(Node, antidote);
-load_client_lib(_Node, ets) ->              ok;
-load_client_lib(Node, riak) ->              rpc:call(Node, application, load, [riak_pb]);
-load_client_lib(Node, riak_norm) ->         load_client_lib(Node, riak);
-load_client_lib(Node, redis) ->             rpc:call(Node, application, load, [eredis]).
+patient_comparison_binary_id_test() ->
+    ?assert(compare_patients([1, "a", "b", "c", []], [<<"1">>, "a", "b", "c", []])).
+
+patient_comparison_binary_string_fields_test() ->
+    ?assert(compare_patients([1, "a", "b", "c", []], [1, <<"a">>, <<"b">>, <<"c">>, []])).
+
+patient_comparison_all_binary_fields_test() ->
+    ?assert(compare_patients([1, "a", "b", "c", []], [<<"1">>, <<"a">>, <<"b">>, <<"c">>, []])).
+
+-endif.
