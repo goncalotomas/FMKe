@@ -95,6 +95,12 @@ gen_key(Entity,Id) ->
 
 presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_integer(Id) -> Id;
 presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_binary(Id) -> list_to_integer(binary_to_list(Id));
+presc_id([{A, _B} | _T] = PropList) when is_binary(A) ->
+    Val = proplists:get_value(<<"prescriptionId">>, PropList),
+    case is_binary(Val) of
+        true -> list_to_integer(binary_to_list(Val));
+        false -> Val
+    end;
 presc_id([Id, _, _, _, _, _, _, _]) when is_integer(Id) -> Id;
 presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary_to_list(Id)).
 
