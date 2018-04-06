@@ -2,7 +2,7 @@
 -module(fmke_json).
 -include("fmke.hrl").
 
--export([encode/1]).
+-export([encode/1, decode/2]).
 
 -spec encode(Object :: app_record()) -> jsx:json_term().
 
@@ -102,9 +102,19 @@ encode_string_list([H|T], Accum) when is_list(H) ->
 encode_string_list([H|T], Accum) when is_binary(H) ->
     encode_string_list(T, [H | Accum]).
 
-% encode_string_list([]) -> [];
-% encode_string_list([H|T]) when is_binary(H) -> [H | encode_string_list(T)];
-% encode_string_list([H|T]) when is_list(H) -> [list_to_binary(H) | encode_string_list(T)].
+-spec decode(Entity :: entity(), Object :: jsx:json_term()) -> app_record().
+
+decode(prescription, PropList) ->
+    #prescription{
+        id = proplists:get_value(<<"prescriptionId">>, PropList)
+        ,patient_id = proplists:get_value(<<"prescriptionPatientId">>, PropList)
+        ,prescriber_id = proplists:get_value(<<"prescriptionPrescriberId">>, PropList)
+        ,pharmacy_id = proplists:get_value(<<"prescriptionPharmacyId">>, PropList)
+        ,date_prescribed = proplists:get_value(<<"prescriptionDatePrescribed">>, PropList)
+        ,date_processed = proplists:get_value(<<"prescriptionDateProcessed">>, PropList)
+        ,is_processed = proplists:get_value(<<"prescriptionIsProcessed">>, PropList)
+        ,drugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PropList))
+    }.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
