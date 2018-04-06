@@ -87,7 +87,11 @@ list_compare(L1, L2) ->
 cmp_prescs_or_key(P1, P2) ->
     case gen_key(prescription, presc_id(P1)) =:= P2 of
         true -> true;
-        false -> compare_prescriptions(P1, P2)
+        false ->
+            case is_record(P2, prescription) of
+                true -> compare_prescriptions(P1, P2);
+                false -> compare_prescriptions(P1, fmke_json:decode(prescription, P2))
+            end
     end.
 
 gen_key(Entity,Id) ->
