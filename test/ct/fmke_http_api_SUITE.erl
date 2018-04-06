@@ -1,9 +1,10 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
--include ("fmke_http.hrl").
--include ("fmke.hrl").
--define (NODENAME, 'fmke@127.0.0.1').
--define (COOKIE, fmke).
+-include("fmke.hrl").
+-include("fmke_kv.hrl").
+-include("fmke_http.hrl").
+-define(NODENAME, 'fmke@127.0.0.1').
+-define(COOKIE, fmke).
 
 %%%-------------------------------------------------------------------
 %%% Common Test exports
@@ -586,48 +587,49 @@ add_unexisting_prescription(Config) ->
 get_existing_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    ExpectedDrugs = fmke_http_utils:parse_csv_string(Drugs),
     PropListJson = http_get("/prescriptions/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PrescriptionObject = proplists:get_value(<<"result">>,PropListJson),
-    %% check for prescription field values
-    BinId = list_to_binary(integer_to_list(Id)),
-    BinPatId = list_to_binary(integer_to_list(PatId)),
-    BinPrescId = list_to_binary(integer_to_list(PrescId)),
-    BinPharmId = list_to_binary(integer_to_list(PharmId)),
-    BinDatePresc = list_to_binary(DatePresc),
 
-    BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
-    BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
-    <<"prescription_not_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
-    <<"undefined">> = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
-    BinDrugs = lists:sort([list_to_binary(X) || X <- fmke_http_utils:parse_csv_string(drugs,Drugs)]),
-    BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+    JsonId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
+    JsonPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
+    JsonPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    JsonPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
+    JsonDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
+    JsonDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
+    JsonIsProcessed = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
+    JsonDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, prescriber_id = PrescId, pharmacy_id = PharmId,
+                                         date_prescribed = DatePresc, date_processed = <<"undefined">>,
+                                         drugs = ExpectedDrugs, is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE},
+
+    JsonPrescription = #prescription{id = JsonId, patient_id = JsonPatId, prescriber_id = JsonPrescId,
+                                     pharmacy_id = JsonPharmId, date_prescribed = JsonDatePresc,
+                                     date_processed = JsonDateProc, drugs = JsonDrugs,
+                                     is_processed = JsonIsProcessed},
+
+    true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, JsonPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff
-    PrescriptionKey = gen_key(prescription, Id),
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
     PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
     PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
     StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
 add_existing_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -674,51 +676,50 @@ get_prescription_after_updates(Config) ->
     [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
     [{processed_prescription_date, Id, DateProc}] = ets:lookup(TabId, processed_prescription_date),
     [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
+    ExpectedDrugs = lists:append(fmke_http_utils:parse_csv_string(Drugs),
+                                fmke_http_utils:parse_csv_string(AdditionalDrugs)),
     PropListJson = http_get("/prescriptions/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PrescriptionObject = proplists:get_value(<<"result">>,PropListJson),
-    %% check for prescription field values
-    BinId = list_to_binary(integer_to_list(Id)),
-    BinPatId = list_to_binary(integer_to_list(PatId)),
-    BinPrescId = list_to_binary(integer_to_list(PrescId)),
-    BinPharmId = list_to_binary(integer_to_list(PharmId)),
-    BinDatePresc = list_to_binary(DatePresc),
-    BinDateProc = list_to_binary(DateProc),
 
-    BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
-    BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
-    <<"prescription_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
-    BinDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
-    MergedDrugs = lists:append(fmke_http_utils:parse_csv_string(drugs,Drugs),
-                                fmke_http_utils:parse_csv_string(drugs,AdditionalDrugs)),
-    BinDrugs = lists:sort([list_to_binary(X) || X <- MergedDrugs]),
-    BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+    JsonId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
+    JsonPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
+    JsonPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    JsonPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
+    JsonDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
+    JsonDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
+    JsonIsProcessed = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
+    JsonDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, prescriber_id = PrescId, pharmacy_id = PharmId,
+                                         date_prescribed = DatePresc, date_processed = DateProc,
+                                         drugs = ExpectedDrugs, is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+
+    JsonPrescription = #prescription{id = JsonId, patient_id = JsonPatId, prescriber_id = JsonPrescId,
+                                     pharmacy_id = JsonPharmId, date_prescribed = JsonDatePresc,
+                                     date_processed = JsonDateProc, drugs = JsonDrugs,
+                                     is_processed = JsonIsProcessed},
+
+    true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, JsonPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff
-    PrescriptionKey = gen_key(prescription, Id),
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
     PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
     PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
     StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
 
 %%%-------------------------------------------------------------------
@@ -958,6 +959,3 @@ build_generic_props([H1|T1], [H2|T2], Accum) ->
 
 rpc(Mod, Fun, Args) ->
     rpc:block_call(?NODENAME, Mod, Fun, Args).
-
-gen_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
