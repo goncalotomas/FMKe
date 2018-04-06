@@ -860,7 +860,7 @@ put_returns_valid_status() ->
 
 check_status([]) -> ok;
 check_status([{<<"fmke_up">>, true} | Other]) -> check_status(Other);
-check_status([{<<"connection_manager_up">>, true} | Other]) -> check_status(Other);
+check_status([{<<"connection_manager_up">>, _Boolean} | Other]) -> check_status(Other);
 check_status([{<<"web_server_up">>, true} | Other]) -> check_status(Other);
 check_status([{<<"connection_pool_size">>, PoolSize} | Other]) ->
     {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
