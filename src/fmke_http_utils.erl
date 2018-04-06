@@ -7,11 +7,11 @@
 %%% API
 %%%-------------------------------------------------------------------
 -export ([
-    parse_body/2,
-    parse_body/3,
-    parse_id/1,
-    parse_string/2,
-    parse_csv_string/2
+    parse_body/2
+    ,parse_body/3
+    ,parse_id/1
+    ,parse_string/1
+    ,parse_csv_string/1
 ]).
 
 -spec parse_body(list({atom(), atom()}), binary()) -> list({atom(), any()}).
@@ -35,8 +35,8 @@ parse_body([H|T], Json, Accum) ->
     EncodedProperty = list_to_binary(atom_to_list(Property)),
     try
         ParsedValue = case Type of
-            csv_string -> parse_csv_string(Property, proplists:get_value(EncodedProperty, Json));
-            string -> parse_string(Property, proplists:get_value(EncodedProperty, Json));
+            csv_string -> parse_csv_string(proplists:get_value(EncodedProperty, Json));
+            string -> parse_string(proplists:get_value(EncodedProperty, Json));
             integer -> parse_id(proplists:get_value(EncodedProperty, Json));
             _ -> erlang:error(unknown_property_type, Type)
         end,
@@ -62,21 +62,21 @@ parse_id(Id) when is_list(Id) ->
 parse_id(Id) when is_binary(Id) ->
     parse_id(binary_to_list(Id)).
 
-parse_string(_Name, undefined) ->
+parse_string(undefined) ->
     erlang:error(missing_string);
-parse_string(Name, String) when is_binary(String) ->
+parse_string(String) when is_binary(String) ->
     List = binary_to_list(String),
     case io_lib:printable_unicode_list(List) of
         true -> List;
-        false -> erlang:error(list_to_atom("invalid_" ++ atom_to_list(Name)))
+        false -> erlang:error(invalid_string)
     end;
-parse_string(_, String) when is_list(String) ->
+parse_string(String) when is_list(String) ->
     String.
 
-parse_csv_string(_Name, undefined) ->
+parse_csv_string(undefined) ->
     erlang:error(missing_csv_string);
-parse_csv_string(Name, String) ->
-    ParsedString = parse_string(Name, String),
+parse_csv_string(String) ->
+    ParsedString = parse_string(String),
     lists:map(fun(Str) -> string:trim(Str) end, string:tokens(ParsedString, ",")).
 
 -ifdef(TEST).
@@ -110,13 +110,13 @@ parse_invalid_binary_as_id_test() ->
     ?assertError(invalid_id, parse_id(<<1, 17, 42>>)).
 
 parse_undefined_as_string_test() ->
-    ?assertError(missing_string, parse_string(test, undefined)).
+    ?assertError(missing_string, parse_string(undefined)).
 
 parse_valid_string_from_binary_test() ->
-    "FMKe" = parse_string(parameter, <<"FMKe">>).
+    "FMKe" = parse_string(<<"FMKe">>).
 
 parse_string_from_invalid_binary_test() ->
-    ?assertError(invalid_parameter, parse_string(parameter, <<123, 200, 21>>)).
+    ?assertError(invalid_string, parse_string(<<123, 200, 21>>)).
 
 parse_empty_list_of_params_with_valid_body_test() ->
     [] = parse_body([], <<"body">>).
