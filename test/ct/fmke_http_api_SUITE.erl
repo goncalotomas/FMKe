@@ -616,19 +616,22 @@ get_existing_prescription(Config) ->
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    PatientPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"patientPrescriptions">>, PatientObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    PharmacyPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
+    StaffPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"staffPrescriptions">>, StaffObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
 add_existing_prescription(Config) ->
@@ -706,19 +709,22 @@ get_prescription_after_updates(Config) ->
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
+    PatientPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"patientPrescriptions">>, PatientObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
+    PharmacyPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
+    StaffPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"staffPrescriptions">>, StaffObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
 
