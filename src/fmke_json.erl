@@ -1,6 +1,7 @@
 %% This module acts as a library for encoding FMKe entities into JSON objects, used in the HTTP API.
 -module(fmke_json).
 -include("fmke.hrl").
+-include("fmke_kv.hrl").
 
 -export([encode/1, decode/2]).
 
@@ -113,7 +114,7 @@ decode(prescription, PropList) ->
         ,date_prescribed = proplists:get_value(<<"prescriptionDatePrescribed">>, PropList)
         ,date_processed = proplists:get_value(<<"prescriptionDateProcessed">>, PropList)
         ,is_processed = proplists:get_value(<<"prescriptionIsProcessed">>, PropList)
-        ,drugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PropList))
+        ,drugs = lists:sort(fmke_http_utils:parse_csv_string(proplists:get_value(<<"prescriptionDrugs">>, PropList)))
     }.
 
 -ifdef(TEST).
@@ -320,5 +321,22 @@ encode_medical_staff_with_prescription_references_test() ->
             <<"prescription_2">>, <<"prescription_1">>
         ]}
     ).
+
+decode_prescription_test() ->
+    JsonPrescription = [
+        {<<"prescriptionId">>, 1}
+        ,{<<"prescriptionPatientId">>, 2}
+        ,{<<"prescriptionPharmacyId">>, 3}
+        ,{<<"prescriptionPrescriberId">>, 4}
+        ,{<<"prescriptionDatePrescribed">>, "02/04/2018"}
+        ,{<<"prescriptionDateProcessed">>, "06/04/2018"}
+        ,{<<"prescriptionIsProcessed">>, ?PRESCRIPTION_PROCESSED_VALUE}
+        ,{<<"prescriptionDrugs">>, "Rupafin, Ibuprofen"}
+    ],
+    ExpectedPrescription =  #prescription{id = 1, patient_id = 2, pharmacy_id = 3, prescriber_id = 4,
+                                          drugs = ["Rupafin", "Ibuprofen"], date_prescribed = "02/04/2018",
+                                          date_processed = "06/04/2018", is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+    DecodedPrescription = decode(prescription, JsonPrescription),
+    ?assert(fmke_test_utils:compare_prescriptions(ExpectedPrescription, DecodedPrescription)).
 
 -endif.
