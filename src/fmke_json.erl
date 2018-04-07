@@ -80,7 +80,7 @@ encode(Object = #prescription{}) ->
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
     ].
 
--spec encode_list_prescriptions(L :: list(binary() | #prescription{})) -> list(binary()).
+-spec encode_list_prescriptions(L :: list(binary() | prescription())) -> list(binary()).
 encode_list_prescriptions(L) ->
     encode_list_prescriptions(L, []).
 
@@ -105,7 +105,7 @@ encode_string_list([H|T], Accum) when is_binary(H) ->
 
 -spec decode(Entity :: entity(), Object :: jsx:json_term()) -> app_record().
 
-decode(prescription, PropList) ->
+decode(prescription, PropList) when is_list(PropList)->
     #prescription{
         id = proplists:get_value(<<"prescriptionId">>, PropList)
         ,patient_id = proplists:get_value(<<"prescriptionPatientId">>, PropList)
@@ -114,8 +114,11 @@ decode(prescription, PropList) ->
         ,date_prescribed = proplists:get_value(<<"prescriptionDatePrescribed">>, PropList)
         ,date_processed = proplists:get_value(<<"prescriptionDateProcessed">>, PropList)
         ,is_processed = proplists:get_value(<<"prescriptionIsProcessed">>, PropList)
-        ,drugs = lists:sort(fmke_http_utils:parse_csv_string(proplists:get_value(<<"prescriptionDrugs">>, PropList)))
-    }.
+        ,drugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PropList))
+    };
+
+decode(prescription, Prescription) when is_binary(Prescription) ->
+    Prescription.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
@@ -331,7 +334,7 @@ decode_prescription_test() ->
         ,{<<"prescriptionDatePrescribed">>, "02/04/2018"}
         ,{<<"prescriptionDateProcessed">>, "06/04/2018"}
         ,{<<"prescriptionIsProcessed">>, ?PRESCRIPTION_PROCESSED_VALUE}
-        ,{<<"prescriptionDrugs">>, "Rupafin, Ibuprofen"}
+        ,{<<"prescriptionDrugs">>, [<<"Rupafin">>, <<"Ibuprofen">>]}
     ],
     ExpectedPrescription =  #prescription{id = 1, patient_id = 2, pharmacy_id = 3, prescriber_id = 4,
                                           drugs = ["Rupafin", "Ibuprofen"], date_prescribed = "02/04/2018",
