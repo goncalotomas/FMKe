@@ -78,3 +78,9 @@
                       #staff{}.
 -type entity() :: facility | patient | pharmacy | prescription | staff.
 -type key() :: binary().
+
+-type facility() :: #facility{}.
+-type patient() :: #patient{}.
+-type pharmacy() :: #pharmacy{}.
+-type prescription() :: #prescription{}.
+-type staff() :: #staff{}.
