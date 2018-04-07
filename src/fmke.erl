@@ -174,31 +174,31 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
 %%-----------------------------------------------------------------------------
 
 %% Fetches a patient by ID.
--spec get_patient_by_id(id()) -> #patient{} | {error, reason()}.
+-spec get_patient_by_id(id()) -> patient() | {error, reason()}.
 get_patient_by_id(Id) ->
     gen_server:call(?MODULE, {get_patient_by_id, Id}).
 
 %% Fetches a facility by id.
--spec get_facility_by_id(id()) -> #facility{} | {error, reason()}.
+-spec get_facility_by_id(id()) -> facility() | {error, reason()}.
 get_facility_by_id(Id) ->
     gen_server:call(?MODULE, {get_facility_by_id, Id}).
 
 %% Fetches a pharmacy by ID.
--spec get_pharmacy_by_id(id()) -> #pharmacy{} | {error, reason()}.
+-spec get_pharmacy_by_id(id()) -> pharmacy() | {error, reason()}.
 get_pharmacy_by_id(Id) ->
     gen_server:call(?MODULE, {get_pharmacy_by_id, Id}).
 
 %% Fetches a prescription by ID.
--spec get_prescription_by_id(id()) -> #prescription{} | {error, reason()}.
+-spec get_prescription_by_id(id()) -> prescription() | {error, reason()}.
 get_prescription_by_id(Id) ->
     gen_server:call(?MODULE, {get_prescription_by_id, Id}).
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
--spec get_pharmacy_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
+-spec get_pharmacy_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_pharmacy_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_pharmacy_prescriptions, Id}).
 
--spec get_processed_pharmacy_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
+-spec get_processed_pharmacy_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_processed_pharmacy_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_processed_pharmacy_prescriptions, Id}).
 
@@ -208,12 +208,12 @@ get_prescription_medication(Id) ->
     gen_server:call(?MODULE, {get_prescription_medication, Id}).
 
 %% Fetches a staff member by ID.
--spec get_staff_by_id(id()) -> #staff{} | {error, reason()}.
+-spec get_staff_by_id(id()) -> staff() | {error, reason()}.
 get_staff_by_id(Id) ->
     gen_server:call(?MODULE, {get_staff_by_id, Id}).
 
 %% Fetches a list of prescriptions given a certain staff member ID.
--spec get_staff_prescriptions(id()) -> [#prescription{}] | {error, reason()}.
+-spec get_staff_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_staff_prescriptions(Id) ->
     gen_server:call(?MODULE, {get_staff_prescriptions, Id}).
 
