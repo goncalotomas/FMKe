@@ -1,8 +1,8 @@
 -module(gen_fmke_adapter).
 
--type id() :: non_neg_integer().
+-include ("fmke.hrl").
+
 -type context() :: term().
--type crdt() :: term().
 
 -callback start(Driver::atom()) -> {ok, pid()} | {error, term()}.
 -callback stop() -> {ok, term()} | {error, term()}.
@@ -36,28 +36,28 @@
 
 
 -callback get_facility_by_id(Id::id()) ->
-  {{ok, Object::crdt()} | {error, Reason::term()}, Context::context()}.
+  {{ok, Object::facility()} | {error, Reason::term()}, Context::context()}.
 
 -callback get_patient_by_id(Id::id()) ->
-  {{ok, Object::crdt()} | {error, Reason::term()}, Context::context()}.
+  {{ok, Object::patient()} | {error, Reason::term()}, Context::context()}.
 
 -callback get_pharmacy_by_id(Id::id()) ->
-  {{ok, Object::crdt()} | {error, Reason::term()}, Context::context()}.
+  {{ok, Object::pharmacy()} | {error, Reason::term()}, Context::context()}.
 
 -callback get_prescription_by_id(Id::id()) ->
-  {{ok, Object::crdt()} | {error, Reason::term()}, Context::context()}.
+  {{ok, Object::prescription()} | {error, Reason::term()}, Context::context()}.
 
 -callback get_staff_by_id(Id::id()) ->
-  {{ok, Object::crdt()} | {error, Reason::term()}, Context::context()}.
+  {{ok, Object::staff()} | {error, Reason::term()}, Context::context()}.
 
 -callback get_processed_pharmacy_prescriptions(Id::id()) ->
-  {{ok, ListObjects::list(crdt())} | {error, Reason::term()}, Context::context()}.
+  {{ok, ListObjects::list(prescription() | binary())} | {error, Reason::term()}, Context::context()}.
 
 -callback get_pharmacy_prescriptions(Id::id()) ->
-  {{ok, ListObjects::list(crdt())} | {error, Reason::term()}, Context::context()}.
+  {{ok, ListObjects::list(prescription() | binary())} | {error, Reason::term()}, Context::context()}.
 
 -callback get_staff_prescriptions(Id::id()) ->
-  {{ok, ListObjects::list(crdt())} | {error, Reason::term()}, Context::context()}.
+  {{ok, ListObjects::list(prescription() | binary())} | {error, Reason::term()}, Context::context()}.
 
 
 %%-----------------------------------------------------------------------------
