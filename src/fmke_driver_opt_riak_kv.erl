@@ -20,19 +20,13 @@
   ,create_prescription/6
   ,get_facility_by_id/1
   ,get_patient_by_id/1
-  ,get_patient_by_id/2
   ,get_pharmacy_by_id/1
-  ,get_pharmacy_by_id/2
   ,get_processed_pharmacy_prescriptions/1
   ,get_pharmacy_prescriptions/1
   ,get_prescription_by_id/1
-  ,get_prescription_by_id/2
   ,get_prescription_medication/1
   ,get_staff_by_id/1
-  ,get_staff_by_id/2
   ,get_staff_prescriptions/1
-  ,get_staff_treatments/1
-  ,get_treatment_by_id/1
   ,process_prescription/2
   ,update_patient_details/3
   ,update_pharmacy_details/3
@@ -125,10 +119,79 @@ update_staff_details(Id, Name, Address, Speciality) ->
 update_prescription_medication(Id, add_drugs, Drugs) ->
     gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T] = Fields},
-        _From, {Driver, DataModel}) ->
+% handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
+%     %% gather required antidote keys
+%     PrescriptionKey = gen_key(prescription, Id),
+%     PatientKey = gen_key(patient, PatientId),
+%     PharmacyKey = gen_key(pharmacy, PharmacyId),
+%     PrescriberKey = gen_key(staff, PrescriberId),
+%     Txn = txn_start(),
+%     %% check required pre-conditions
+%     [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
+%         = check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
+%
+%     PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+%     {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
+%
+%     {Result, Txn3} = case HandleCreateOpResult of
+%         ok ->
+%             %% build updates for patients, pharmacies, facilities and the prescriber
+%             %% these are already generated as buckets
+%             PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
+%             PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
+%             PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
+%             txn_update_objects([ PharmacyUpdate, PrescriberUpdate, PatientUpdate ], Txn2),
+%             {ok, Txn2};
+%         ErrorMessage -> {ErrorMessage, Txn2}
+%     end,
+%     txn_commit(Txn3),
+%     {reply, Result, State};
+%
+% handle_call({create, Entity, Fields}, _From, State) ->
+%     {reply, create_if_not_exists(Entity, Fields), State};
+
+handle_call({read, Entity, Id, prescriptions}, _From, State) ->
+    {Key, {_BucketType, _BucketName}} = get_riak_props(Entity, Id),
+    Pid = fmke_db_conn_manager:checkout(),
+    [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
+      {Key, <<"sets">>, <<"prescriptions">>},
+      {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    Result = case get_prescs_from_sets(Prescriptions, ProcessedPrescriptions) of
+        [] -> [];
+        Prescs ->
+            lists:map(fun(P) -> build_app_record(prescription, P) end, Prescs)
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    {reply, Result, State};
+
+handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
+    {Key, {_BucketType, _BucketName}} = get_riak_props(Entity, Id),
+    Pid = fmke_db_conn_manager:checkout(),
+    [ProcessedPrescriptions] = multi_read(Pid, [
+      {Key, <<"sets">>, <<"processed_prescriptions">>}
+    ]),
+    Result = lists:map(fun(P) -> build_app_record(prescription, P) end, ProcessedPrescriptions),
+    fmke_db_conn_manager:checkin(Pid),
+    {reply, Result, State};
+
+handle_call({read, prescription, Id, drugs}, _From, State) ->
+    Prescription = get_prescription_by_id(Id),
+    Result = case Prescription of
+        {error, _} -> {error, no_such_prescription};
+        _ -> Prescription#prescription.drugs
+    end,
+    {reply, Result, State};
+
+handle_call({read, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
+    {reply, get_entity_with_prescriptions(Entity, Id), State};
+
+handle_call({read, Entity, Id}, _From, State) ->
+    {reply, build_app_record(Entity, process_get_request(Entity, Id)), State};
+
+handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
     %% gather required keys
-    PrescriptionKey = get_key(prescription, PrescriptionId),
+    PrescriptionKey = get_key(prescription, Id),
     PatientKey = get_key(patient, PatientId),
     PharmacyKey = get_key(pharmacy, PharmacyId),
     PrescriberKey = get_key(staff, PrescriberId),
@@ -137,7 +200,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
     [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
       = check_keys(Pid, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
 
-    PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+    PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
     HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
 
     Result = case HandleCreateOpResult of
@@ -155,10 +218,10 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
         ErrorMessage -> ErrorMessage
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, {Driver, DataModel}};
+    {reply, Result, State};
 
 %% create (for facility, patient, pharmacy, staff)
-handle_call({create, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
+handle_call({create, Entity, [Id | _T] = Fields}, _From, State) ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     Result = case check_key(Pid, Key, BucketType, BucketName) of
@@ -167,9 +230,25 @@ handle_call({create, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
         free ->
             LocalObject = gen_entity(Entity, Fields),
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
-    end.
+    end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, {Driver, DataModel}};
+    {reply, Result, State};
+
+handle_call({update, prescription, Id, Action}, _From, State) ->
+    {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
+    Pid = fmke_db_conn_manager:checkout(),
+    Result = case get_prescription_by_id(Id) of
+        {error, not_found} ->
+            {error, no_such_prescription};
+        #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+            {error, prescription_already_processed};
+        P when is_record(P, prescription) ->
+            Prescription = chg_presc(P, Action),
+            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key,
+                riakc_map:to_op(gen_entity(prescription, Prescription)))
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    {reply, Result, State};
 
 %% updates entity if it exists (for facility, patient, pharmacy and staff)
 handle_call({update, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
@@ -183,7 +262,7 @@ handle_call({update, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(EntityUpdate))
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, {Driver, DataModel}};
+    {reply, Result, {Driver, DataModel}}.
 
 get_riak_props(Entity, Id) when is_atom(Entity), is_integer(Id) ->
     BucketType = get_bucket_type(Entity),
@@ -193,19 +272,17 @@ get_riak_props(Entity, Id) when is_atom(Entity), is_integer(Id) ->
 
 get_bucket_type(_Entity) -> <<"maps">>.
 
-get_bucket(event) -> <<"events">>;
-get_bucket(facility) -> <<"facilities">>;
-get_bucket(patient) -> <<"patients">>;
-get_bucket(pharmacy) -> <<"pharmacies">>;
-get_bucket(prescription) -> <<"prescriptions">>;
-get_bucket(staff) -> <<"staff">>;
-get_bucket(treatment) -> <<"treatments">>.
+get_bucket(facility) ->         <<"facilities">>;
+get_bucket(patient) ->          <<"patients">>;
+get_bucket(pharmacy) ->         <<"pharmacies">>;
+get_bucket(prescription) ->     <<"prescriptions">>;
+get_bucket(staff) ->            <<"staff">>.
 
-create_if_not_exists(Entity, Fields) ->
-    Pid = fmke_db_conn_manager:checkout(),
-    Result = create_if_not_exists(Pid, Entity, Fields),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
+chg_presc(#prescription{} = P, {date_processed, Date}) ->
+    P#prescription{date_processed = Date, is_processed = ?PRESCRIPTION_PROCESSED_VALUE};
+
+chg_presc(#prescription{} = P, {drugs, add, Drugs}) ->
+    P#prescription{drugs = lists:append(P#prescription.drugs, Drugs)}.
 
 create_if_not_exists(Pid, Entity, Fields) ->
     Id = hd(Fields),
@@ -217,26 +294,6 @@ create_if_not_exists(Pid, Entity, Fields) ->
             LocalObject = gen_entity(Entity, Fields),
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
     end.
-
-%% Does kind of the opposite of create_if_not_exists/2
-update_if_already_exists(Entity, Fields) ->
-    Pid = fmke_db_conn_manager:checkout(),
-    Result = update_if_already_exists(Pid, Entity, Fields),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
-
-update_if_already_exists(Pid, Entity, Fields) ->
-    Id = hd(Fields),
-    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    Result =
-      case check_key(Pid, Key, BucketType, BucketName) of
-        free ->
-            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p", [Entity])))};
-        taken ->
-            EntityUpdate = gen_entity(Entity, Fields),
-            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(EntityUpdate))
-      end,
-    Result.
 
 %% Checks if an entity exists
 check_key(Pid, Key, BucketType, BucketName) ->
@@ -450,150 +507,58 @@ multi_read(Pid, Objects) ->
                 end, Objects),
     lists:map(fun parse_read_result/1, Results).
 
--spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
-create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
-
--spec create_pharmacy(id(), string(), string()) -> ok | {error, reason()}.
-create_pharmacy(Id, Name, Address) -> create_if_not_exists(pharmacy, [Id, Name, Address]).
-
--spec create_facility(id(), string(), string(), string()) -> ok | {error, reason()}.
-create_facility(Id, Name, Address, Type) -> create_if_not_exists(facility, [Id, Name, Address, Type]).
-
--spec create_staff(id(), string(), string(), string()) -> ok | {error, reason()}.
-create_staff(Id, Name, Address, Speciality) -> create_if_not_exists(staff, [Id, Name, Address, Speciality]).
-
--spec get_facility_by_id(id()) -> [crdt()] | {error, reason()}.
-get_facility_by_id(Id) -> build_app_record(facility, process_get_request(facility, Id)).
-
--spec get_pharmacy_by_id(id()) -> [crdt()] | {error, reason()}.
-get_pharmacy_by_id(Id) -> get_entity_with_prescriptions(pharmacy, Id).
-
--spec get_pharmacy_by_id(id(), any()) -> [crdt()] | {error, reason()}.
-get_pharmacy_by_id(Id, Txn) -> get_entity_with_prescriptions(pharmacy, Id, Txn).
-
--spec get_patient_by_id(id()) -> [crdt()] | {error, reason()}.
-get_patient_by_id(Id) -> get_entity_with_prescriptions(patient, Id).
-
--spec get_patient_by_id(id(), any()) -> [crdt()] | {error, reason()}.
-get_patient_by_id(Id, Txn) -> get_entity_with_prescriptions(patient, Id, Txn).
-
-%% Fetches a list of prescriptions given a certain pharmacy ID.
--spec get_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
-get_pharmacy_prescriptions(Id) ->
-    Key = get_key(pharmacy, Id),
-    Pid = fmke_db_conn_manager:checkout(),
-    [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
-    fmke_db_conn_manager:checkin(Pid),
-    case {Prescriptions, ProcessedPrescriptions} of
-        {{error, not_found}, {error, not_found}} -> [];
-        {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
-        {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
-        {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
-    end.
-
--spec get_processed_pharmacy_prescriptions(id()) -> [crdt()] | {error, reason()}.
-get_processed_pharmacy_prescriptions(Id) ->
-    PharmacyKey = get_key(pharmacy, Id),
-    Pid = fmke_db_conn_manager:checkout(),
-    [ProcessedPrescriptions] = multi_read(Pid, [
-        {PharmacyKey, <<"sets">>, <<"processed_prescriptions">>}
-    ]),
-    fmke_db_conn_manager:checkin(Pid),
-    case ProcessedPrescriptions of
-        {error, not_found} -> [];
-        PrescriptionKeys ->  PrescriptionKeys
-    end.
-
-%% Fetches a prescription by ID.
--spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
-get_prescription_by_id(Id) ->
-    build_app_record(prescription, process_get_request(prescription, Id)).
-
-%% Fetches a prescription by ID.
--spec get_prescription_by_id(pid(), id()) -> [crdt()] | {error, reason()}.
-get_prescription_by_id(Pid, Id) ->
-    build_app_record(prescription, process_get_request(Pid, prescription, Id)).
-
-%% Fetches prescription medication by ID.
--spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
-get_prescription_medication(Id) ->
-    Prescription = get_prescription_by_id(Id),
-    case Prescription of
-      {error, _} -> {error, no_such_prescription};
-      _ -> Prescription#prescription.drugs
-    end.
-
-%% Fetches a staff member by ID.
--spec get_staff_by_id(id()) -> [crdt()] | {error, reason()}.
-get_staff_by_id(Id) -> get_entity_with_prescriptions(staff, Id).
-
-%% Alternative to get_staff_by_id/1, which includes a transactional context.
--spec get_staff_by_id(id(), any()) -> [crdt()] | {error, reason()}.
-get_staff_by_id(Id, Txn) -> get_entity_with_prescriptions(staff, Id, Txn).
-
-%% Fetches a list of prescriptions given a certain staff member ID.
--spec get_staff_prescriptions(id()) -> [crdt()] | {error, reason()}.
-get_staff_prescriptions(Id) ->
-    Key = get_key(staff, Id),
-    Pid = fmke_db_conn_manager:checkout(),
-    [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
-    fmke_db_conn_manager:checkin(Pid),
-    case {Prescriptions, ProcessedPrescriptions} of
-        {{error, not_found}, {error, not_found}} -> [];
-        {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
-        {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
-        {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
-    end.
-
-%% Fetches a list of treatments given a certain staff member ID.
--spec get_staff_treatments(id()) -> [crdt()] | {error, reason()}.
-get_staff_treatments(_StaffId) ->
-  erlang:error(not_implemented).
-
-%% Fetches a treatment by ID.
--spec get_treatment_by_id(id()) -> [crdt()] | {error, reason()}.
-get_treatment_by_id(_Id) ->
-  erlang:error(not_implemented).
-
-%% Updates the personal details of a patient with a certain ID.
--spec update_patient_details(id(), string(), string()) -> ok | {error, reason()}.
-update_patient_details(Id, Name, Address) ->
-  update_if_already_exists(patient, [Id, Name, Address]).
-
-%% Updates the details of a pharmacy with a certain ID.
--spec update_pharmacy_details(id(), string(), string()) -> ok | {error, reason()}.
-update_pharmacy_details(Id, Name, Address) ->
-  update_if_already_exists(pharmacy, [Id, Name, Address]).
-
-%% Updates the details of a facility with a certain ID.
--spec update_facility_details(id(), string(), string(), string()) -> ok | {error, reason()}.
-update_facility_details(Id, Name, Address, Type) ->
-  update_if_already_exists(facility, [Id, Name, Address, Type]).
-
-%% Updates the details of a staff member with a certain ID.
--spec update_staff_details(id(), string(), string(), string()) -> ok | {error, reason()}.
-update_staff_details(Id, Name, Address, Speciality) ->
-  update_if_already_exists(staff, [Id, Name, Address, Speciality]).
-
--spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
-    Pid = fmke_db_conn_manager:checkout(),
-    Result =
-        case get_prescription_by_id(Id) of
-        {error, not_found} ->
-            {error, no_such_prescription};
-        #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
-            {error, prescription_already_processed};
-        #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
-            Map = riakc_map:new(),
-            Map1 = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set},
-                                fun(S) -> riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S) end,
-                                Map),
-            ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(Map1))
-        end,
-    fmke_db_conn_manager:checkin(Pid),
-    Result;
+% get_pharmacy_prescriptions(Id) ->
+%     Key = get_key(pharmacy, Id),
+%     Pid = fmke_db_conn_manager:checkout(),
+%     [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
+%     fmke_db_conn_manager:checkin(Pid),
+%     case {Prescriptions, ProcessedPrefscriptions} of
+%         {{error, not_found}, {error, not_found}} -> [];
+%         {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+%         {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+%         {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+%     end.
+%
+% get_processed_pharmacy_prescriptions(Id) ->
+%     PharmacyKey = get_key(pharmacy, Id),
+%     Pid = fmke_db_conn_manager:checkout(),
+%     [ProcessedPrescriptions] = multi_read(Pid, [
+%         {PharmacyKey, <<"sets">>, <<"processed_prescriptions">>}
+%     ]),
+%     fmke_db_conn_manager:checkin(Pid),
+%     case ProcessedPrescriptions of
+%         {error, not_found} -> [];
+%         PrescriptionKeys ->  PrescriptionKeys
+%     end.
+%
+% %% Fetches a prescription by ID.
+% -spec get_prescription_by_id(id()) -> [crdt()] | {error, reason()}.
+% get_prescription_by_id(Id) ->
+%     build_app_record(prescription, process_get_request(prescription, Id)).
+%
+% %% Fetches prescription medication by ID.
+% -spec get_prescription_medication(id()) -> [crdt()] | {error, reason()}.
+% get_prescription_medication(Id) ->
+%     Prescription = get_prescription_by_id(Id),
+%     case Prescription of
+%       {error, _} -> {error, no_such_prescription};
+%       _ -> Prescription#prescription.drugs
+%     end.
+%
+% get_staff_by_id(Id) -> get_entity_with_prescriptions(staff, Id).
+%
+%
+% get_staff_prescriptions(Id) ->
+%     Key = get_key(staff, Id),
+%     Pid = fmke_db_conn_manager:checkout(),
+%     [Prescriptions, ProcessedPrescriptions] = get_prescriptions(Pid, Key),
+%     fmke_db_conn_manager:checkin(Pid),
+%     case {Prescriptions, ProcessedPrescriptions} of
+%         {{error, not_found}, {error, not_found}} -> [];
+%         {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+%         {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+%         {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+%     end.
 
 check_keys(_Pid, []) ->
     [];
@@ -604,57 +569,57 @@ check_keys(Pid, [H|T]) ->
         _Object -> [{taken, H}] ++ check_keys(Pid, T)
     end.
 
-process_prescription(Id, Date) ->
-    Pid = fmke_db_conn_manager:checkout(),
-    Result = process_prescription(Pid, Id, Date),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
+% process_prescription(Id, Date) ->
+%     Pid = fmke_db_conn_manager:checkout(),
+%     Result = process_prescription(Pid, Id, Date),
+%     fmke_db_conn_manager:checkin(Pid),
+%     Result.
 
-process_prescription(Pid, Id, Date) ->
-    RiakObject = process_get_request(Pid, prescription, Id),
-    Prescription = build_app_record(prescription, RiakObject),
-    case can_process_prescription(Prescription) of
-        {false, Reason} ->
-            {error, Reason};
-        true ->
-            PharmacyKey =      get_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
-            PatientKey =       get_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
-            StaffKey =         get_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
-            PrescriptionKey =  get_key(prescription, Id),
-
-            NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
-                                fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
-                            RiakObject),
-            NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
-                                fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
-                            NewMap1),
-
-            [OpenPatPrescs, OpenPharmPrescs, OpenStaffPrescs] = multi_read(Pid, [
-                {PatientKey, <<"sets">>, <<"prescriptions">>},
-                {PharmacyKey, <<"sets">>, <<"prescriptions">>},
-                {StaffKey, <<"sets">>, <<"prescriptions">>}
-            ]),
-
-            RemFromSetPat = riakc_set:del_element(PrescriptionKey, OpenPatPrescs),
-            RemFromSetPharm = riakc_set:del_element(PrescriptionKey, OpenPharmPrescs),
-            RemFromSetStaff = riakc_set:del_element(PrescriptionKey, OpenStaffPrescs),
-
-            ProcPrescsLocal = riakc_set:add_element(PrescriptionKey, riakc_set:new()),
-
-            BucketType = <<"sets">>,
-            PrscBucketType = {<<"maps">>, <<"prescriptions">>},
-            DelBucketType = {BucketType, <<"prescriptions">>},
-            AddBucketType = {BucketType, <<"processed_prescriptions">>},
-
-            riakc_pb_socket:update_type(Pid, PrscBucketType, PrescriptionKey, riakc_map:to_op(NewMap)),
-            riakc_pb_socket:update_type(Pid, DelBucketType, PatientKey, riakc_set:to_op(RemFromSetPat)),
-            riakc_pb_socket:update_type(Pid, DelBucketType, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
-            riakc_pb_socket:update_type(Pid, DelBucketType, StaffKey, riakc_set:to_op(RemFromSetStaff)),
-            riakc_pb_socket:update_type(Pid, AddBucketType, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
-            riakc_pb_socket:update_type(Pid, AddBucketType, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
-            riakc_pb_socket:update_type(Pid, AddBucketType, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
-            ok
-   end.
+% process_prescription(Pid, Id, Date) ->
+%     RiakObject = process_get_request(Pid, prescription, Id),
+%     Prescription = build_app_record(prescription, RiakObject),
+%     case can_process_prescription(Prescription) of
+%         {false, Reason} ->
+%             {error, Reason};
+%         true ->
+%             PharmacyKey =      get_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
+%             PatientKey =       get_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
+%             StaffKey =         get_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
+%             PrescriptionKey =  get_key(prescription, Id),
+%
+%             NewMap1 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+%                                 fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
+%                             RiakObject),
+%             NewMap = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
+%                                 fun(R) -> riakc_register:set(list_to_binary(Date), R) end,
+%                             NewMap1),
+%
+%             [OpenPatPrescs, OpenPharmPrescs, OpenStaffPrescs] = multi_read(Pid, [
+%                 {PatientKey, <<"sets">>, <<"prescriptions">>},
+%                 {PharmacyKey, <<"sets">>, <<"prescriptions">>},
+%                 {StaffKey, <<"sets">>, <<"prescriptions">>}
+%             ]),
+%
+%             RemFromSetPat = riakc_set:del_element(PrescriptionKey, OpenPatPrescs),
+%             RemFromSetPharm = riakc_set:del_element(PrescriptionKey, OpenPharmPrescs),
+%             RemFromSetStaff = riakc_set:del_element(PrescriptionKey, OpenStaffPrescs),
+%
+%             ProcPrescsLocal = riakc_set:add_element(PrescriptionKey, riakc_set:new()),
+%
+%             BucketType = <<"sets">>,
+%             PrscBucketType = {<<"maps">>, <<"prescriptions">>},
+%             DelBucketType = {BucketType, <<"prescriptions">>},
+%             AddBucketType = {BucketType, <<"processed_prescriptions">>},
+%
+%             riakc_pb_socket:update_type(Pid, PrscBucketType, PrescriptionKey, riakc_map:to_op(NewMap)),
+%             riakc_pb_socket:update_type(Pid, DelBucketType, PatientKey, riakc_set:to_op(RemFromSetPat)),
+%             riakc_pb_socket:update_type(Pid, DelBucketType, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
+%             riakc_pb_socket:update_type(Pid, DelBucketType, StaffKey, riakc_set:to_op(RemFromSetStaff)),
+%             riakc_pb_socket:update_type(Pid, AddBucketType, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
+%             riakc_pb_socket:update_type(Pid, AddBucketType, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
+%             riakc_pb_socket:update_type(Pid, AddBucketType, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
+%             ok
+%    end.
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
@@ -662,20 +627,20 @@ process_prescription(Pid, Id, Date) ->
 
 %% Uses a Pid connected to Riak to fetch the open prescriptions and processed prescriptions
 %% Returns [OpenPrescriptions, ProcessedPrescriptions]
-get_prescriptions(Pid, Key) ->
-    multi_read(Pid, [
-        {Key, <<"sets">>, <<"prescriptions">>},
-        {Key, <<"sets">>, <<"processed_prescriptions">>}
-    ]).
-
-can_process_prescription({error, not_found}) ->
-    {false, no_such_prescription};
-can_process_prescription({error, Reason}) ->
-    {false, Reason};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
-    {false, prescription_already_processed};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
-    true.
+% get_prescriptions(Pid, Key) ->
+%     multi_read(Pid, [
+%         {Key, <<"sets">>, <<"prescriptions">>},
+%         {Key, <<"sets">>, <<"processed_prescriptions">>}
+%     ]).
+%
+% can_process_prescription({error, not_found}) ->
+%     {false, no_such_prescription};
+% can_process_prescription({error, Reason}) ->
+%     {false, Reason};
+% can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
+%     {false, prescription_already_processed};
+% can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
+%     true.
 
 process_get_request(Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
@@ -686,8 +651,7 @@ process_get_request(Pid, Entity, Id) ->
     parse_read_result(get(Pid, Key, BucketType, BucketName)).
 
 parse_read_result({error, {notfound, _Type}}) -> {error, not_found};
-parse_read_result({ok, Object}) -> Object;
-parse_read_result(Result) -> erlang:error({unknown_read_result, Result}).
+parse_read_result({ok, Object}) -> Object.
 
 get(Key, BucketType, BucketName) ->
     Pid = fmke_db_conn_manager:checkout(),
@@ -708,4 +672,4 @@ no_such_entity(facility) ->           no_such_facility;
 no_such_entity(patient) ->            no_such_patient;
 no_such_entity(pharmacy) ->           no_such_pharmacy;
 no_such_entity(prescription) ->       no_such_prescription;
-no_such_entity(staff) ->              no_such_staff;
+no_such_entity(staff) ->              no_such_staff.
