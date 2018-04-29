@@ -237,15 +237,31 @@ handle_call({create, Entity, [Id | _T] = Fields}, _From, State) ->
 handle_call({update, prescription, Id, Action}, _From, State) ->
     {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
     Pid = fmke_db_conn_manager:checkout(),
-    Result = case get_prescription_by_id(Id) of
+    PrescObj = process_get_request(Pid, prescription, Id),
+    PrescRec = build_app_record(prescription, PrescObj),
+    Result = case PrescRec of
         {error, not_found} ->
             {error, no_such_prescription};
         #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
             {error, prescription_already_processed};
-        P when is_record(P, prescription) ->
-            Prescription = chg_presc(P, Action),
-            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key,
-                riakc_map:to_op(gen_entity(prescription, Prescription)))
+        _ ->
+            PrescObj1 = case Action of
+                {drugs, add, Drugs} ->
+                    Map = riakc_map:update({?PRESCRIPTION_DRUGS_KEY, set}, fun(S) ->
+                            riakc_set:add_elements(lists:map(fun list_to_binary/1, Drugs), S)
+                    end, PrescObj),
+                    riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+                                        fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
+                                        Map);
+                {date_processed, DateProcessed} ->
+                    Map = riakc_map:update({?PRESCRIPTION_DATE_PROCESSED_KEY, register},
+                                        fun(R) -> riakc_register:set(list_to_binary(DateProcessed), R) end,
+                                        PrescObj),
+                    riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
+                                        fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
+                                        Map)
+            end,
+            riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(PrescObj1))
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
@@ -278,11 +294,13 @@ get_bucket(pharmacy) ->         <<"pharmacies">>;
 get_bucket(prescription) ->     <<"prescriptions">>;
 get_bucket(staff) ->            <<"staff">>.
 
-chg_presc(#prescription{} = P, {date_processed, Date}) ->
-    P#prescription{date_processed = Date, is_processed = ?PRESCRIPTION_PROCESSED_VALUE};
-
-chg_presc(#prescription{} = P, {drugs, add, Drugs}) ->
-    P#prescription{drugs = lists:append(P#prescription.drugs, Drugs)}.
+% 
+% -spec chg_presc(prescription(), tuple()) -> prescription().
+% chg_presc(#prescription{} = P, {date_processed, Date}) ->
+%     P#prescription{date_processed = Date, is_processed = ?PRESCRIPTION_PROCESSED_VALUE};
+%
+% chg_presc(#prescription{} = P, {drugs, add, Drugs}) ->
+%     P#prescription{drugs = lists:append(P#prescription.drugs, Drugs)}.
 
 create_if_not_exists(Pid, Entity, Fields) ->
     Id = hd(Fields),
