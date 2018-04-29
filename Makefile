@@ -120,25 +120,5 @@ test: all
 	rebar3 eunit
 	rebar3 ct
 
-test-multiple-releases:
-	rm -rf _build/default/rel
-	./scripts/start_data_store.sh antidote
-	./scripts/config/change_http_port.sh 9090
-	./scripts/config/change_db.sh antidote
-	./scripts/config/change_db_ports.sh antidote
-	${REBAR} release -n fmke
-	./_build/default/rel/fmke/bin/env start
-	sleep 10
-	./scripts/config/change_http_port.sh 9190
-	${REBAR} release -n fmke_test
-	./_build/default/rel/fmke_test/bin/env_test start
-	sleep 10
-	./scripts/populate_fmke.escript "antidote" "../config/benchmark_short.config" "fmke_test@127.0.0.1"
-	_build/test/lib/lasp_bench/_build/default/bin/lasp_bench config/benchmark_short.config
-	./scripts/config/change_http_port.sh 9090
-	./_build/default/rel/fmke/bin/env stop
-	./_build/default/rel/fmke_test/bin/env_test stop
-	./scripts/stop_data_store.sh antidote
-
 xref:
 	rebar3 xref
