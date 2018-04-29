@@ -78,9 +78,9 @@ groups() ->
         {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
         ,{opt_antidote, [shuffle], ?TEST_BATTERY}
-        ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
+        % ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
         ,{opt_riak, [shuffle], ?TEST_BATTERY}
         ,{ets_nested, [shuffle], ?TEST_BATTERY}

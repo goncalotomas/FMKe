@@ -11,7 +11,7 @@
     start_node_with_ets_backend/2,
     start_node_with_redis_backend/3,
     start_node_with_riak_backend/3,
-    start_node_with_mock_redis_cluster/3,
+    start_node_with_mock_cluster/3,
     stop_all/0,
     stop_antidote/0,
     stop_riak/0,
@@ -72,17 +72,17 @@ start_node_with_redis_backend(Name, Optimized, DataModel) ->
     start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
                       {database_ports, [?REDIS_PORT]}]).
 
-start_node_with_mock_redis_cluster(Name, Optimized, DataModel) ->
-    fmke_test_setup:start_redis(),
+start_node_with_mock_cluster(Name, Optimized, DataModel) ->
+    fmke_test_setup:start_antidote(),
     %% Uses two different loopback addresses to create pools (one IPv4, one IPv6)
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
-                      {database_addresses, ["127.0.0.1", "::1"]}, {database_ports, [?REDIS_PORT]}]).
+    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, antidote},
+                      {database_addresses, ["127.0.0.1", "localhost"]}, {database_ports, [?ANTIDOTE_PORT]}]).
 
 start_node(Name, Opts) ->
     CodePath = lists:filter(fun filelib:is_dir/1, code:get_path()),
     %% have the slave nodes monitor the runner node, so they can't outlive it
     NodeConfig = [{monitor_master, true}, {kill_if_fail, true}, {boot_timeout, 5}, {init_timeout, 3},
-        {startup_timeout, 1}, {startup_functions, [{code, set_path, [CodePath]}]}],
+        {startup_timeout, 3}, {startup_functions, [{code, set_path, [CodePath]}]}],
     %% start ct_slave node
     case ct_slave:start(Name, NodeConfig) of
         {ok, Node} ->
@@ -91,7 +91,6 @@ start_node(Name, Opts) ->
                 fun({Opt, Val}) ->
                     rpc:call(Node, application, set_env, [?APP, Opt, Val])
                 end, StartupOpts),
-
             {target_database, Database} = lists:keyfind(target_database, 1, StartupOpts),
             ok = load_client_lib(Node, Database),
             %% start the application remotely
