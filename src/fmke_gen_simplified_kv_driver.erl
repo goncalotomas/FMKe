@@ -22,7 +22,6 @@
 -include ("fmke.hrl").
 
 %% Types TODO: refine type defs
--type key() :: term().
 -type context() :: term(). %% specific to each driver
 -type map_update() :: [nested_object_update()].
 -type nested_object_update() :: nested_register_update() | nested_set_update() | nested_map_update().
