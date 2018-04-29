@@ -1,4 +1,4 @@
-REBAR = rebar3
+REBAR=rebar3
 BENCH=_build/test/lib/lasp_bench
 
 all: compile rel
@@ -33,7 +33,6 @@ bench-riak-norm: rel
 
 compile:
 	${REBAR} as test compile
-	cd ./_build/test/lib/lasp_bench && rebar3 escriptize
 
 console: rel
 	./_build/default/rel/fmke/bin/env console
@@ -87,7 +86,7 @@ shell-riak: rel
 	./scripts/start_data_store.sh riak
 	./_build/default/rel/fmke/bin/env console
 
-start:
+start: rel
 	./scripts/start_fmke.sh
 
 start-antidote: select-antidote
