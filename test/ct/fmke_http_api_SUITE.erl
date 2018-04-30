@@ -49,14 +49,14 @@ suite() ->
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
     [
-        % {group, simple_antidote_nested}
-        % ,{group, simple_antidote_non_nested}
-        {group, opt_antidote}
-        % ,{group, redis}
-        % {group, simple_riak_nested}
-        ,{group, simple_riak_non_nested}
-        ,{group, ets_nested}
-        ,{group, ets_non_nested}
+    % {group, simple_antidote_nested}
+    % ,{group, simple_antidote_non_nested}
+    {group, opt_antidote}
+    ,{group, opt_riak}
+    % {group, simple_riak_nested}
+    ,{group, simple_riak_non_nested}
+    ,{group, ets_nested}
+    ,{group, ets_non_nested}
     ].
 
 %%%-------------------------------------------------------------------

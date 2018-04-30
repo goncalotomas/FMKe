@@ -51,7 +51,7 @@ all() ->
         % {group, simple_antidote_nested}
         % ,{group, simple_antidote_non_nested}
         {group, opt_antidote}
-        % ,{group, redis}
+        ,{group, opt_riak}
         % {group, simple_riak_nested}
         ,{group, simple_riak_non_nested}
         ,{group, ets_nested}
@@ -373,18 +373,45 @@ get_pharmacy_after_update(Config) ->
 
 
 prescription_unit_tests(Config) ->
+    get_staff_prescriptions_from_unexistant_staff(Config),
+    get_pharmacy_prescriptions_from_unexistant_pharmacy(Config),
+    get_processed_pharmacy_prescriptions_from_unexistant_pharmacy(Config),
     add_required_entities(Config),
+    get_staff_prescriptions_from_staff_with_no_prescriptions(Config),
+    get_pharmacy_prescriptions_from_pharmacy_with_no_prescriptions(Config),
+    get_processed_prescriptions_from_pharmacy_with_no_prescriptions(Config),
     get_unexisting_prescription(Config),
     process_unexisting_prescription(Config),
     add_medication_to_unexisting_prescription(Config),
     add_unexisting_prescription(Config),
     get_existing_prescription(Config),
+    get_staff_prescriptions_from_staff_with_prescriptions(Config),
+    get_pharmacy_prescriptions_from_pharmacy_with_prescriptions(Config),
+    get_processed_prescriptions_from_pharmacy_with_prescriptions(Config),
     add_existing_prescription(Config),
     update_prescription_medication(Config),
     process_existing_non_processed_prescription(Config),
     add_medication_to_processed_prescription(Config),
     process_already_processed_prescription(Config),
-    get_prescription_after_updates(Config).
+    get_prescription_after_updates(Config),
+    get_staff_prescriptions_from_staff_with_processed_prescriptions(Config),
+    get_pharmacy_prescriptions_from_pharmacy_with_processed_prescriptions(Config),
+    get_processed_prescriptions_from_pharmacy_with_processed_prescriptions(Config).
+
+get_staff_prescriptions_from_unexistant_staff(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    {error, no_such_staff} = rpc(Config, get_staff_prescriptions, [StaffId]).
+
+get_pharmacy_prescriptions_from_unexistant_pharmacy(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    {error, no_such_pharmacy} = rpc(Config, get_pharmacy_prescriptions, [PharmId]).
+
+get_processed_pharmacy_prescriptions_from_unexistant_pharmacy(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    {error, no_such_pharmacy} = rpc(Config, get_processed_pharmacy_prescriptions, [PharmId]).
 
 add_required_entities(Config) ->
     TabId = ?config(table, Config),
@@ -405,6 +432,21 @@ add_required_entities(Config) ->
     ok = rpc(Config, create_pharmacy, [PharmId2, PharmName2, PharmAddress2]),
     ok = rpc(Config, create_staff, [StaId1, StaName1, StaAddr1, StaSpec1]),
     ok = rpc(Config, create_staff, [StaId2, StaName2, StaAddr2, StaSpec2]).
+
+get_staff_prescriptions_from_staff_with_no_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    [] = rpc(Config, get_staff_prescriptions, [StaffId]).
+
+get_pharmacy_prescriptions_from_pharmacy_with_no_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [] = rpc(Config, get_pharmacy_prescriptions, [PharmId]).
+
+get_processed_prescriptions_from_pharmacy_with_no_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [] = rpc(Config, get_processed_pharmacy_prescriptions, [PharmId]).
 
 get_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -468,6 +510,33 @@ get_existing_prescription(Config) ->
     } = rpc(Config, get_staff_by_id, [PrescId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
+
+get_staff_prescriptions_from_staff_with_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, pharmacy_id = PharmId,
+                                         prescriber_id = PrescId, date_prescribed = DatePresc,
+                                         date_processed = <<"undefined">>, drugs = Drugs,
+                                         is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE},
+    [Prescription] = rpc(Config, get_staff_prescriptions, [StaffId]),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, [Prescription]).
+
+get_pharmacy_prescriptions_from_pharmacy_with_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, pharmacy_id = PharmId,
+                                         prescriber_id = PrescId, date_prescribed = DatePresc,
+                                         date_processed = <<"undefined">>, drugs = Drugs,
+                                         is_processed = ?PRESCRIPTION_NOT_PROCESSED_VALUE},
+    [Prescription] = rpc(Config, get_pharmacy_prescriptions, [PharmId]),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, [Prescription]).
+
+get_processed_prescriptions_from_pharmacy_with_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [] = rpc(Config, get_processed_pharmacy_prescriptions, [PharmId]).
 
 add_existing_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -538,6 +607,44 @@ get_prescription_after_updates(Config) ->
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
+get_staff_prescriptions_from_staff_with_processed_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    [{processed_prescription_date, Id, DateProc}] = ets:lookup(TabId, processed_prescription_date),
+    [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, pharmacy_id = PharmId,
+                                         prescriber_id = PrescId, date_prescribed = DatePresc,
+                                         date_processed = DateProc, drugs = lists:append(Drugs, AdditionalDrugs),
+                                         is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+    [Prescription] = rpc(Config, get_staff_prescriptions, [StaffId]),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, [Prescription]).
+
+get_pharmacy_prescriptions_from_pharmacy_with_processed_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    [{processed_prescription_date, Id, DateProc}] = ets:lookup(TabId, processed_prescription_date),
+    [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, pharmacy_id = PharmId,
+                                         prescriber_id = PrescId, date_prescribed = DatePresc,
+                                         date_processed = DateProc, drugs = lists:append(Drugs, AdditionalDrugs),
+                                         is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+    [Prescription] = rpc(Config, get_pharmacy_prescriptions, [PharmId]),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, [Prescription]).
+
+get_processed_prescriptions_from_pharmacy_with_processed_prescriptions(Config) ->
+    TabId = ?config(table, Config),
+    [{pharmacy, PharmId, _, _}] = ets:lookup(TabId, pharmacy),
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    [{processed_prescription_date, Id, DateProc}] = ets:lookup(TabId, processed_prescription_date),
+    [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, pharmacy_id = PharmId,
+                                         prescriber_id = PrescId, date_prescribed = DatePresc,
+                                         date_processed = DateProc, drugs = lists:append(Drugs, AdditionalDrugs),
+                                         is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+    [Prescription] = rpc(Config, get_processed_pharmacy_prescriptions, [PharmId]),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, [Prescription]).
 
 %%%-------------------------------------------------------------------
 %%% staff endpoint tests
