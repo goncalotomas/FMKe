@@ -276,7 +276,7 @@ handle_call({read, staff, Id, [prescriptions]}, _From, {Driver, DataModel}) ->
     {[ReadResult], Context2} = Driver:get([{gen_key(staff, Id), staff}], Context),
     {Result, Context4} = case ReadResult of
         {error, not_found} ->
-            {{error, no_such_pharmacy}, Context2};
+            {{error, no_such_staff}, Context2};
         Rec when is_record(Rec, staff) ->
             case DataModel of
                 nested ->
@@ -327,7 +327,7 @@ handle_call({read, pharmacy, Id, [prescriptions], FilterFun}, _From, {Driver, Da
             case DataModel of
                 nested ->
                     %% within the pharmacy record is a list of prescription objects
-                    {Rec#pharmacy.prescriptions, Context2};
+                    {lists:filter(FilterFun, Rec#pharmacy.prescriptions), Context2};
                 non_nested ->
                     %% within the pharmacy record is a list of keys
                     Entries = lists:map(fun(P) -> {P, prescription} end, Rec#pharmacy.prescriptions),
