@@ -226,31 +226,39 @@ handle_call({get, Entity, Id}, _From, State) ->
 handle_call({get, Entity, Id, prescriptions}, _From, State) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
-    [Prescriptions, ProcessedPrescriptions] = multi_read([
-      create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET),
-      create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
-    ], Txn),
-    Result =
-      case {Prescriptions, ProcessedPrescriptions} of
-          {{error, not_found}, {error, not_found}} -> [];
-          {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
-          {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
-          {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
-      end,
+    Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
+        {error, not_found} ->
+            {error, no_such_entity_error(Entity)};
+        _ ->
+            [Prescriptions, ProcessedPrescriptions] = multi_read([
+              create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET),
+              create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
+            ], Txn),
+            case {Prescriptions, ProcessedPrescriptions} of
+                {{error, not_found}, {error, not_found}} -> [];
+                {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
+                {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
+                {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+            end
+    end,
     txn_commit(Txn),
     {reply, Result, State};
 
 handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
-    [ProcessedPrescriptions] = multi_read([
-      create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
-    ], Txn),
-    Result =
-      case ProcessedPrescriptions of
-          {error, not_found} -> [];
-          Keys ->  Keys
-      end,
+    Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
+        {error, not_found} ->
+            {error, no_such_entity_error(Entity)};
+        _ ->
+            [ProcessedPrescriptions] = multi_read([
+              create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
+            ], Txn),
+            case ProcessedPrescriptions of
+                {error, not_found} -> [];
+                Keys ->  Keys
+            end
+    end,
     txn_commit(Txn),
     {reply, Result, State};
 
@@ -559,3 +567,8 @@ build_id_op(Key, KeyType, Id) ->
 
 build_lwwreg_op(Key, KeyType, Value) ->
     build_map_op(Key, KeyType, {assign, Value}).
+
+no_such_entity_error(facility) ->   no_such_facility;
+no_such_entity_error(patient) ->    no_such_patient;
+no_such_entity_error(pharmacy) ->   no_such_pharmacy;
+no_such_entity_error(staff) ->      no_such_staff.
