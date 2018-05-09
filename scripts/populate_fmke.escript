@@ -3,7 +3,8 @@
 %%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 15).
+-define(NUMTHREADS, 30).
+-define(DIVERGENCE_TIMEOUT, 10).
 -define(MAX_RETRIES, 10).
 
 -record(fmkeconfig, {
@@ -171,8 +172,21 @@ add_prescription_rec(Nodes, PrescriptionId, ListPatientIds, FmkConfig, Ops) ->
   PharmacyId = rand:uniform(FmkConfig#fmkeconfig.numpharmacies),
   PrescriberId = rand:uniform(FmkConfig#fmkeconfig.numstaff),
   Node = lists:nth(PrescriptionId rem length(Nodes) + 1, Nodes),
-  ok = run_op(Node, create_prescription, [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()]),
+  OpArgs = [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()],
+  Result = run_op(Node, create_prescription, OpArgs)
+  case divergence_failure(Result) of
+      false ->
+          ok;
+      true ->
+          timer:sleep(?DIVERGENCE_TIMEOUT * 1000),
+          ok = run_op(Node, create_prescription, OpArgs)
+  end,
   add_prescription_rec(Nodes, PrescriptionId - 1, Tail, FmkConfig, Ops + 1).
+
+divergence_failure(ok) -> false;
+divergence_failure({error, no_such_patient}) -> true;
+divergence_failure({error, no_such_pharmacy}) -> true;
+divergence_failure({error, no_such_staff}) -> true.
 
 run_op(FmkNode, create_pharmacy, Params) ->
   [_Id, _Name, _Address] = Params,
