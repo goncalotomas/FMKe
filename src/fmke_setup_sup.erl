@@ -44,17 +44,19 @@ init([Adapter, Database, DataModel, Optimized]) ->
 
     BaseChildren = [adapter_spec(Adapter, Driver, DataModel), driver_spec(Driver, DataModel)],
 
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    {ok, Hostnames} = application:get_env(?APP, database_addresses),
+    {ok, PortNums} = application:get_env(?APP, database_ports),
+    {Hosts, Ports} = make_same_len(Hostnames, PortNums),
+
     Children = case requires_conn_manager(Database, DataModel, Optimized) of
         false ->
             ok = application:set_env(?APP, pools, []),
+            ok = application:set_env(?APP, hosts, Hosts),
+            ok = application:set_env(?APP, ports, Ports),
             BaseChildren;
         true ->
-            {ok, ConnPoolSize} = application:get_env(connection_pool_size),
-            {ok, Hostnames} = application:get_env(database_addresses),
-            {ok, PortNums} = application:get_env(database_ports),
-
             Mod = get_client_lib(Database, DataModel, Optimized),
-            {Hosts, Ports} = make_same_len(Hostnames, PortNums),
             Pools = gen_pool_names(Hosts, Ports),
             Connections = lists:zip(Hosts, Ports),
             Args = [Pools, Connections, Mod, ConnPoolSize],
@@ -101,8 +103,7 @@ gen_pool_names([A|T], [P|T2], Accum) ->
 
 -spec get_client_lib(Database::atom(), DataModel::atom(), Optimized::atom()) -> atom().
 get_client_lib(antidote, _, _) ->       antidotec_pb_socket;
-get_client_lib(riak, _, _) ->           riakc_pb_socket;
-get_client_lib(redis, _, _) ->          eredis.
+get_client_lib(riak, _, _) ->           riakc_pb_socket.
 
 -spec requires_ets_table(Database::atom(), DataModel::atom(), Optimized::atom()) -> true | false.
 requires_ets_table(ets, _, _) ->        true;
@@ -111,18 +112,16 @@ requires_ets_table(_, _, _) ->          false.
 -spec requires_conn_manager(Database::atom(), DataModel::atom(), Optimized::atom()) -> true | false.
 requires_conn_manager(antidote, _, _) ->    true;
 requires_conn_manager(riak, _, _) ->        true;
-requires_conn_manager(redis, _, _) ->       true;
 requires_conn_manager(_, _, _) ->           false.
 
 -spec driver(Database::database()) -> module().
 driver(antidote) ->     fmke_driver_antidote;
 driver(ets) ->          fmke_driver_ets;
-driver(redis) ->        fmke_driver_redis;
 driver(riak) ->         fmke_driver_riak_kv.
 
 -spec opt_driver(Database::atom()) -> module().
 opt_driver(antidote) -> fmke_driver_opt_antidote;
-opt_driver(redis) ->    fmke_driver_opt_redis;
+opt_driver(redis) ->    fmke_driver_opt_redis_cluster;
 opt_driver(riak) ->     fmke_driver_opt_riak_kv.
 
 -spec make_same_len(L1 :: list(), L2 :: list()) -> {list(), list()}.
@@ -130,6 +129,7 @@ make_same_len(L1, L2) when length(L1) == length(L2) -> {L1, L2};
 make_same_len([H1|_T1] = L1, L2) when length(L1) < length(L2) -> make_same_len([H1 | L1], L2);
 make_same_len(L1, [H2|_T2] = L2) when length(L1) > length(L2) -> make_same_len(L1, [H2 | L2]).
 
+-spec gen_pool_name(Addr :: list(), Port :: non_neg_integer()) -> list().
 gen_pool_name(Addr, Port) ->
     AtomCompatAddr = get_atom_compatible_list(Addr),
     list_to_atom(unicode:characters_to_list(["pool_", AtomCompatAddr, "_", integer_to_list(Port)])).
