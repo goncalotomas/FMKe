@@ -129,7 +129,7 @@ make_same_len(L1, L2) when length(L1) == length(L2) -> {L1, L2};
 make_same_len([H1|_T1] = L1, L2) when length(L1) < length(L2) -> make_same_len([H1 | L1], L2);
 make_same_len(L1, [H2|_T2] = L2) when length(L1) > length(L2) -> make_same_len(L1, [H2 | L2]).
 
--spec gen_pool_name(Addr :: list(), Port :: non_neg_integer()) -> list().
+-spec gen_pool_name(Addr :: list(), Port :: non_neg_integer()) -> atom().
 gen_pool_name(Addr, Port) ->
     AtomCompatAddr = get_atom_compatible_list(Addr),
     list_to_atom(unicode:characters_to_list(["pool_", AtomCompatAddr, "_", integer_to_list(Port)])).
