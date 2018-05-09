@@ -52,7 +52,7 @@ all() ->
         % ,{group, simple_antidote_non_nested}
         {group, opt_antidote}
         ,{group, opt_riak}
-        % {group, simple_riak_nested}
+        % ,{group, simple_riak_nested}
         ,{group, simple_riak_non_nested}
         ,{group, ets_nested}
         ,{group, ets_non_nested}
@@ -383,6 +383,9 @@ prescription_unit_tests(Config) ->
     get_unexisting_prescription(Config),
     process_unexisting_prescription(Config),
     add_medication_to_unexisting_prescription(Config),
+    add_prescription_with_unexistant_patient(Config),
+    add_prescription_with_unexistant_pharmacy(Config),
+    add_prescription_with_unexistant_staff(Config),
     add_unexisting_prescription(Config),
     get_existing_prescription(Config),
     get_staff_prescriptions_from_staff_with_prescriptions(Config),
@@ -463,6 +466,21 @@ add_medication_to_unexisting_prescription(Config) ->
     [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
     {error, no_such_prescription} = rpc(Config, update_prescription_medication, [Id,
         add_drugs, ["RandomDrug1", "RandomDrug2", "RandomDrug3"]]).
+
+add_prescription_with_unexistant_patient(Config) ->
+    TabId = ?config(table, Config),
+    [{prescription, Id, _PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_patient} = rpc(Config, create_prescription, [Id, 0, PrescId, PharmId, DatePresc, Drugs]).
+
+add_prescription_with_unexistant_pharmacy(Config) ->
+    TabId = ?config(table, Config),
+    [{prescription, Id, PatId, PrescId, _PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_pharmacy} = rpc(Config, create_prescription, [Id, PatId, PrescId, 0, DatePresc, Drugs]).
+
+add_prescription_with_unexistant_staff(Config) ->
+    TabId = ?config(table, Config),
+    [{prescription, Id, PatId, _PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_staff} = rpc(Config, create_prescription, [Id, PatId, 0, PharmId, DatePresc, Drugs]).
 
 add_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),

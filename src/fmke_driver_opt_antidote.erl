@@ -140,25 +140,29 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
     PrescriberKey = gen_key(staff, PrescriberId),
     Txn = txn_start(),
     %% check required pre-conditions
-    [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-        = check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
+    Res = case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
+        {true, Entity} ->
+            txn_commit(Txn),
+            {error, no_such_entity_error(Entity)};
+        false ->
+            PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+            {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
 
-    PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
-    {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
-
-    {Result, Txn3} = case HandleCreateOpResult of
-        ok ->
-            %% build updates for patients, pharmacies, facilities and the prescriber
-            %% these are already generated as buckets
-            PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
-            PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
-            PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
-            txn_update_objects([ PharmacyUpdate, PrescriberUpdate, PatientUpdate ], Txn2),
-            {ok, Txn2};
-        ErrorMessage -> {ErrorMessage, Txn2}
+            {Result, Txn3} = case HandleCreateOpResult of
+                ok ->
+                    %% build updates for patients, pharmacies, facilities and the prescriber
+                    %% these are already generated as buckets
+                    PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
+                    PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
+                    PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
+                    txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
+                    {ok, Txn2};
+                ErrorMessage -> {ErrorMessage, Txn2}
+            end,
+            txn_commit(Txn3),
+            Result
     end,
-    txn_commit(Txn3),
-    {reply, Result, State};
+    {reply, Res, State};
 
 handle_call({create, Entity, Fields}, _From, State) ->
     {reply, create_if_not_exists(Entity, Fields), State};
@@ -272,6 +276,13 @@ handle_call({get, prescription, Id, drugs}, _From, State) ->
 
 handle_cast(_Msg, State) ->
     {noreply, State}.
+
+missing_keys([]) ->
+    false;
+missing_keys([{taken, _Key} | T]) ->
+    missing_keys(T);
+missing_keys([{free, {Entity, _Key}} | _T]) ->
+    {true, Entity}.
 
 create_if_not_exists(Entity, Fields) ->
     Txn = txn_start(),

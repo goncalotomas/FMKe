@@ -127,7 +127,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
         {PrescKey, prescription}, {PatKey, patient}, {StaffKey, staff}, {PharmKey, pharmacy}
     ], Context),
 
-    ChecksOk = check_keys([P], Ks),
+    ChecksOk = check_keys([{PrescKey, P}], lists:zip([PatKey, StaffKey, PharmKey], Ks)),
     PrscObj = mk_app_rec(prescription, Fields),
     {Result, Context4} = case {ChecksOk, DataModel} of
         {true, nested} ->
@@ -146,8 +146,14 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
                 {PharmKey, pharmacy, Pharmacy#pharmacy{prescriptions = [PrescKey | Pharmacy#pharmacy.prescriptions]}}
             ], Context2),
             {prsc_wrt_res(WResult), Context3};
-        {{false, key_exists, Rec}, _} when is_record(Rec, prescription) ->
+        {{false, key_exists, PrescKey}, _} ->
             {{error, prescription_id_taken}, Context2};
+        {{false, missing_key, PatKey}, _} ->
+            {{error, no_such_patient}, Context2};
+        {{false, missing_key, PharmKey}, _} ->
+            {{error, no_such_pharmacy}, Context2};
+        {{false, missing_key, StaffKey}, _} ->
+            {{error, no_such_staff}, Context2};
         {Error, _} ->
             {{error, Error}, Context2}
     end,
@@ -369,19 +375,18 @@ prsc_wrt_res([H|_T]) when H =/= ok -> {error, write_failed, H}.
 %% after a get request returns multiple results, checks if every K in Keys1 is {error, not_found}, and every K in Keys2
 %% returns a valid application record
 -spec check_keys(Keys1::list(binary()), Keys2::list(binary())) -> true | {false, atom()} | {false, atom(), binary()}.
-check_keys([], []) -> true;
-check_keys([H|_T], _Keys2) when is_record(H, facility) ->            {false, key_exists, H};
-check_keys([H|_T], _Keys2) when is_record(H, patient) ->             {false, key_exists, H};
-check_keys([H|_T], _Keys2) when is_record(H, pharmacy) ->            {false, key_exists, H};
-check_keys([H|_T], _Keys2) when is_record(H, prescription) ->        {false, key_exists, H};
-check_keys([H|_T], _Keys2) when is_record(H, staff) ->               {false, key_exists, H};
-check_keys([H|T], Keys2) when H == {error, not_found} ->            check_keys(T, Keys2);
-check_keys(_Keys1, [H|_T]) when H == {error, not_found} ->           {false, missing_key, H};
-check_keys(Keys1, [H|T]) when is_record(H, facility) ->            check_keys(Keys1, T);
-check_keys(Keys1, [H|T]) when is_record(H, patient) ->             check_keys(Keys1, T);
-check_keys(Keys1, [H|T]) when is_record(H, pharmacy) ->            check_keys(Keys1, T);
-check_keys(Keys1, [H|T]) when is_record(H, prescription) ->        check_keys(Keys1, T);
-check_keys(Keys1, [H|T]) when is_record(H, staff) ->               check_keys(Keys1, T).
+check_keys([], []) ->
+    true;
+check_keys([{K, H} | _T], _Keys2) when is_record(H, facility); is_record(H, patient); is_record(H, pharmacy);
+                                       is_record(H, prescription); is_record(H, staff) ->
+    {false, key_exists, K};
+check_keys([{_K, H} | T], Keys2) when H == {error, not_found} ->
+    check_keys(T, Keys2);
+check_keys(_Keys1, [{K, H} | _T]) when H == {error, not_found} ->
+    {false, missing_key, K};
+check_keys(Keys1, [{_K, H} | T]) when is_record(H, facility); is_record(H, patient); is_record(H, pharmacy);
+                                      is_record(H, prescription); is_record(H, staff) ->
+    check_keys(Keys1, T).
 
 mk_app_rec(facility, [Id, Name, Address, Type]) ->
     #facility{id = Id, name = Name, address = Address, type = Type};

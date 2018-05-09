@@ -181,23 +181,26 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
     PatientKey = get_key(patient, PatientId),
     PharmacyKey = get_key(pharmacy, PharmacyId),
     PrescriberKey = get_key(staff, PrescriberId),
-    %% check required pre-conditions
-    [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-      = check_keys(Pid, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}]),
 
-    PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
-    HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
+    Res = case missing_keys(check_keys(Pid, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
+        {true, patient} -> {error, no_such_patient};
+        {true, pharmacy} -> {error, no_such_pharmacy};
+        {true, staff} -> {error, no_such_staff};
+        false ->
+            PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+            HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
 
-    Result = case HandleCreateOpResult of
-        ok ->
-            add_presc_ref(Pid, ?PRESC_BUCKET, PatientKey, Key),
-            add_presc_ref(Pid, ?PRESC_BUCKET, PharmacyKey, Key),
-            add_presc_ref(Pid, ?PRESC_BUCKET, PrescriberKey, Key);
-        ErrorMessage ->
-            ErrorMessage
+            case HandleCreateOpResult of
+                ok ->
+                    add_presc_ref(Pid, ?PRESC_BUCKET, PatientKey, Key),
+                    add_presc_ref(Pid, ?PRESC_BUCKET, PharmacyKey, Key),
+                    add_presc_ref(Pid, ?PRESC_BUCKET, PrescriberKey, Key);
+                ErrorMessage ->
+                    ErrorMessage
+            end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    {reply, Res, State};
 
 %% create (for facility, patient, pharmacy, staff)
 handle_call({create, Entity, [Id | _T] = Fields}, _From, State) ->
@@ -269,6 +272,13 @@ handle_call({update, Entity, [Id | _T] = Fields}, _From, State) ->
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State}.
+
+missing_keys([]) ->
+    false;
+missing_keys([{taken, _Key} | T]) ->
+    missing_keys(T);
+missing_keys([{free, {Entity, _Key}} | _T]) ->
+    {true, Entity}.
 
 rm_presc_ref(Pid, Bucket, Key, PKey) ->
     RefList = parse_read_result(riakc_pb_socket:fetch_type(Pid, {?REF_BUCKET_TYPE, Bucket}, Key)),
