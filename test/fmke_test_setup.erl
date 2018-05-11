@@ -21,7 +21,7 @@
 
 -define(ANTIDOTE_PORT, 8087).
 -define(RIAK_PORT, 8087).
--define(REDIS_PORT, 6379).
+-define(REDIS_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
 
 start_antidote() ->
     Result = os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
@@ -43,9 +43,10 @@ stop_riak() ->
     os:cmd("docker stop riak && docker rm riak").
 
 start_redis() ->
-    Result = os:cmd("docker run -d --name redis -p \"6379:6379\" redis"),
+    Result = os:cmd("docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p \"7000:7000\" -p \"7001:7001\""
+    " -p \"7002:7002\" -p \"7003:7003\" -p \"7004:7004\" -p \"7005:7005\" grokzen/redis-cluster:latest"),
     io:format("Starting redis...~n~p~n", [Result]),
-    timer:sleep(4000).
+    timer:sleep(10000).
 
 stop_redis() ->
     os:cmd("docker stop redis && docker rm redis").
@@ -70,7 +71,7 @@ start_node_with_riak_backend(Name, Optimized, DataModel) ->
 start_node_with_redis_backend(Name, Optimized, DataModel) ->
     fmke_test_setup:start_redis(),
     start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
-                      {database_ports, [?REDIS_PORT]}]).
+                      {database_ports, ?REDIS_PORTS}]).
 
 start_node_with_mock_cluster(Name, Optimized, DataModel) ->
     fmke_test_setup:start_antidote(),
@@ -128,9 +129,14 @@ stop_node(Node) ->
     wait_until_offline(Node).
 
 
-load_client_lib(Node, antidote) ->          rpc:call(Node, application, load, [antidote_pb]);
-load_client_lib(Node, antidote_norm) ->     load_client_lib(Node, antidote);
-load_client_lib(_Node, ets) ->              ok;
-load_client_lib(Node, riak) ->              rpc:call(Node, application, load, [riak_pb]);
-load_client_lib(Node, riak_norm) ->         load_client_lib(Node, riak);
-load_client_lib(Node, redis) ->             rpc:call(Node, application, load, [eredis]).
+load_client_lib(Node, antidote) ->
+    rpc:call(Node, application, load, [antidote_pb]);
+load_client_lib(_Node, ets) ->
+    ok;
+load_client_lib(Node, redis) ->
+    rpc:call(Node, application, load, [eredis]),
+    rpc:call(Node, application, load, [eredis_cluster]);
+load_client_lib(Node, riak) ->
+    rpc:call(Node, application, load, [riak_pb]);
+load_client_lib(Node, riak_kv) ->
+    rpc:call(Node, application, load, [riak_pb]).

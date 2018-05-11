@@ -51,11 +51,12 @@ all() ->
         % {group, simple_antidote_nested}
         % ,{group, simple_antidote_non_nested}
         {group, opt_antidote}
+        ,{group, opt_redis}
         ,{group, opt_riak}
         % ,{group, simple_riak_nested}
         ,{group, simple_riak_non_nested}
-        ,{group, ets_nested}
-        ,{group, ets_non_nested}
+        ,{group, simple_ets_nested}
+        ,{group, simple_ets_non_nested}
     ].
 
 %%%-------------------------------------------------------------------
@@ -73,28 +74,38 @@ end_per_suite(_Config) ->
 
 groups() ->
     [
-        {simple_antidote_nested, [shuffle], ?TEST_BATTERY}
+        {opt_antidote, [shuffle], ?TEST_BATTERY}
+        ,{opt_redis, [shuffle], ?TEST_BATTERY}
+        ,{opt_riak, [shuffle], ?TEST_BATTERY}
+        ,{simple_antidote_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{opt_antidote, [shuffle], ?TEST_BATTERY}
         ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
         ,{simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{opt_riak, [shuffle], ?TEST_BATTERY}
-        ,{ets_nested, [shuffle], ?TEST_BATTERY}
-        ,{ets_non_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_ets_nested, [shuffle], ?TEST_BATTERY}
+        ,{simple_ets_non_nested, [shuffle], ?TEST_BATTERY}
     ].
 
+init_per_group(opt_antidote, Config) ->
+    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(opt_redis, Config) ->
+    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, true, non_nested),
+    io:format("node started with ref ~p~n",[Node]),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
+init_per_group(opt_riak, Config) ->
+    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, true, non_nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config];
 init_per_group(simple_antidote_nested, Config) ->
     Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(simple_antidote_non_nested, Config) ->
     Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(opt_antidote, Config) ->
-    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
 init_per_group(simple_riak_nested, Config) ->
@@ -105,10 +116,6 @@ init_per_group(simple_riak_non_nested, Config) ->
     Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, false, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(opt_riak, Config) ->
-    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, true, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
 init_per_group(simple_redis_nested, Config) ->
     Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
@@ -117,11 +124,11 @@ init_per_group(simple_redis_non_nested, Config) ->
     Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(ets_nested, Config) ->
+init_per_group(simple_ets_nested, Config) ->
     Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
-init_per_group(ets_non_nested, Config) ->
+init_per_group(simple_ets_non_nested, Config) ->
     Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, non_nested),
     erlang:set_cookie(?NODENAME, ?COOKIE),
     [{node, Node} | Config];
@@ -594,6 +601,7 @@ get_prescription_after_updates(Config) ->
 
     RemPrescription = rpc(Config, get_prescription_by_id, [Id]),
 
+    io:format("Expected Prescription is ~p~nRemote Prescription is ~p", [ExpectedPrescription, RemPrescription]),
     true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, RemPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff

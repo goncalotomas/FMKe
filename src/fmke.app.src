@@ -15,7 +15,8 @@
     antidote_pb,
     riak_pb,
     riak_client,
-    eredis
+    eredis,
+    eredis_cluster
    ]},
 
   {modules, []},
