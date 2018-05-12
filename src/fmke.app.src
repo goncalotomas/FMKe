@@ -6,6 +6,8 @@
   {applications,
    [kernel,
     stdlib,
+    runtime_tools,
+    tools,
     poolboy,
     lager,
     cowboy,
@@ -13,7 +15,8 @@
     antidote_pb,
     riak_pb,
     riak_client,
-    eredis
+    eredis,
+    eredis_cluster
    ]},
 
   {modules, []},

@@ -1,7 +1,7 @@
 %% Default behaviour for a generic HTTP handler.
 -module (fmke_gen_http_handler).
 
--include ("fmk_http.hrl").
+-include ("fmke_http.hrl").
 
 -export ([init/3, handle_req/5, handle_reply/5]).
 
@@ -24,7 +24,7 @@ init(Mod, Req, State) ->
     catch
         Class:Reason ->
             lager:error(io_lib:format("Error ~p:~p in request from ~p~n", [Class, Reason, Mod])),
-            Req2 = handle_reply(Mod, Req, {error_internal}, false, Reason),
+            Req2 = handle_reply(Mod, Req, {error, internal}, false, Reason),
             {ok, Req2, State}
     end.
 

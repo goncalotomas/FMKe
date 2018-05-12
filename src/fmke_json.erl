@@ -1,15 +1,18 @@
 %% This module acts as a library for encoding FMKe entities into JSON objects, used in the HTTP API.
 -module(fmke_json).
 -include("fmke.hrl").
+-include("fmke_kv.hrl").
 
--export([encode/1]).
+-export([encode/1, decode/2]).
+
+-spec encode(Object :: app_record()) -> jsx:json_term().
 
 encode(Object = #pharmacy{}) ->
     PharmacyId = Object#pharmacy.id,
     PharmacyName = Object#pharmacy.name,
     PharmacyAddress = Object#pharmacy.address,
     PharmacyPrescriptions = Object#pharmacy.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, PharmacyPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(PharmacyPrescriptions),
     [
         {<<"pharmacyId">>, PharmacyId},
         {<<"pharmacyName">>, PharmacyName},
@@ -34,7 +37,7 @@ encode(Object = #patient{}) ->
     PatientName = Object#patient.name,
     PatientAddress = Object#patient.address,
     PatientPrescriptions = Object#patient.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, PatientPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(PatientPrescriptions),
     [
         {<<"patientId">>, PatientId},
         {<<"patientName">>, PatientName},
@@ -48,7 +51,7 @@ encode(Object = #staff{}) ->
     StaffAddress = Object#staff.address,
     StaffSpeciality = Object#staff.speciality,
     StaffPrescriptions = Object#staff.prescriptions,
-    JsonPrescriptions = encode(list_prescriptions, StaffPrescriptions),
+    JsonPrescriptions = encode_list_prescriptions(StaffPrescriptions),
     [
         {<<"staffId">>, StaffId},
         {<<"staffName">>, StaffName},
@@ -66,30 +69,83 @@ encode(Object = #prescription{}) ->
     PrescriptionIsProcessed = Object#prescription.is_processed,
     PrescriptionDatePrescribed = Object#prescription.date_prescribed,
     PrescriptionDateProcessed = Object#prescription.date_processed,
-    JsonDrugs = encode_string_list(PrescriptionDrugs),
     [
         {<<"prescriptionId">>, PrescriptionId},
         {<<"prescriptionPatientId">>, PrescriptionPatientId},
         {<<"prescriptionPharmacyId">>, PrescriptionPharmacyId},
         {<<"prescriptionPrescriberId">>, PrescriptionPrescriberId},
-        {<<"prescriptionDrugs">>, JsonDrugs},
+        {<<"prescriptionDrugs">>, encode_string_list(PrescriptionDrugs)},
         {<<"prescriptionIsProcessed">>, PrescriptionIsProcessed},
         {<<"prescriptionDatePrescribed">>, PrescriptionDatePrescribed},
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
     ].
 
-encode(list_prescriptions, NestedObject) ->
-    case is_list(NestedObject) andalso (length(NestedObject)>0) andalso is_binary(hd(NestedObject)) of
-        true -> NestedObject;
-        false -> lists:map(fun encode/1, NestedObject)
-    end.
+-spec encode_list_prescriptions(L :: list(binary() | prescription())) -> list(binary()).
+encode_list_prescriptions(L) ->
+    encode_list_prescriptions(L, []).
 
-encode_string_list([]) -> [];
-encode_string_list([H|T]) when is_binary(H) -> [H | encode_string_list(T)];
-encode_string_list([H|T]) when is_list(H) -> [list_to_binary(H) | encode_string_list(T)].
+encode_list_prescriptions([], Accum) ->
+    lists:reverse(Accum);
+encode_list_prescriptions([H|T], Accum) when is_binary(H) ->
+    encode_list_prescriptions(T, [H | Accum]);
+encode_list_prescriptions([H|T], Accum) when is_record(H, prescription) ->
+    encode_list_prescriptions(T, [encode(H) | Accum]).
+
+
+-spec encode_string_list(L :: list(string() | binary())) -> list(binary()).
+encode_string_list(L) ->
+    encode_string_list(L, []).
+
+encode_string_list([], Accum) ->
+    lists:reverse(Accum);
+encode_string_list([H|T], Accum) when is_list(H) ->
+    encode_string_list(T, [list_to_binary(H) | Accum]);
+encode_string_list([H|T], Accum) when is_binary(H) ->
+    encode_string_list(T, [H | Accum]).
+
+-spec decode(Entity :: entity(), Object :: jsx:json_term()) -> app_record().
+
+decode(prescription, PropList) when is_list(PropList)->
+    #prescription{
+        id = proplists:get_value(<<"prescriptionId">>, PropList)
+        ,patient_id = proplists:get_value(<<"prescriptionPatientId">>, PropList)
+        ,prescriber_id = proplists:get_value(<<"prescriptionPrescriberId">>, PropList)
+        ,pharmacy_id = proplists:get_value(<<"prescriptionPharmacyId">>, PropList)
+        ,date_prescribed = proplists:get_value(<<"prescriptionDatePrescribed">>, PropList)
+        ,date_processed = proplists:get_value(<<"prescriptionDateProcessed">>, PropList)
+        ,is_processed = proplists:get_value(<<"prescriptionIsProcessed">>, PropList)
+        ,drugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PropList))
+    };
+
+decode(prescription, Prescription) when is_binary(Prescription) ->
+    Prescription.
 
 -ifdef(TEST).
 -include_lib("eunit/include/eunit.hrl").
+
+encode_prescription_obj_list_test() ->
+    ?assertEqual([[
+        {<<"prescriptionId">>, 2},
+        {<<"prescriptionPatientId">>, 1},
+        {<<"prescriptionPharmacyId">>, 1},
+        {<<"prescriptionPrescriberId">>, 1},
+        {<<"prescriptionDrugs">>, [<<"Rupatadine">>]},
+        {<<"prescriptionIsProcessed">>, <<"prescription_processed">>},
+        {<<"prescriptionDatePrescribed">>, "19/01/2018"},
+        {<<"prescriptionDateProcessed">>, "20/01/2018"}
+    ]],
+    encode_list_prescriptions([
+        #prescription{id = 2, patient_id = 1, pharmacy_id = 1, prescriber_id = 1, date_prescribed = "19/01/2018",
+                      drugs = ["Rupatadine"], date_processed = "20/01/2018",
+                      is_processed = <<"prescription_processed">>
+                      }
+    ])).
+
+encode_prescription_ref_list_test() ->
+    [<<"prescription1">>, <<"prescription2">>] = encode_list_prescriptions([<<"prescription1">>, <<"prescription2">>]).
+
+encode_string_list_test() ->
+    [<<"b">>, <<"D">>] = encode_string_list(["b", <<"D">>]).
 
 encode_basic_facility_test() ->
     [
@@ -268,5 +324,22 @@ encode_medical_staff_with_prescription_references_test() ->
             <<"prescription_2">>, <<"prescription_1">>
         ]}
     ).
+
+decode_prescription_test() ->
+    JsonPrescription = [
+        {<<"prescriptionId">>, 1}
+        ,{<<"prescriptionPatientId">>, 2}
+        ,{<<"prescriptionPharmacyId">>, 3}
+        ,{<<"prescriptionPrescriberId">>, 4}
+        ,{<<"prescriptionDatePrescribed">>, "02/04/2018"}
+        ,{<<"prescriptionDateProcessed">>, "06/04/2018"}
+        ,{<<"prescriptionIsProcessed">>, ?PRESCRIPTION_PROCESSED_VALUE}
+        ,{<<"prescriptionDrugs">>, [<<"Rupafin">>, <<"Ibuprofen">>]}
+    ],
+    ExpectedPrescription =  #prescription{id = 1, patient_id = 2, pharmacy_id = 3, prescriber_id = 4,
+                                          drugs = ["Rupafin", "Ibuprofen"], date_prescribed = "02/04/2018",
+                                          date_processed = "06/04/2018", is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+    DecodedPrescription = decode(prescription, JsonPrescription),
+    ?assert(fmke_test_utils:compare_prescriptions(ExpectedPrescription, DecodedPrescription)).
 
 -endif.

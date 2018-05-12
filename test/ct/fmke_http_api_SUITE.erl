@@ -1,9 +1,10 @@
 -module(fmke_http_api_SUITE).
 -include_lib("common_test/include/ct.hrl").
--include ("fmk_http.hrl").
--include ("fmke.hrl").
--define (NODENAME, 'fmke@127.0.0.1').
--define (COOKIE, fmke).
+-include("fmke.hrl").
+-include("fmke_kv.hrl").
+-include("fmke_http.hrl").
+-define(NODENAME, 'fmke@127.0.0.1').
+-define(COOKIE, fmke).
 
 %%%-------------------------------------------------------------------
 %%% Common Test exports
@@ -11,11 +12,8 @@
 -export([
     suite/0,
     all/0,
-    groups/0,
     init_per_suite/1,
     end_per_suite/1,
-    init_per_group/2,
-    end_per_group/2,
     init_per_testcase/2,
     end_per_testcase/2
 ]).
@@ -39,70 +37,31 @@
 %%% Common Test Callbacks
 %%%-------------------------------------------------------------------
 
+suite() ->
+    [{timetrap, {minutes, 3}}].
+
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
-    [{group, antidote}, {group, antidote_norm}, {group, redis}, {group, riak}, {group, riak_norm}].
+    [event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
+     prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests].
 
 %%%-------------------------------------------------------------------
 %%% Common Test configuration
 %%%-------------------------------------------------------------------
 
-suite() ->
-    [{timetrap, {minutes, 3}}].
-
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
     true = erlang:set_cookie('fmke_http_api_test@127.0.0.1', ?COOKIE),
     {ok, _} = application:ensure_all_started(inets),
-    Config.
+    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, nested),
+    erlang:set_cookie(?NODENAME, ?COOKIE),
+    [{node, Node} | Config].
 
 end_per_suite(_Config) ->
+    fmke_test_setup:stop_node(?NODENAME),
+    fmke_test_setup:stop_all(),
     net_kernel:stop(),
     ok.
-
-groups() ->
-    [{antidote, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {antidote_norm, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {riak, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {riak_norm, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]},
-    {redis, [], [
-        event_http_tests, facility_http_tests, patient_http_tests, pharmacy_http_tests,
-        prescription_http_tests, staff_http_tests, treatment_http_tests, status_http_tests
-    ]}].
-
-init_per_group(antidote, Config) ->
-    fmke_test_utils:start_node_with_antidote_backend(?NODENAME),
-    Config;
-init_per_group(antidote_norm, Config) ->
-    fmke_test_utils:start_norm_node_with_antidote_backend(?NODENAME),
-    Config;
-init_per_group(riak, Config) ->
-    fmke_test_utils:start_node_with_riak_backend(?NODENAME),
-    Config;
-init_per_group(riak_norm, Config) ->
-    fmke_test_utils:start_norm_node_with_riak_backend(?NODENAME),
-    Config;
-init_per_group(redis, Config) ->
-    fmke_test_utils:start_node_with_redis_backend(?NODENAME),
-    Config;
-init_per_group(_, Config) ->
-    Config.
-
-end_per_group(_Group, _Config) ->
-    fmke_test_utils:stop_node(?NODENAME),
-    fmke_test_utils:stop_all().
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
@@ -180,16 +139,11 @@ event_http_tests(_Config) ->
 
 
 facility_http_tests(Config) ->
-    %%TODO add tests with wrong parameters in PUT and POST requests
     facility_handler_rejects_empty_post_request(Config),
     facility_handler_rejects_empty_put_request(Config),
-    get_unexisting_facility(Config),
-    add_unexisting_facility(Config),
-    get_existing_facility(Config),
-    add_existing_facility(Config),
-    update_existing_facility(Config),
-    update_unexistent_facility(Config),
-    get_facility_after_update(Config).
+    create_facility(Config),
+    update_facility(Config),
+    read_facility(Config).
 
 facility_handler_rejects_empty_post_request(_Config) ->
     PropList = bad_req_http_post("/facilities", <<>>),
@@ -203,14 +157,7 @@ facility_handler_rejects_empty_put_request(Config) ->
     false = proplists:get_value(<<"success">>,PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
-get_unexisting_facility(Config) ->
-    TabId = ?config(table, Config),
-    [{facility, FacilityId, _, _, _}] = ets:lookup(TabId, facility),
-    PropListJson = http_get("/facilities/"++integer_to_list(FacilityId)),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_unexisting_facility(Config) ->
+create_facility(Config) ->
     TabId = ?config(table, Config),
     [{facility, Id, Name, Address, Type}] = ets:lookup(TabId, facility),
     FacilityProps = build_facility_props([Id, Name, Address, Type]),
@@ -218,31 +165,7 @@ add_unexisting_facility(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-get_existing_facility(Config) ->
-    TabId = ?config(table, Config),
-    [{facility, Id, Name, Address, Type}] = ets:lookup(TabId, facility),
-    PropListJson = http_get("/facilities/"++integer_to_list(Id)),
-    true = proplists:get_value(<<"success">>,PropListJson),
-    FacilityObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"facilityId">>, FacilityObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"facilityName">>, FacilityObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
-    BinaryType = list_to_binary(Type),
-    BinaryType = proplists:get_value(<<"facilityType">>, FacilityObject).
-
-add_existing_facility(Config) ->
-    TabId = ?config(table, Config),
-    [{facility, Id, Name, Address, Type}] = ets:lookup(TabId, facility),
-    FacilityProps = build_facility_props([Id, Name, Address, Type]),
-    ResponseJson = http_post("/facilities", FacilityProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"facility_id_taken">> = proplists:get_value(<<"result">>,ResponseJson).
-
-update_existing_facility(Config) ->
+update_facility(Config) ->
     TabId = ?config(table, Config),
     [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
     FacilityProps = [{name, Name}, {address, Address}, {type, Type}],
@@ -250,30 +173,19 @@ update_existing_facility(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-update_unexistent_facility(Config) ->
-    TabId = ?config(table, Config),
-    [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
-    FacilityProps = [{name, Name}, {address, Address}, {type, Type}],
-    UnusedId = Id+rand:uniform(100000000),
-    ResponseJson = http_put("/facilities/" ++ integer_to_list(UnusedId), FacilityProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"no_such_facility">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_facility_after_update(Config) ->
+read_facility(Config) ->
     TabId = ?config(table, Config),
     [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
     PropListJson = http_get("/facilities/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     FacilityObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"facilityId">>, FacilityObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"facilityName">>, FacilityObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
-    BinaryType = list_to_binary(Type),
-    BinaryType = proplists:get_value(<<"facilityType">>, FacilityObject).
+    JsonId = proplists:get_value(<<"facilityId">>, FacilityObject),
+    JsonName = proplists:get_value(<<"facilityName">>, FacilityObject),
+    JsonAddress = proplists:get_value(<<"facilityAddress">>, FacilityObject),
+    JsonType = proplists:get_value(<<"facilityType">>, FacilityObject),
+    ExpectedFacility = #facility{id = Id, name = Name, address = Address, type = Type},
+    JsonFacility = #facility{id = JsonId, name = JsonName, address = JsonAddress, type = JsonType},
+    true = fmke_test_utils:compare_facilities(ExpectedFacility, JsonFacility).
 
 
 %%%-------------------------------------------------------------------
@@ -284,13 +196,9 @@ get_facility_after_update(Config) ->
 patient_http_tests(Config) ->
     patient_handler_rejects_empty_post_request(Config),
     patient_handler_rejects_empty_put_request(Config),
-    get_unexisting_patient(Config),
-    add_unexisting_patient(Config),
-    get_existing_patient(Config),
-    add_existing_patient(Config),
-    update_existing_patient(Config),
-    update_unexistent_patient(Config),
-    get_patient_after_update(Config).
+    create_patient(Config),
+    update_patient(Config),
+    read_patient(Config).
 
 patient_handler_rejects_empty_post_request(_Config) ->
     PropList = bad_req_http_post("/patients", <<>>),
@@ -304,14 +212,7 @@ patient_handler_rejects_empty_put_request(Config) ->
     false = proplists:get_value(<<"success">>,PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
-get_unexisting_patient(Config) ->
-    TabId = ?config(table, Config),
-    [{patient, PatientId, _, _}] = ets:lookup(TabId, patient),
-    PropListJson = http_get("/patients/"++integer_to_list(PatientId)),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_unexisting_patient(Config) ->
+create_patient(Config) ->
     TabId = ?config(table, Config),
     [{patient, Id, Name, Address}] = ets:lookup(TabId, patient),
     PatientProps = [{id, Id}, {name, Name}, {address, Address}],
@@ -319,30 +220,7 @@ add_unexisting_patient(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-get_existing_patient(Config) ->
-    TabId = ?config(table, Config),
-    [{patient, Id, Name, Address}] = ets:lookup(TabId, patient),
-    PropListJson = http_get("/patients/"++integer_to_list(Id)),
-    true = proplists:get_value(<<"success">>,PropListJson),
-    PatientObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"patientId">>, PatientObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"patientName">>, PatientObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
-    [] = proplists:get_value(<<"patientPrescriptions">>, PatientObject).
-
-add_existing_patient(Config) ->
-    TabId = ?config(table, Config),
-    [{patient, Id, Name, Address}] = ets:lookup(TabId, patient),
-    PatientProps = [{id, Id}, {name, Name}, {address, Address}],
-    ResponseJson = http_post("/patients", PatientProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"patient_id_taken">> = proplists:get_value(<<"result">>,ResponseJson).
-
-update_existing_patient(Config) ->
+update_patient(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
     PatientProps = [{name, Name}, {address, Address}],
@@ -350,29 +228,18 @@ update_existing_patient(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-update_unexistent_patient(Config) ->
-    TabId = ?config(table, Config),
-    [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
-    PatientProps = [{name, Name}, {address, Address}],
-    UnusedId = Id+rand:uniform(100000000),
-    ResponseJson = http_put("/patients/" ++ integer_to_list(UnusedId), PatientProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"no_such_patient">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_patient_after_update(Config) ->
+read_patient(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
     PropListJson = http_get("/patients/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PatientObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"patientId">>, PatientObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"patientName">>, PatientObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
-    [] = proplists:get_value(<<"patientPrescriptions">>, PatientObject).
+    JsonId = proplists:get_value(<<"patientId">>, PatientObject),
+    JsonName = proplists:get_value(<<"patientName">>, PatientObject),
+    JsonAddress = proplists:get_value(<<"patientAddress">>, PatientObject),
+    ExpectedPatient = #patient{id = Id, name = Name, address = Address},
+    JsonPatient = #patient{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_patients(ExpectedPatient, JsonPatient).
 
 
 %%%-------------------------------------------------------------------
@@ -383,13 +250,9 @@ get_patient_after_update(Config) ->
 pharmacy_http_tests(Config) ->
     pharmacy_handler_rejects_empty_post_request(Config),
     pharmacy_handler_rejects_empty_put_request(Config),
-    get_unexisting_pharmacy(Config),
-    add_unexisting_pharmacy(Config),
-    get_existing_pharmacy(Config),
-    add_existing_pharmacy(Config),
-    update_existing_pharmacy(Config),
-    update_unexistent_pharmacy(Config),
-    get_pharmacy_after_update(Config).
+    create_pharmacy(Config),
+    update_pharmacy(Config),
+    read_pharmacy(Config).
 
 pharmacy_handler_rejects_empty_post_request(_Config) ->
     PropList = bad_req_http_post("/pharmacies", <<>>),
@@ -403,14 +266,7 @@ pharmacy_handler_rejects_empty_put_request(Config) ->
     false = proplists:get_value(<<"success">>,PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
-get_unexisting_pharmacy(Config) ->
-    TabId = ?config(table, Config),
-    [{pharmacy, PharmacyId, _, _}] = ets:lookup(TabId, pharmacy),
-    PropListJson = http_get("/pharmacies/"++integer_to_list(PharmacyId)),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_unexisting_pharmacy(Config) ->
+create_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{pharmacy, Id, Name, Address}] = ets:lookup(TabId, pharmacy),
     PharmacyProps = [{id, Id}, {name, Name}, {address, Address}],
@@ -418,30 +274,7 @@ add_unexisting_pharmacy(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-get_existing_pharmacy(Config) ->
-    TabId = ?config(table, Config),
-    [{pharmacy, Id, Name, Address}] = ets:lookup(TabId, pharmacy),
-    PropListJson = http_get("/pharmacies/"++integer_to_list(Id)),
-    true = proplists:get_value(<<"success">>,PropListJson),
-    PharmacyObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
-    [] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject).
-
-add_existing_pharmacy(Config) ->
-    TabId = ?config(table, Config),
-    [{pharmacy, Id, Name, Address}] = ets:lookup(TabId, pharmacy),
-    PharmacyProps = [{id, Id}, {name, Name}, {address, Address}],
-    ResponseJson = http_post("/pharmacies", PharmacyProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"pharmacy_id_taken">> = proplists:get_value(<<"result">>,ResponseJson).
-
-update_existing_pharmacy(Config) ->
+update_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
     PharmacyProps = [{name, Name}, {address, Address}],
@@ -449,29 +282,18 @@ update_existing_pharmacy(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-update_unexistent_pharmacy(Config) ->
-    TabId = ?config(table, Config),
-    [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
-    PharmacyProps = [{name, Name}, {address, Address}],
-    UnusedId = Id+rand:uniform(100000000),
-    ResponseJson = http_put("/pharmacies/" ++ integer_to_list(UnusedId), PharmacyProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"no_such_pharmacy">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_pharmacy_after_update(Config) ->
+read_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
     PropListJson = http_get("/pharmacies/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PharmacyObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
-    [] = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject).
+    JsonId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
+    JsonName = proplists:get_value(<<"pharmacyName">>, PharmacyObject),
+    JsonAddress = proplists:get_value(<<"pharmacyAddress">>, PharmacyObject),
+    ExpectedPharmacy = #pharmacy{id = Id, name = Name, address = Address},
+    JsonPharmacy = #pharmacy{id = JsonId, name = JsonName, address = JsonAddress},
+    true = fmke_test_utils:compare_pharmacies(ExpectedPharmacy, JsonPharmacy).
 
 
 %%%-------------------------------------------------------------------
@@ -480,34 +302,6 @@ get_pharmacy_after_update(Config) ->
 
 
 prescription_http_tests(Config) ->
-    prescription_handler_rejects_empty_post_request(Config),
-    prescription_handler_rejects_empty_put_request(Config),
-    add_required_entities(Config),
-    get_unexisting_prescription(Config),
-    process_unexisting_prescription(Config),
-    add_medication_to_unexisting_prescription(Config),
-    add_unexisting_prescription(Config),
-    get_existing_prescription(Config),
-    add_existing_prescription(Config),
-    update_prescription_medication(Config),
-    process_existing_prescription(Config),
-    add_medication_to_processed_prescription(Config),
-    process_already_processed_prescription(Config),
-    get_prescription_after_updates(Config).
-
-prescription_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/prescriptions", <<>>),
-    false = proplists:get_value(<<"success">>,PropList),
-    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
-
-prescription_handler_rejects_empty_put_request(Config) ->
-    TabId = ?config(table, Config),
-    [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    PropList = bad_req_http_put("/prescriptions/"++integer_to_list(Id), <<>>),
-    false = proplists:get_value(<<"success">>,PropList),
-    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
-
-add_required_entities(Config) ->
     TabId = ?config(table, Config),
     [{facility, FacId1, FacName1, FacAddr1, FacType1}] = ets:lookup(TabId, facility),
     [{other_facility, FacId2, FacName2, FacAddr2, FacType2}] = ets:lookup(TabId, other_facility),
@@ -534,92 +328,34 @@ add_required_entities(Config) ->
     successful_http_post("/pharmacies/"++integer_to_list(PharmId1), PharmacyProps1),
     successful_http_post("/pharmacies/"++integer_to_list(PharmId2), PharmacyProps2),
     successful_http_post("/staff/"++integer_to_list(StaId1), StaffProps1),
-    successful_http_post("/staff/"++integer_to_list(StaId2), StaffProps2).
+    successful_http_post("/staff/"++integer_to_list(StaId2), StaffProps2),
 
-get_unexisting_prescription(Config) ->
+    prescription_handler_rejects_empty_post_request(Config),
+    prescription_handler_rejects_empty_put_request(Config),
+    create_prescription(Config),
+    update_prescription_medication(Config),
+    process_prescription(Config),
+    read_prescription(Config).
+
+prescription_handler_rejects_empty_post_request(_Config) ->
+    PropList = bad_req_http_post("/prescriptions", <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
+
+prescription_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    PropListJson = http_get("/prescriptions/"++integer_to_list(Id)),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
+    PropList = bad_req_http_put("/prescriptions/"++integer_to_list(Id), <<>>),
+    false = proplists:get_value(<<"success">>,PropList),
+    ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
-process_unexisting_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    Properties = [{date_processed, "14/08/2017"}],
-    PropListJson = http_put("/prescriptions/"++integer_to_list(Id-1),Properties),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"no_such_prescription">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_medication_to_unexisting_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    Properties = [{drugs, "RandomDrug1, RandomDrug2, RandomDrug3"}],
-    PropListJson = http_put("/prescriptions/"++integer_to_list(Id-1),Properties),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"no_such_prescription">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_unexisting_prescription(Config) ->
+create_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
     PrescriptionProps = build_prescription_props([Id, PatId, PrescId, PharmId, DatePresc, Drugs]),
     ResponseJson = http_post("/prescriptions", PrescriptionProps),
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_existing_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
-    PropListJson = http_get("/prescriptions/"++integer_to_list(Id)),
-    true = proplists:get_value(<<"success">>,PropListJson),
-    PrescriptionObject = proplists:get_value(<<"result">>,PropListJson),
-    %% check for prescription field values
-    BinId = list_to_binary(integer_to_list(Id)),
-    BinPatId = list_to_binary(integer_to_list(PatId)),
-    BinPrescId = list_to_binary(integer_to_list(PrescId)),
-    BinPharmId = list_to_binary(integer_to_list(PharmId)),
-    BinDatePresc = list_to_binary(DatePresc),
-
-    BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
-    BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
-    <<"prescription_not_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
-    <<"undefined">> = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
-    BinDrugs = lists:sort([list_to_binary(X) || X <- fmke_http_utils:parse_csv_string(drugs,Drugs)]),
-    BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
-
-    %% check for same prescription inside patient, pharmacy and staff
-    PrescriptionKey = gen_key(prescription, Id),
-    PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
-    true = proplists:get_value(<<"success">>,PatientReqResult),
-    PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
-
-    PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
-    true = proplists:get_value(<<"success">>,PharmacyReqResult),
-    PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
-
-    StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
-    true = proplists:get_value(<<"success">>,StaffReqResult),
-    StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
-
-add_existing_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
-    PrescriptionProps = build_prescription_props([Id, PatId, PrescId, PharmId, DatePresc, Drugs]),
-    ResponseJson = http_post("/prescriptions", PrescriptionProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"prescription_id_taken">> = proplists:get_value(<<"result">>,ResponseJson).
 
 update_prescription_medication(Config) ->
     TabId = ?config(table, Config),
@@ -629,7 +365,7 @@ update_prescription_medication(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-process_existing_prescription(Config) ->
+process_prescription(Config) ->
     TabId = ?config(table, Config),
     [{processed_prescription_date, Id, Date}] = ets:lookup(TabId, processed_prescription_date),
     PrescriptionProps = [{date_processed, Date}],
@@ -637,72 +373,58 @@ process_existing_prescription(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-add_medication_to_processed_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{updated_prescription_drugs, Id, Drugs}] = ets:lookup(TabId, updated_prescription_drugs),
-    PrescriptionProps = [{drugs, Drugs}],
-    ResponseJson = http_put("/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"prescription_already_processed">> = proplists:get_value(<<"result">>,ResponseJson).
-
-process_already_processed_prescription(Config) ->
-    TabId = ?config(table, Config),
-    [{processed_prescription_date, Id, Date}] = ets:lookup(TabId, processed_prescription_date),
-    PrescriptionProps = [{date_processed, Date}],
-    ResponseJson = http_put("/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"prescription_already_processed">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_prescription_after_updates(Config) ->
+read_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
     [{processed_prescription_date, Id, DateProc}] = ets:lookup(TabId, processed_prescription_date),
     [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
+    ExpectedDrugs = lists:append(fmke_http_utils:parse_csv_string(Drugs),
+                                fmke_http_utils:parse_csv_string(AdditionalDrugs)),
     PropListJson = http_get("/prescriptions/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     PrescriptionObject = proplists:get_value(<<"result">>,PropListJson),
-    %% check for prescription field values
-    BinId = list_to_binary(integer_to_list(Id)),
-    BinPatId = list_to_binary(integer_to_list(PatId)),
-    BinPrescId = list_to_binary(integer_to_list(PrescId)),
-    BinPharmId = list_to_binary(integer_to_list(PharmId)),
-    BinDatePresc = list_to_binary(DatePresc),
-    BinDateProc = list_to_binary(DateProc),
 
-    BinId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
-    BinPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
-    BinPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
-    BinPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
-    BinDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
-    <<"prescription_processed">> = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
-    BinDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
-    MergedDrugs = lists:append(fmke_http_utils:parse_csv_string(drugs,Drugs),
-                                fmke_http_utils:parse_csv_string(drugs,AdditionalDrugs)),
-    BinDrugs = lists:sort([list_to_binary(X) || X <- MergedDrugs]),
-    BinDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+    JsonId = proplists:get_value(<<"prescriptionId">>, PrescriptionObject),
+    JsonPatId = proplists:get_value(<<"prescriptionPatientId">>, PrescriptionObject),
+    JsonPrescId = proplists:get_value(<<"prescriptionPrescriberId">>, PrescriptionObject),
+    JsonPharmId = proplists:get_value(<<"prescriptionPharmacyId">>, PrescriptionObject),
+    JsonDatePresc = proplists:get_value(<<"prescriptionDatePrescribed">>, PrescriptionObject),
+    JsonDateProc = proplists:get_value(<<"prescriptionDateProcessed">>, PrescriptionObject),
+    JsonIsProcessed = proplists:get_value(<<"prescriptionIsProcessed">>, PrescriptionObject),
+    JsonDrugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PrescriptionObject)),
+
+    ExpectedPrescription = #prescription{id = Id, patient_id = PatId, prescriber_id = PrescId, pharmacy_id = PharmId,
+                                         date_prescribed = DatePresc, date_processed = DateProc,
+                                         drugs = ExpectedDrugs, is_processed = ?PRESCRIPTION_PROCESSED_VALUE},
+
+    JsonPrescription = #prescription{id = JsonId, patient_id = JsonPatId, prescriber_id = JsonPrescId,
+                                     pharmacy_id = JsonPharmId, date_prescribed = JsonDatePresc,
+                                     date_processed = JsonDateProc, drugs = JsonDrugs,
+                                     is_processed = JsonIsProcessed},
+
+    true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, JsonPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff
-    PrescriptionKey = gen_key(prescription, Id),
     PatientReqResult = http_get("/patients/"++integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>,PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>,PatientReqResult),
-    PatientPrescriptions = proplists:get_value(<<"patientPrescriptions">>, PatientObject),
-    true = lists:member(PrescriptionObject, PatientPrescriptions)
-            orelse lists:member(PrescriptionKey, PatientPrescriptions),
+    PatientPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"patientPrescriptions">>, PatientObject)),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     PharmacyReqResult = http_get("/pharmacies/"++integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>,PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>,PharmacyReqResult),
-    PharmacyPrescriptions = proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject),
-    true = lists:member(PrescriptionObject, PharmacyPrescriptions)
-            orelse lists:member(PrescriptionKey, PharmacyPrescriptions),
+    PharmacyPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject)),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     StaffReqResult = http_get("/staff/"++integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>,StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>,StaffReqResult),
-    StaffPrescriptions = proplists:get_value(<<"staffPrescriptions">>, StaffObject),
-    true = lists:member(PrescriptionObject, StaffPrescriptions)
-            orelse lists:member(PrescriptionKey, StaffPrescriptions).
+    StaffPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
+        proplists:get_value(<<"staffPrescriptions">>, StaffObject)),
+    true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
 
 
 %%%-------------------------------------------------------------------
@@ -713,13 +435,9 @@ get_prescription_after_updates(Config) ->
 staff_http_tests(Config) ->
     staff_handler_rejects_empty_post_request(Config),
     staff_handler_rejects_empty_put_request(Config),
-    get_unexisting_staff(Config),
-    add_unexisting_staff(Config),
-    get_existing_staff(Config),
-    add_existing_staff(Config),
-    update_existing_staff(Config),
-    update_unexistent_staff(Config),
-    get_staff_after_update(Config).
+    create_staff(Config),
+    update_staff(Config),
+    read_staff(Config).
 
 staff_handler_rejects_empty_post_request(_Config) ->
     PropList = bad_req_http_post("/staff", <<>>),
@@ -733,14 +451,7 @@ staff_handler_rejects_empty_put_request(Config) ->
     false = proplists:get_value(<<"success">>,PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>,PropList).
 
-get_unexisting_staff(Config) ->
-    TabId = ?config(table, Config),
-    [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
-    PropListJson = http_get("/staff/"++integer_to_list(StaffId)),
-    false = proplists:get_value(<<"success">>,PropListJson),
-    <<"not_found">> = proplists:get_value(<<"result">>,PropListJson).
-
-add_unexisting_staff(Config) ->
+create_staff(Config) ->
     TabId = ?config(table, Config),
     [{staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, staff),
     StaffProps = build_staff_props([Id, Name, Address, Speciality]),
@@ -748,32 +459,7 @@ add_unexisting_staff(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-get_existing_staff(Config) ->
-    TabId = ?config(table, Config),
-    [{staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, staff),
-    PropListJson = http_get("/staff/"++integer_to_list(Id)),
-    true = proplists:get_value(<<"success">>,PropListJson),
-    StaffObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"staffId">>, StaffObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"staffName">>, StaffObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
-    BinarySpeciality = list_to_binary(Speciality),
-    BinarySpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject),
-    [] = proplists:get_value(<<"staffPrescriptions">>, StaffObject).
-
-add_existing_staff(Config) ->
-    TabId = ?config(table, Config),
-    [{staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, staff),
-    StaffProps = build_staff_props([Id, Name, Address, Speciality]),
-    ResponseJson = http_post("/staff", StaffProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"staff_id_taken">> = proplists:get_value(<<"result">>,ResponseJson).
-
-update_existing_staff(Config) ->
+update_staff(Config) ->
     TabId = ?config(table, Config),
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
     StaffProps = [{name, Name}, {address, Address}, {speciality, Speciality}],
@@ -781,30 +467,19 @@ update_existing_staff(Config) ->
     true = proplists:get_value(<<"success">>,ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>,ResponseJson).
 
-update_unexistent_staff(Config) ->
-    TabId = ?config(table, Config),
-    [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
-    StaffProps = [{name, Name}, {address, Address}, {speciality, Speciality}],
-    UnusedId = Id+rand:uniform(100000000),
-    ResponseJson = http_put("/staff/" ++ integer_to_list(UnusedId), StaffProps),
-    false = proplists:get_value(<<"success">>,ResponseJson),
-    <<"no_such_staff">> = proplists:get_value(<<"result">>,ResponseJson).
-
-get_staff_after_update(Config) ->
+read_staff(Config) ->
     TabId = ?config(table, Config),
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
     PropListJson = http_get("/staff/"++integer_to_list(Id)),
     true = proplists:get_value(<<"success">>,PropListJson),
     StaffObject = proplists:get_value(<<"result">>,PropListJson),
-
-    BinaryId = list_to_binary(integer_to_list(Id)),
-    BinaryId = proplists:get_value(<<"staffId">>, StaffObject),
-    BinaryName = list_to_binary(Name),
-    BinaryName = proplists:get_value(<<"staffName">>, StaffObject),
-    BinaryAddress = list_to_binary(Address),
-    BinaryAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
-    BinarySpeciality = list_to_binary(Speciality),
-    BinarySpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject).
+    JsonId = proplists:get_value(<<"staffId">>, StaffObject),
+    JsonName = proplists:get_value(<<"staffName">>, StaffObject),
+    JsonAddress = proplists:get_value(<<"staffAddress">>, StaffObject),
+    JsonSpeciality = proplists:get_value(<<"staffSpeciality">>, StaffObject),
+    ExpectedStaff = #staff{id = Id, name = Name, address = Address, speciality = Speciality},
+    JsonStaff = #staff{id = JsonId, name = JsonName, address = JsonAddress, speciality = JsonSpeciality},
+    true = fmke_test_utils:compare_staff(ExpectedStaff, JsonStaff).
 
 
 %%%-------------------------------------------------------------------
@@ -849,7 +524,7 @@ put_returns_valid_status() ->
 
 check_status([]) -> ok;
 check_status([{<<"fmke_up">>, true} | Other]) -> check_status(Other);
-check_status([{<<"connection_manager_up">>, true} | Other]) -> check_status(Other);
+check_status([{<<"connection_manager_up">>, _Boolean} | Other]) -> check_status(Other);
 check_status([{<<"web_server_up">>, true} | Other]) -> check_status(Other);
 check_status([{<<"connection_pool_size">>, PoolSize} | Other]) ->
     {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
@@ -947,6 +622,3 @@ build_generic_props([H1|T1], [H2|T2], Accum) ->
 
 rpc(Mod, Fun, Args) ->
     rpc:block_call(?NODENAME, Mod, Fun, Args).
-
-gen_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
