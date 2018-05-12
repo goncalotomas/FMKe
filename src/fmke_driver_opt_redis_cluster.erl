@@ -135,7 +135,6 @@ handle_call({update, Entity, [Id | _Fs] = Fields}, _From, State) ->
 
 handle_call({read, Entity, Id}, _From, State) ->
     %% facility, patient, pharmacy, staff
-    lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
     Result = case ListFields of
         [] ->
@@ -152,7 +151,6 @@ handle_call({read, Entity, Id}, _From, State) ->
 
 handle_call({read, Entity, Id, prescriptions}, _From, State) ->
     %% patient, pharmacy, staff
-    lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
     Result = case ListFields of
         [] ->
@@ -166,7 +164,6 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
 
 handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
     %% patient, pharmacy, staff
-    lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
     Result = case ListFields of
         [] ->
