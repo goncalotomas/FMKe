@@ -2,6 +2,10 @@
 %% Database driver for Redis (cluster version)
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_redis_cluster).
+%% NOTE: these dialyzer flags are here solely because of ERRORS in the type spec of eredis_cluster. In order to keep the
+%% errors contained and to avoid hindering the purpose of dialyzer for other parts of FMKe, a minimal set of dialyzer
+%% warnings were disabled only for this module.
+-dialyzer([no_match, no_unused, no_return]).
 
 -behaviour(fmke_gen_driver).
 
@@ -133,12 +137,12 @@ handle_call({read, Entity, Id}, _From, State) ->
     %% facility, patient, pharmacy, staff
     lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
-    Result = if
-        ListFields == [] ->
+    Result = case ListFields of
+        [] ->
             {error, not_found};
-        Entity == facility; Entity == prescription ->
+        [_H| _T] when Entity == facility; Entity == prescription ->
             parse_fields(Entity, ListFields);
-        Entity == patient; Entity == pharmacy; Entity == staff ->
+        [_H| _T] when Entity == patient; Entity == pharmacy; Entity == staff ->
             %% these entities have prescriptions associated with them
             [{ok, Prescs}, {ok, ProcPrescs}] = eredis_cluster:qmn([["SMEMBERS", gen_prescriptions_key(Entity, Id)],
                                                             ["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
@@ -150,10 +154,10 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
     %% patient, pharmacy, staff
     lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
-    Result = if
-        ListFields == [] ->
+    Result = case ListFields of
+        [] ->
             {error, no_such_entity(Entity)};
-        Entity == patient; Entity == pharmacy; Entity == staff ->
+        [_H| _T] when Entity == patient; Entity == pharmacy; Entity == staff ->
             [{ok, Prescs}, {ok, ProcPrescs}] = eredis_cluster:qmn([["SMEMBERS", gen_prescriptions_key(Entity, Id)],
                                                             ["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
             Prescs ++ ProcPrescs
@@ -164,10 +168,10 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
     %% patient, pharmacy, staff
     lager:info("asking for ~p~n", [["HGETALL", gen_key(Entity, Id)]]),
     {ok, ListFields} = eredis_cluster:q(["HGETALL", gen_key(Entity, Id)]),
-    Result = if
-        ListFields == [] ->
+    Result = case ListFields of
+        [] ->
             {error, no_such_entity(Entity)};
-        Entity == patient; Entity == pharmacy; Entity == staff ->
+        [_H|_T] when Entity == patient; Entity == pharmacy; Entity == staff ->
             [{ok, ProcPrescs}] = eredis_cluster:qmn([["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
             ProcPrescs
     end,
@@ -181,16 +185,16 @@ handle_call({create, prescription, [Id, PatId, DocId, PharmId | _Fs] = Fields}, 
         ,["HGETALL", gen_key(staff, DocId)]
         ,["HGETALL", gen_key(pharmacy, PharmId)]
     ]),
-    Result = if
-        Presc =/= [] ->
+    Result = case Presc of
+        [_H|_T] ->
             {error, prescription_id_taken};
-        Pat == [] ->
+        [] when Pat == [] ->
             {error, no_such_patient};
-        Doc == [] ->
+        [] when Doc == [] ->
             {error, no_such_staff};
-        Pharm == [] ->
+        [] when Pharm == [] ->
             {error, no_such_pharmacy};
-        Presc == [] ->
+        _ ->
             PKey = gen_key(prescription, Id),
             [{ok, <<"OK">>}, {ok, <<"1">>}, {ok, <<"1">>}, {ok, <<"1">>}] = eredis_cluster:qmn([
                 gen_update_op(prescription, Fields),
