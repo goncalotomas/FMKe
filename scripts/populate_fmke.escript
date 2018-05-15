@@ -173,7 +173,7 @@ add_prescription_rec(Nodes, PrescriptionId, ListPatientIds, FmkConfig, Ops) ->
   PrescriberId = rand:uniform(FmkConfig#fmkeconfig.numstaff),
   Node = lists:nth(PrescriptionId rem length(Nodes) + 1, Nodes),
   OpArgs = [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()],
-  Result = run_op(Node, create_prescription, OpArgs)
+  Result = run_op(Node, create_prescription, OpArgs),
   case divergence_failure(Result) of
       false ->
           ok;
@@ -207,10 +207,10 @@ run_op(FmkNode, create_prescription, Params) ->
 run_rpc_op(FmkNode, Op, Params) ->
   run_rpc_op(FmkNode, Op, Params, 0, ?MAX_RETRIES, none).
 
-run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, none) ->
+run_rpc_op(_FmkNode, _Op, _Params, _MaxTries, _MaxTries, none) ->
     io:format("FMKe node is reachable but operation timed out. Check status of FMKe node~n", []),
     {error, exceeded_num_retries};
-run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, Error) ->
+run_rpc_op(_FmkNode, _Op, _Params, _MaxTries, _MaxTries, Error) ->
     case Error of
         nodedown ->
             io:format("FMKe node is down or unreachable. Check link between populator and FMKe~n", []);
@@ -222,7 +222,7 @@ run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, Error) ->
             io:format("Connection between FMKe and DB is unstable/broken. Please check the link between FMKe and the database.~n", [])
     end,
     halt(2);
-run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries, Error) ->
+run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries, _Error) ->
     case rpc:call(FmkNode, fmke, Op, Params) of
         {badrpc, nodedown} ->
             run_rpc_op(FmkNode, Op, Params, CurrentTry + 1, MaxTries, nodedown);
