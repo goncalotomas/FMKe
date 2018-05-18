@@ -38,8 +38,7 @@ We have a generic interface for key-value stores (implemented as an Erlang behav
 
 ## Supported data stores
 - AntidoteDB
-- Cassandra
-- Redis
+- Redis Cluster
 - Riak KV
 
 ## How the benchmark is deployed
@@ -60,27 +59,18 @@ You can test out FMKe locally by cloning the repository:
 git clone https://github.com/goncalotomas/FMKe.git
 ```
 
-Once you have a local copy of the repository, the first step is to choose your target data store:
+Once you have a local copy of the repository, the first thing you should do is run `make test` to make sure that you are working with a correct version of FMKe.
 
-```bash
-make select-TARGET_DB
-```
-
-Where TARGET_DB should be one of the supported databases. From now on let's assume that we chose `riak`.  
-You don't need to have any databases installed, since local benchmarks use Docker images.  
-Finally, you can run a micro-benchmark by using the following command:
+If tests pass, you can then run short-lived local benchmarks by running `make bench-DB` where `DB` is one of `antidote`, `redis` or `riak`. Here's an example command to run a benchmark for Riak KV:
 
 ```bash
 make bench-riak
 ```
 
-Alternatively, you can also validate that your FMKe copy is functional by running unit tests with your desired database as backend:
+Although we make it possible to try out FMKe locally, fair evaluation of database performance should occur in more ideal circumstances where system resources are not shared between the load generation component, the application server and the actual database. Further documentation on other features including instructions on how to run more advanced deployments of FMKe is available in the [Wiki][11].
 
-```bash
-make eunit-riak
-```
-
-This command will run a battery of unit tests that ensure that all functionality related to the benchmark is able to performed in the database you have previously selected.
+## Experimental Results
+Results and insights from experiments comparing database systems will be linked here.
 
 [1]: https://syncfree.lip6.fr/
 [2]: https://antidotedb.eu
@@ -92,3 +82,4 @@ This command will run a battery of unit tests that ensure that all functionality
 [8]: https://github.com/goncalotomas/FMKe/blob/master/doc/FMK_DataModel.pdf
 [9]: http://www.erlang.org/downloads
 [10]: http://www.rebar3.org/
+[11]: https://github.com/goncalotomas/FMKe/wiki
