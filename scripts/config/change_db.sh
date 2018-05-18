@@ -4,7 +4,7 @@ set -e
 show_supported_dbs()
 {
   echo "FMKe supports the following data stores:"
-  for value in "antidote" "antidote_norm" "riak" "riak_norm" "redis" ; do
+  for value in "antidote" "riak" "redis" ; do
       echo "-$value"
   done
 }

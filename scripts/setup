@@ -1,0 +1,132 @@
+#!/bin/bash
+# FMKe benchmark script
+# Runs the FMKe benchmark with several options. Has a companion 'setup' script
+# responsible for setting up the benchmark environment (i.e. database cluster,
+# fmke).
+# -n : specifies the FMKe node name. If used with -p, the population step will
+# happen through this node.
+# -p : populates the database prior to running the benchmark. Assumes FMKe is
+# already running (-s can be used to start a local FMKe node).
+# -s : starts a local FMKe node before executing the benchmark. Assumes a
+# correct fmke.config file.
+
+ssh_user=''
+ssh_identity=''
+type=''
+fmke_config=''
+local_flag=false
+teardown_flag=false
+base_dir=''
+cwd=$(pwd)
+
+# taken from the node.js installation script
+if test -t 1; then # if terminal
+    ncolors=$(which tput > /dev/null && tput colors) # supports color
+    if test -n "$ncolors" && test $ncolors -ge 8; then
+        termcols=$(tput cols)
+        bold="$(tput bold)"
+        underline="$(tput smul)"
+        standout="$(tput smso)"
+        normal="$(tput sgr0)"
+        black="$(tput setaf 0)"
+        red="$(tput setaf 1)"
+        green="$(tput setaf 2)"
+        yellow="$(tput setaf 3)"
+        blue="$(tput setaf 4)"
+        magenta="$(tput setaf 5)"
+        cyan="$(tput setaf 6)"
+        white="$(tput setaf 7)"
+    fi
+fi
+
+
+# read script flags
+while getopts ':c:d:i:lt:Tu:' flag; do
+  case "${flag}" in
+    c) fmke_config="${OPTARG}" ;;
+    d) base_dir="${OPTARG}" ;;
+    i) ssh_identity="${OPTARG}" ;;
+    l) local_flag=true ;;
+    T) teardown_flag=true ;;
+    t) type="${OPTARG}" ;;
+    u) ssh_user="${OPTARG}" ;;
+    *) >&2 echo "Unexpected option ${flag}" ;;
+  esac
+done
+
+if [[ $local_flag = true ]]; then
+  if [[ $teardown_flag = true ]]; then
+    if [[ $type = "antidote" ]]; then
+      docker stop antidote && docker rm antidote > /dev/null
+    elif [[ $type = "riak" ]]; then
+      docker stop riak && docker rm riak > /dev/null
+    elif [[ $type = "redis" ]]; then
+      docker stop redis && docker rm redis > /dev/null
+    elif [[ $type = "fmke" ]]; then
+      _build/default/rel/fmke/bin/env stop
+    fi
+    echo "${green}$type stopped.${normal}"
+    echo
+    echo done
+    echo
+    exit 0
+  else
+    if [[ $type = "antidote" ]]; then
+      docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "4368:4368" \
+      -p "8085:8085" -p "8087:8087" -p "8099:8099" -p "9100:9100" mweber/antidotedb:latest > /dev/null
+      sleep 5
+    elif [[ $type = "riak" ]]; then
+      docker run -d --name riak -p "8087:8087" -p "8098:8098" \
+      -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak > /dev/null
+      sleep 30
+    elif [[ $type = "redis" ]]; then
+      docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p "7000:7000" -p "7001:7001" \
+      -p "7002:7002" -p "7003:7003" -p "7004:7004" -p "7005:7005" grokzen/redis-cluster:latest > /dev/null
+      sleep 10
+    elif [[ $type = "fmke" ]]; then
+      make rel
+      _build/default/rel/fmke/bin/env start
+      sleep 3
+    fi
+    echo "${green}$type started.${normal}"
+    echo
+    echo done
+    echo
+    exit 0
+  fi
+fi
+
+# adjust script arguments
+shift $(($OPTIND - 1))
+
+# properly initialize SSH options for remote access
+ssh_options=''
+if [[ -z $ssh_user ]]; then
+    ssh_options=$ssh_options -I $ssh_user
+fi
+if [[ -z $ssh_identity ]]; then
+    ssh_options=$ssh_options -i $ssh_identity
+fi
+
+echo "${standout}Attempting to start $type remotely on list of IP addresses: $@ ${normal}"
+
+if [ $type = "fmke" ]; then
+  if [ ! -f $fmke_config ]; then
+    >&2 echo "${red}File not found: ${fmke_config}${normal}" ;;
+    >&2 echo "${red}Cannot start FMKe remotely without a valid FMKe config file.${normal}" ;;
+    exit 1
+  fi
+elif [ $type = "antidote" ]; then
+
+elif [[ $type = "redis" ]]; then
+  docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p "7000:7000" -p "7001:7001" \
+  -p "7002:7002" -p "7003:7003" -p "7004:7004" -p "7005:7005" grokzen/redis-cluster:latest > /dev/null
+  sleep 10
+elif [[ $type = "fmke" ]]; then
+
+fi
+
+
+echo
+echo done
+echo

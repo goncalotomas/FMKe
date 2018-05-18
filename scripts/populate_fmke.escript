@@ -1,40 +1,43 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
-%%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
+%%! -smp enable -name populate_db@127.0.0.1 -setcookie fmke
 -mode(compile).
 -define(ZIPF_SKEW, 1).
 -define(NUMTHREADS, 30).
 -define(DIVERGENCE_TIMEOUT, 10).
 -define(MAX_RETRIES, 10).
 
+-export([main/1]).
+
 -record(fmkeconfig, {
-  numpatients,
-  numpharmacies,
-  numfacilities,
-  numstaff,
-  numprescriptions
+  numpatients :: non_neg_integer()
+  ,numpharmacies :: non_neg_integer()
+  ,numfacilities :: non_neg_integer()
+  ,numstaff :: non_neg_integer()
+  ,numprescriptions :: non_neg_integer()
 }).
 
-main([Database, ConfigFile, Node | []]) ->
-  populate(Database, ConfigFile, [Node]);
+main([ConfigFile, Node | []]) ->
+  populate(ConfigFile, [Node]);
 
-main([Database, ConfigFile | Nodes = [_H|_T]]) ->
-  populate(Database, ConfigFile, Nodes);
+main([ConfigFile | Nodes = [_H|_T]]) ->
+  populate(ConfigFile, Nodes);
 
 main(_) ->
   usage().
 
 usage() ->
-  io:format("usage: data_store config_file fmke_node\n"),
+  io:format("usage: config_file fmke_node\n"),
   halt(1).
 
-populate(Database, ConfigFile, FMKeNodes) ->
-  io:format("Running population script with ~p backend.~n",[Database]),
+populate(ConfigFile, FMKeNodes) ->
   {ok, Cwd} = file:get_cwd(),
   Filename = Cwd ++ "/config/" ++ ConfigFile,
   io:format("Reading configuration file from ~p...~n",[Filename]),
   Nodes = lists:map(fun(Node) -> list_to_atom(Node) end, FMKeNodes),
   io:format("Sending FMKe population ops to the following nodes:~n~p~n", [Nodes]),
+  {ok, Database} = rpc:call(hd(Nodes), application, get_env, [fmke, target_database]),
+  io:format("Running population script with ~p backend.~n",[Database]),
   {ok, ConfigProps} = file:consult(Filename),
   Config = #fmkeconfig{
     numpatients = proplists:get_value(numpatients, ConfigProps),
