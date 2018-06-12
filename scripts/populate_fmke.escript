@@ -3,7 +3,7 @@
 %%! -smp enable -name populate_db@127.0.0.1 -setcookie fmke
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 30).
+-define(NUMPROCS, 100).
 -define(DIVERGENCE_TIMEOUT, 10).
 -define(MAX_RETRIES, 10).
 
@@ -89,7 +89,7 @@ populate_db(Nodes, Config) ->
   {ok, S1 + S2 + S3 + S4 + S5}.
 
 parallel_create(Name, Amount, Fun) ->
-  NumProcs = ?NUMTHREADS,
+  NumProcs = min(Amount, ?NUMPROCS),
   Divisions = calculate_divisions(Amount, NumProcs),
   spawn_workers(self(), NumProcs, Divisions, Fun),
   supervisor_loop(Name, 0, Amount).
