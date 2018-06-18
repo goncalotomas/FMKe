@@ -1,4 +1,4 @@
-%% ---------------------------------------------------------------------------------------------------------------------
+.%% ---------------------------------------------------------------------------------------------------------------------
 %% Database driver for AntidoteDB, featuring a normalized data model (no CRDT nesting).
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_antidote).
@@ -159,8 +159,16 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
                     {ok, Txn2};
                 ErrorMessage -> {ErrorMessage, Txn2}
             end,
-            txn_commit(Txn3),
-            Result
+            try
+                case txn_commit(Txn3) of
+                    ok ->
+                        Result
+                    Error ->
+                        Error
+                end
+            catch
+                Error2 -> Error2
+            end
     end,
     {reply, Res, State};
 
@@ -490,6 +498,7 @@ process_get_request(Key, Type, Txn) ->
     parse_read_result(get(Key, Type, Txn)).
 
 parse_read_result({_Crdt, []}) -> {error, not_found};
+parse_read_result({timeout, _}) -> {error, timeout};
 parse_read_result({_Crdt, Object}) -> Object;
 parse_read_result(_) -> erlang:error(unknown_object_type).
 
@@ -530,8 +539,27 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
 %% A wrapper for Antidote's commit_transaction function
 -spec txn_commit(TxnDetails :: txid()) -> ok.
 txn_commit({Pid, TxnDetails}) ->
-    {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
-    fmke_db_conn_manager:checkin(Pid).
+    Result = txn_commit_w_retry(Pid, TxnDetails, 0, 3),
+    fmke_db_conn_manager:checkin(Pid),
+    Result.
+
+txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
+    lager:error("Transaction ~p failed, aborting...~n"),
+    case antidotec_pb:abort_transaction(Pid, Txn) of
+        ok ->
+            {error, transaction_aborted_max_commit_attempts};
+        Error ->
+            lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
+            throw({error, transaction_failed_abort_failed})
+    end.
+txn_commit_w_retry(Pid, Txn, CurrTry, MaxTry) ->
+    case antidotec_pb:commit_transaction(Pid, Txn) of
+        {ok, _} ->
+            ok;
+        {error, Error} ->
+            lager:warning("Transaction commit failed for ~p, retrying...~n", [Txn]),
+            txn_commit_w_retry(Pid, Txn, CurrTry + 1, MaxTry)
+    end
 
 
 %% ------------------------------------------------------------------------------------------------
