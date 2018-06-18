@@ -1,4 +1,4 @@
-.%% ---------------------------------------------------------------------------------------------------------------------
+%% ---------------------------------------------------------------------------------------------------------------------
 %% Database driver for AntidoteDB, featuring a normalized data model (no CRDT nesting).
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_antidote).
@@ -162,7 +162,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
             try
                 case txn_commit(Txn3) of
                     ok ->
-                        Result
+                        Result;
                     Error ->
                         Error
                 end
@@ -551,15 +551,15 @@ txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
         Error ->
             lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
             throw({error, transaction_failed_abort_failed})
-    end.
+    end;
 txn_commit_w_retry(Pid, Txn, CurrTry, MaxTry) ->
     case antidotec_pb:commit_transaction(Pid, Txn) of
         {ok, _} ->
             ok;
         {error, Error} ->
-            lager:warning("Transaction commit failed for ~p, retrying...~n", [Txn]),
+            lager:warning("Transaction commit failed for ~p: ~p, retrying...~n", [Txn, Error]),
             txn_commit_w_retry(Pid, Txn, CurrTry + 1, MaxTry)
-    end
+    end.
 
 
 %% ------------------------------------------------------------------------------------------------
