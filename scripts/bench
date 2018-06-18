@@ -1,0 +1,103 @@
+#!/bin/bash
+# FMKe benchmark script
+# Runs the FMKe benchmark with several options. Has a companion 'setup' script
+# responsible for setting up the benchmark environment (i.e. database cluster,
+# fmke).
+# -n : specifies the FMKe node name. If used with -p, the population step will
+# happen through this node.
+# -p : populates the database prior to running the benchmark. Assumes FMKe is
+# already running (-s can be used to start a local FMKe node).
+# -s : starts a local FMKe node before executing the benchmark. Assumes a
+# correct fmke.config file.
+
+benchmark_type='standard'
+node='fmke@127.0.0.1'
+start_fmke_flag=false
+pop_flag=false
+cwd=$(pwd)
+
+# taken from the node.js installation script
+if test -t 1; then # if terminal
+    ncolors=$(which tput > /dev/null && tput colors) # supports color
+    if test -n "$ncolors" && test $ncolors -ge 8; then
+        termcols=$(tput cols)
+        bold="$(tput bold)"
+        underline="$(tput smul)"
+        standout="$(tput smso)"
+        normal="$(tput sgr0)"
+        black="$(tput setaf 0)"
+        red="$(tput setaf 1)"
+        green="$(tput setaf 2)"
+        yellow="$(tput setaf 3)"
+        blue="$(tput setaf 4)"
+        magenta="$(tput setaf 5)"
+        cyan="$(tput setaf 6)"
+        white="$(tput setaf 7)"
+    fi
+fi
+
+
+# read script flags
+while getopts 'b:pn:s' flag; do
+  case "${flag}" in
+    b) benchmark_type="${OPTARG}" ;;
+    n) node="${OPTARG}" ;;
+    p) pop_flag=true ;;
+    s) start_fmke_flag=true ;;
+    *) >&2 echo "Unexpected option ${flag}" ;;
+  esac
+done
+
+if [[ $benchmark_type != "standard" && $benchmark_type != "minimal" && $benchmark_type != "short" ]]; then
+    >&2 echo "${red}Unexpected benchmark type: ${benchmark_type}${normal}"
+    exit 1
+fi
+
+if [[ $start_fmke_flag = true ]]; then
+    echo "${standout}Starting a local FMKe server...${normal}"
+    ./scripts/setup -lt fmke
+fi
+
+bench=_build/test/lib/lasp_bench/_build/default/bin/lasp_bench
+populate=./scripts/populate_fmke.escript
+# make compile does some extra steps that are required for benchmarking,
+# including generating a runnable version of lasp_bench. If there isn't
+# a running version of lasp_bench available, we call make compile
+# explicitely.
+if [ ! -f $bench ]; then
+    make compile > /dev/null
+fi
+
+bench=_build/test/lib/lasp_bench/_build/default/bin/lasp_bench
+populate=./scripts/populate_fmke.escript
+if [[ $pop_flag = true ]]; then
+  bench_config=''
+  if [ $benchmark_type = "standard" ]; then
+    bench_config=benchmark_standard.config
+  elif [ $benchmark_type = "short" ]; then
+    bench_config=benchmark_short.config
+  elif [[ $benchmark_type = "minimal" ]]; then
+    bench_config=benchmark_minimal.config
+  fi
+  echo "${standout}Populating the data store...${normal}"
+  ./$populate $bench_config $node
+  echo "${standout}Running benchmark...${normal}"
+  ./$bench config/$bench_config
+fi
+
+if [[ $start_fmke_flag = true ]]; then
+  ./scripts/setup -lT -t fmke
+fi
+
+if [ -s tests/current/error.log ]; then
+  >&2 echo "${red}There were benchmark errors.${normal}"
+  echo "${yellow}You can still try to generate the graphs by running 'make bench-results'.${normal}"
+  exit 2
+else
+  make bench-results > /dev/null
+  echo "${green}Benchmark successful. Check the results at ${cwd}/tests/current/summary.png${normal}"
+fi
+
+echo
+echo done
+echo

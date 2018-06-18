@@ -1,40 +1,43 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
-%%! -smp enable -name setup@127.0.0.1 -cookie fmke -mnesia debug verbose
+%%! -smp enable -name populate_db@127.0.0.1 -setcookie fmke
 -mode(compile).
 -define(ZIPF_SKEW, 1).
--define(NUMTHREADS, 30).
+-define(NUMPROCS, 100).
 -define(DIVERGENCE_TIMEOUT, 10).
 -define(MAX_RETRIES, 10).
 
+-export([main/1]).
+
 -record(fmkeconfig, {
-  numpatients,
-  numpharmacies,
-  numfacilities,
-  numstaff,
-  numprescriptions
+  numpatients :: non_neg_integer()
+  ,numpharmacies :: non_neg_integer()
+  ,numfacilities :: non_neg_integer()
+  ,numstaff :: non_neg_integer()
+  ,numprescriptions :: non_neg_integer()
 }).
 
-main([Database, ConfigFile, Node | []]) ->
-  populate(Database, ConfigFile, [Node]);
+main([ConfigFile, Node | []]) ->
+  populate(ConfigFile, [Node]);
 
-main([Database, ConfigFile | Nodes = [_H|_T]]) ->
-  populate(Database, ConfigFile, Nodes);
+main([ConfigFile | Nodes = [_H|_T]]) ->
+  populate(ConfigFile, Nodes);
 
 main(_) ->
   usage().
 
 usage() ->
-  io:format("usage: data_store config_file fmke_node\n"),
+  io:format("usage: config_file fmke_node\n"),
   halt(1).
 
-populate(Database, ConfigFile, FMKeNodes) ->
-  io:format("Running population script with ~p backend.~n",[Database]),
+populate(ConfigFile, FMKeNodes) ->
   {ok, Cwd} = file:get_cwd(),
   Filename = Cwd ++ "/config/" ++ ConfigFile,
   io:format("Reading configuration file from ~p...~n",[Filename]),
   Nodes = lists:map(fun(Node) -> list_to_atom(Node) end, FMKeNodes),
   io:format("Sending FMKe population ops to the following nodes:~n~p~n", [Nodes]),
+  {ok, Database} = rpc:call(hd(Nodes), application, get_env, [fmke, target_database]),
+  io:format("Running population script with ~p backend.~n",[Database]),
   {ok, ConfigProps} = file:consult(Filename),
   Config = #fmkeconfig{
     numpatients = proplists:get_value(numpatients, ConfigProps),
@@ -86,7 +89,7 @@ populate_db(Nodes, Config) ->
   {ok, S1 + S2 + S3 + S4 + S5}.
 
 parallel_create(Name, Amount, Fun) ->
-  NumProcs = ?NUMTHREADS,
+  NumProcs = min(Amount, ?NUMPROCS),
   Divisions = calculate_divisions(Amount, NumProcs),
   spawn_workers(self(), NumProcs, Divisions, Fun),
   supervisor_loop(Name, 0, Amount).
@@ -173,7 +176,7 @@ add_prescription_rec(Nodes, PrescriptionId, ListPatientIds, FmkConfig, Ops) ->
   PrescriberId = rand:uniform(FmkConfig#fmkeconfig.numstaff),
   Node = lists:nth(PrescriptionId rem length(Nodes) + 1, Nodes),
   OpArgs = [PrescriptionId, CurrentId, PrescriberId, PharmacyId, gen_random_date(), gen_random_drugs()],
-  Result = run_op(Node, create_prescription, OpArgs)
+  Result = run_op(Node, create_prescription, OpArgs),
   case divergence_failure(Result) of
       false ->
           ok;
@@ -207,10 +210,10 @@ run_op(FmkNode, create_prescription, Params) ->
 run_rpc_op(FmkNode, Op, Params) ->
   run_rpc_op(FmkNode, Op, Params, 0, ?MAX_RETRIES, none).
 
-run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, none) ->
+run_rpc_op(_FmkNode, _Op, _Params, _MaxTries, _MaxTries, none) ->
     io:format("FMKe node is reachable but operation timed out. Check status of FMKe node~n", []),
     {error, exceeded_num_retries};
-run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, Error) ->
+run_rpc_op(_FmkNode, _Op, _Params, _MaxTries, _MaxTries, Error) ->
     case Error of
         nodedown ->
             io:format("FMKe node is down or unreachable. Check link between populator and FMKe~n", []);
@@ -222,7 +225,7 @@ run_rpc_op(_FmkNode, Op, Params, MaxTries, MaxTries, Error) ->
             io:format("Connection between FMKe and DB is unstable/broken. Please check the link between FMKe and the database.~n", [])
     end,
     halt(2);
-run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries, Error) ->
+run_rpc_op(FmkNode, Op, Params, CurrentTry, MaxTries, _Error) ->
     case rpc:call(FmkNode, fmke, Op, Params) of
         {badrpc, nodedown} ->
             run_rpc_op(FmkNode, Op, Params, CurrentTry + 1, MaxTries, nodedown);

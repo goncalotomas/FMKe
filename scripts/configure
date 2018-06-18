@@ -1,0 +1,84 @@
+#!/bin/bash
+# FMKe benchmark script
+# Runs the FMKe benchmark with several options. Has a companion 'setup' script
+# responsible for setting up the benchmark environment (i.e. database cluster,
+# fmke).
+# -n : specifies the FMKe node name. If used with -p, the population step will
+# happen through this node.
+# -p : populates the database prior to running the benchmark. Assumes FMKe is
+# already running (-s can be used to start a local FMKe node).
+# -s : starts a local FMKe node before executing the benchmark. Assumes a
+# correct fmke.config file.
+
+conn_pool_size=''
+optimized_flag=false
+port=''
+db=''
+fmke_config=''
+local_flag=false
+
+# taken from the node.js installation script
+if test -t 1; then # if terminal
+    ncolors=$(which tput > /dev/null && tput colors) # supports color
+    if test -n "$ncolors" && test $ncolors -ge 8; then
+        termcols=$(tput cols)
+        bold="$(tput bold)"
+        underline="$(tput smul)"
+        standout="$(tput smso)"
+        normal="$(tput sgr0)"
+        black="$(tput setaf 0)"
+        red="$(tput setaf 1)"
+        green="$(tput setaf 2)"
+        yellow="$(tput setaf 3)"
+        blue="$(tput setaf 4)"
+        magenta="$(tput setaf 5)"
+        cyan="$(tput setaf 6)"
+        white="$(tput setaf 7)"
+    fi
+fi
+
+
+# read script flags
+while getopts ':c:i:lo:t:' flag; do
+  case "${flag}" in
+    d) base_dir="${OPTARG}" ;;
+    l) local_flag=true ;;
+    o) optimized_flag=true ;;
+    p) port="${OPTARG}" ;;
+    t) db="${OPTARG}" ;;
+    *) >&2 echo "Unexpected option ${flag}" ;;
+  esac
+done
+
+if [[ $local_flag = true ]]; then
+  if [[ $db = "antidote" ]]; then
+    ./scripts/config/change_db_addresses.sh localhost > /dev/null
+    ./scripts/config/change_db_ports.sh antidote > /dev/null
+    ./scripts/config/change_db.sh antidote > /dev/null
+    ./scripts/config/set_param.sh "optimized_driver" true > /dev/null
+elif [[ $db = "riak" ]]; then
+    ./scripts/config/change_db_addresses.sh localhost > /dev/null
+    ./scripts/config/change_db_ports.sh riak > /dev/null
+    ./scripts/config/change_db.sh riak > /dev/null
+    ./scripts/config/set_param.sh "optimized_driver" true > /dev/null
+elif [[ $db = "redis" ]]; then
+    ./scripts/config/change_db_addresses.sh localhost > /dev/null
+    ./scripts/config/change_db_ports.sh redis > /dev/null
+    ./scripts/config/change_db.sh redis > /dev/null
+    ./scripts/config/set_param.sh "optimized_driver" true > /dev/null
+  fi
+  make rel > /dev/null
+  echo "${green}FMKe configured for local benchmarks with $db cluster.${normal}"
+  echo
+  echo done
+  echo
+  exit 0
+fi
+
+# adjust script arguments
+shift $(($OPTIND - 1))
+echo $@
+
+echo
+echo done
+echo
