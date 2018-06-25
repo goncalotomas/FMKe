@@ -2,7 +2,8 @@ sudo: false
 dist: trusty
 language: erlang
 otp_release:
-  - 20.2
+  - 20.3
+  - 21.0
 services:
   - docker
 install:
