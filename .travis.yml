@@ -7,6 +7,9 @@ otp_release:
 services:
   - docker
 install:
+  - which rebar3
+  - rebar3 local upgrade
+  - which rebar3
   - make all
   - rebar3 xref
   - rebar3 dialyzer
