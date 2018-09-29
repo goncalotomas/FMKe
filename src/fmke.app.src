@@ -12,7 +12,7 @@
     lager,
     cowboy,
     jsx,
-    antidote_pb,
+    antidotec_pb,
     riak_pb,
     riak_client,
     eredis,
