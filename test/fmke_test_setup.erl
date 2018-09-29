@@ -130,7 +130,7 @@ stop_node(Node) ->
 
 
 load_client_lib(Node, antidote) ->
-    rpc:call(Node, application, load, [antidote_pb]);
+    rpc:call(Node, application, load, [antidotec_pb]);
 load_client_lib(_Node, ets) ->
     ok;
 load_client_lib(Node, redis) ->
