@@ -7,9 +7,11 @@ otp_release:
 services:
   - docker
 install:
-  - which rebar3
+  - rebar3 --version
   - rebar3 local upgrade
-  - which rebar3
+  - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
+  - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
+  - rebar3 --version
   - make all
   - rebar3 xref
   - rebar3 dialyzer
@@ -18,7 +20,6 @@ before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
-  - rebar3 --version
   - rebar3 eunit
   - rebar3 ct --readable=false
   - rebar3 as test coveralls send
