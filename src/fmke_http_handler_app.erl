@@ -23,6 +23,6 @@ perform_operation(<<"GET">>, Req, [], []) ->
         StatusPropList = fmke:get_status(),
         fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, true, proplists:delete(http_port, StatusPropList) )
     catch error:ErrReason ->
-        lager:debug("Error getting status:~n~p~n", [erlang:get_stacktrace()]),
+        lager:debug("Error getting status:~n~p~n", [ErrReason]),
         fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
     end.
