@@ -43,9 +43,9 @@
 
 -define(SERVER, ?MODULE).
 
--define(MAP, antidote_crdt_gmap).
--define(LWWREG, antidote_crdt_lwwreg).
--define(ORSET, antidote_crdt_orset).
+-define(MAP, antidote_crdt_map_go).
+-define(LWWREG, antidote_crdt_register_lww).
+-define(ORSET, antidote_crdt_set_aw).
 
 %% Type definitions
 -type update() :: {{binary(), atom(), binary()}, atom(), any()}.
@@ -528,10 +528,14 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
     ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
 %% A wrapper for Antidote's commit_transaction function
--spec txn_commit(TxnDetails :: txid()) -> ok.
+-spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
 txn_commit({Pid, TxnDetails}) ->
-    {ok, _CommitTime} = antidotec_pb:commit_transaction(Pid, TxnDetails),
-    fmke_db_conn_manager:checkin(Pid).
+    Result = case antidotec_pb:commit_transaction(Pid, TxnDetails) of
+        {ok, _CommitTimestamp} -> ok;
+        Error -> Error
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    Result.
 
 
 %% ------------------------------------------------------------------------------------------------
