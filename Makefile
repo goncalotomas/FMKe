@@ -119,7 +119,7 @@ stop-redis:
 stop-riak:
 	./scripts/stop_data_store.sh riak
 
-test: all eunit ct xref dialyzer
+test: all eunit ct
 
 xref:
 	rebar3 xref
