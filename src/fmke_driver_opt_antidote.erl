@@ -43,6 +43,7 @@
 
 -define(SERVER, ?MODULE).
 
+-define(ANTIDOTE_TRANSACTION_RETRIES, 3).
 -define(MAP, antidote_crdt_map_go).
 -define(LWWREG, antidote_crdt_register_lww).
 -define(ORSET, antidote_crdt_set_aw).
@@ -528,14 +529,32 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
     ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
 %% A wrapper for Antidote's commit_transaction function
--spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
+-spec txn_commit(TxnDetails :: txid()) -> ok.
 txn_commit({Pid, TxnDetails}) ->
-    Result = case antidotec_pb:commit_transaction(Pid, TxnDetails) of
-        {ok, _CommitTimestamp} -> ok;
-        Error -> Error
-    end,
+    Result = txn_commit_w_retry(Pid, TxnDetails, 0, ?ANTIDOTE_TRANSACTION_RETRIES),
     fmke_db_conn_manager:checkin(Pid),
     Result.
+
+txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
+    lager:error("Transaction ~p failed, aborting...~n"),
+    case antidotec_pb:abort_transaction(Pid, Txn) of
+        ok ->
+            {error, transaction_aborted_max_commit_attempts};
+        {ok, _} ->
+            {error, transaction_aborted_max_commit_attempts};
+        Error ->
+            lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
+            throw({error, transaction_failed_abort_failed})
+    end;
+
+txn_commit_w_retry(Pid, Txn, CurrTry, MaxTry) ->
+    case antidotec_pb:commit_transaction(Pid, Txn) of
+        {ok, _} ->
+            ok;
+        {error, Error} ->
+            lager:warning("Transaction commit failed for ~p: ~p, retrying...~n", [Txn, Error]),
+            txn_commit_w_retry(Pid, Txn, CurrTry + 1, MaxTry)
+    end.
 
 
 %% ------------------------------------------------------------------------------------------------
