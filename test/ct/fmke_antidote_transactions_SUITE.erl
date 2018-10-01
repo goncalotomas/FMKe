@@ -1,9 +1,8 @@
 %%%-------------------------------------------------------------------
-%%% File    : fmke_db_conn_manager_SUITE.erl
+%%% File    : fmke_antidote_transactions_SUITE.erl
 %%% Author  : Gonçalo Tomás
-%%% Description : Tests the behaviour of the DB connection manager
-%%%               under several scenarios.
-%%% Created : Fri 9 Feb 2018 17:42
+%%% Description : Tests the behaviour of AntidoteDB transactions.
+%%% Created : Mon 1 Oct 2018 17:42
 %%%-------------------------------------------------------------------
 -module(fmke_antidote_transactions_SUITE).
 -include("fmke.hrl").
