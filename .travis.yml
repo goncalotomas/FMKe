@@ -2,19 +2,24 @@ sudo: false
 dist: trusty
 language: erlang
 otp_release:
-  - 20.2
+  - 20.3
+  - 21.1
 services:
   - docker
 install:
+  - rebar3 local upgrade
+  - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
+  - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
   - make all
-  - make lint
-  - make xref
-  - make dialyzer
+  - rebar3 xref
+  - rebar3 dialyzer
+  - rebar3 as lint lint
 before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
-  - make test
+  - rebar3 eunit
+  - rebar3 ct --readable=false
   - rebar3 as test coveralls send
   # - make bench
 after_failure:

@@ -40,6 +40,10 @@
     update_prescription_medication/3
   ]).
 
+-type get_result() :: app_record() | {error, not_found}.
+-type db_entry() :: {key(), get_result()}.
+-type key_or_entry() :: key() | db_entry().
+
 start(Args) ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
 
@@ -374,7 +378,8 @@ prsc_wrt_res([H|_T]) when H =/= ok -> {error, write_failed, H}.
 
 %% after a get request returns multiple results, checks if every K in Keys1 is {error, not_found}, and every K in Keys2
 %% returns a valid application record
--spec check_keys(Keys1::list(binary()), Keys2::list(binary())) -> true | {false, atom()} | {false, atom(), binary()}.
+-spec check_keys(Keys1::list(key_or_entry()), Keys2::list(key_or_entry())) ->
+    true | {false, atom()} | {false, atom(), binary()}.
 check_keys([], []) ->
     true;
 check_keys([{K, H} | _T], _Keys2) when is_record(H, facility); is_record(H, patient); is_record(H, pharmacy);

@@ -37,11 +37,14 @@ compile:
 console: rel
 	./_build/default/rel/fmke/bin/env console
 
+ct:
+	${REBAR} ct
+
 dialyzer:
 	${REBAR} dialyzer
 
-kv_driver_test:
-	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
+eunit:
+	${REBAR} eunit
 
 lint:
 	rebar3 as lint lint
@@ -116,9 +119,7 @@ stop-redis:
 stop-riak:
 	./scripts/stop_data_store.sh riak
 
-test: all
-	rebar3 eunit
-	rebar3 ct
+test: all eunit ct
 
 xref:
 	rebar3 xref
