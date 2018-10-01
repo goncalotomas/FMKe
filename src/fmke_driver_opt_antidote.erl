@@ -530,7 +530,7 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
     ok = antidotec_pb:update_objects(Pid, ObjectUpdates, TxnDetails).
 
 %% A wrapper for Antidote's commit_transaction function
--spec txn_commit(TxnDetails :: txid()) -> ok.
+-spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
 txn_commit({Pid, TxnDetails}) ->
     Result = txn_commit_w_retry(Pid, TxnDetails, 0, ?ANTIDOTE_TRANSACTION_RETRIES),
     fmke_db_conn_manager:checkin(Pid),
