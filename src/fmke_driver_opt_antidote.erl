@@ -541,9 +541,7 @@ txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
     case antidotec_pb:abort_transaction(Pid, Txn) of
         ok ->
             {error, transaction_aborted_max_commit_attempts};
-        {ok, _} ->
-            {error, transaction_aborted_max_commit_attempts};
-        Error ->
+        {error, Error} ->
             lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
             throw({error, transaction_failed_abort_failed})
     end;
