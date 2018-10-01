@@ -7,11 +7,9 @@ otp_release:
 services:
   - docker
 install:
-  - rebar3 --version
   - rebar3 local upgrade
   - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
   - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
-  - rebar3 --version
   - make all
   - rebar3 xref
   - rebar3 dialyzer
