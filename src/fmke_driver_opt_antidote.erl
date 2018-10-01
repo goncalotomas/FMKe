@@ -491,6 +491,7 @@ process_get_request(Key, Type, Txn) ->
     parse_read_result(get(Key, Type, Txn)).
 
 parse_read_result({_Crdt, []}) -> {error, not_found};
+parse_read_result({timeout, _}) -> {error, timeout};
 parse_read_result({_Crdt, Object}) -> Object;
 parse_read_result(_) -> erlang:error(unknown_object_type).
 
