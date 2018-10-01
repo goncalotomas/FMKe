@@ -33,6 +33,7 @@ bench-riak-norm: rel
 
 compile:
 	${REBAR} as test compile
+	escript -s scripts/populate_fmke.escript
 
 console: rel
 	./_build/default/rel/fmke/bin/env console
