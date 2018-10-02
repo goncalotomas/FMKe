@@ -22,38 +22,50 @@
 -define(ANTIDOTE_PORT, 8087).
 -define(RIAK_PORT, 8087).
 -define(REDIS_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
+-define(DOCKER_CMD_STOP_ANTIDOTE, "docker stop antidote && docker rm antidote").
+-define(DOCKER_CMD_STOP_RIAK, "docker stop riak && docker rm riak").
+-define(DOCKER_CMD_STOP_REDIS, "docker stop redis && docker rm redis").
+-define(DOCKER_CMD_STOP_ALL, "docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
+
+-define(DOCKER_CMD_START_ANTIDOTE, "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
+                                   "\"4368:4368\" -p \"8085:8085\" -p \"8087:8087\" -p \"8099:8099\" -p \"9100:9100\" "
+                                   "mweber/antidotedb").
+-define(DOCKER_CMD_START_RIAK, "docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" "
+                                "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
+-define(DOCKER_CMD_START_REDIS, "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p "
+                                "\"7000:7000\" -p \"7001:7001\"  -p \"7002:7002\" -p \"7003:7003\" -p \"7004:7004\" "
+                                "-p \"7005:7005\" grokzen/redis-cluster:latest").
 
 start_antidote() ->
-    Result = os:cmd("docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 "
-                    "-p \"4368:4368\" -p \"8085:8085\" -p \"8087:8087\" -p \"8099:8099\" -p \"9100:9100\" "
-                    "mweber/antidotedb"),
-    io:format("Starting antidote...~n~p~n", [Result]),
+    0 = cmd:run(?DOCKER_CMD_START_ANTIDOTE, return_code),
+    io:format("Started antidote.~n"),
     timer:sleep(5000).
 
 stop_antidote() ->
-    os:cmd("docker stop antidote && docker rm antidote").
+    0 = cmd:run(?DOCKER_CMD_STOP_ANTIDOTE, return_code).
 
 start_riak() ->
-    Result = os:cmd("docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" "
-                    "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak"),
-    io:format("Starting riak...~n~p~n", [Result]),
+    0 = cmd:run(?DOCKER_CMD_START_RIAK, return_code),
+    io:format("Started riak.~n"),
     timer:sleep(30000).
 
 stop_riak() ->
-    os:cmd("docker stop riak && docker rm riak").
+    0 = cmd:run(?DOCKER_CMD_STOP_RIAK, return_code).
 
 start_redis() ->
-    Result = os:cmd("docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p \"7000:7000\" -p \"7001:7001\""
-    " -p \"7002:7002\" -p \"7003:7003\" -p \"7004:7004\" -p \"7005:7005\" grokzen/redis-cluster:latest"),
-    io:format("Starting redis...~n~p~n", [Result]),
+    0 = cmd:run(?DOCKER_CMD_START_REDIS, return_code),
+    io:format("Started redis.~n"),
     timer:sleep(10000).
 
 stop_redis() ->
-    os:cmd("docker stop redis && docker rm redis").
+    0 = cmd:run(?DOCKER_CMD_STOP_REDIS, return_code).
 
 stop_all() ->
-    Result = os:cmd("docker stop $(docker ps -aq) && docker rm $(docker ps -aq)"),
-    io:format("Stopping all containers...~n~p~n", [Result]).
+    %% when we use the stop all command, we could be making sure that all instances are down
+    %% (say, before a test suite is run). This means that we are not sure that it will always
+    %% be successful.
+    Result = cmd:run(?DOCKER_CMD_STOP_ALL, return_code),
+    io:format("Stopped all running Docker containers (return code ~p).~n", [Result]).
 
 start_node_with_antidote_backend(Name, Optimized, DataModel) ->
     fmke_test_setup:start_antidote(),
