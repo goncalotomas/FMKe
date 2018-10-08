@@ -5,8 +5,6 @@
 
 -define (NODENAME, 'fmke@127.0.0.1').
 -define (COOKIE, fmke).
--define (TEST_BATTERY, [event_unit_tests, facility_unit_tests, patient_unit_tests, pharmacy_unit_tests,
-                        prescription_unit_tests, staff_unit_tests, treatment_unit_tests, status_tests]).
 
 %%%-------------------------------------------------------------------
 %%% Common Test exports
@@ -14,11 +12,8 @@
 -export([
     suite/0,
     all/0,
-    groups/0,
     init_per_suite/1,
     end_per_suite/1,
-    init_per_group/2,
-    end_per_group/2,
     init_per_testcase/2,
     end_per_testcase/2
 ]).
@@ -48,15 +43,14 @@ suite() ->
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
     [
-        % {group, simple_antidote_nested}
-        % ,{group, simple_antidote_non_nested}
-        {group, opt_antidote}
-        ,{group, opt_redis}
-        ,{group, opt_riak}
-        % ,{group, simple_riak_nested}
-        ,{group, simple_riak_non_nested}
-        ,{group, simple_ets_nested}
-        ,{group, simple_ets_non_nested}
+        event_unit_tests
+        ,facility_unit_tests
+        ,patient_unit_tests
+        ,pharmacy_unit_tests
+        ,prescription_unit_tests
+        ,staff_unit_tests
+        ,treatment_unit_tests
+        ,status_tests
     ].
 
 %%%-------------------------------------------------------------------
@@ -64,80 +58,22 @@ all() ->
 %%%-------------------------------------------------------------------
 
 init_per_suite(Config) ->
-    {ok, _} = net_kernel:start(['fmke_ct_test@127.0.0.1']),
-    true = erlang:set_cookie('fmke_ct_test@127.0.0.1', ?COOKIE),
-    Config.
+    CTNodename = ct:get_config(ct_nodename, 'ct_core_suite@127.0.0.1'),
+    FMKeNodename = ct:get_config(fmke_nodename, ?NODENAME),
+    OptionValues = lists:map(fun(Opt) ->
+                        {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
+                    end, ?OPTIONS),
+    {ok, _} = net_kernel:start([CTNodename]),
+    true = erlang:set_cookie(CTNodename, ?COOKIE),
+    Node = fmke_test_setup:launch_app(FMKeNodename, OptionValues),
+    [{node, Node} | Config].
 
 end_per_suite(_Config) ->
+    Nodename = ct:get_config(nodename, ?NODENAME),
+    fmke_test_setup:stop_node(Nodename),
+    fmke_test_setup:stop_all(),
     net_kernel:stop(),
     ok.
-
-groups() ->
-    [
-        {opt_antidote, [shuffle], ?TEST_BATTERY}
-        ,{opt_redis, [shuffle], ?TEST_BATTERY}
-        ,{opt_riak, [shuffle], ?TEST_BATTERY}
-        ,{simple_antidote_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_antidote_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_redis_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_redis_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_riak_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_riak_non_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_ets_nested, [shuffle], ?TEST_BATTERY}
-        ,{simple_ets_non_nested, [shuffle], ?TEST_BATTERY}
-    ].
-
-init_per_group(opt_antidote, Config) ->
-    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(opt_redis, Config) ->
-    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, true, non_nested),
-    io:format("node started with ref ~p~n",[Node]),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(opt_riak, Config) ->
-    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, true, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_antidote_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_antidote_non_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_antidote_backend(?NODENAME, false, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_riak_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, false, nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_riak_non_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_riak_backend(?NODENAME, false, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_redis_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_redis_non_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_redis_backend(?NODENAME, false, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_ets_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(simple_ets_non_nested, Config) ->
-    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, non_nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
-    [{node, Node} | Config];
-init_per_group(_, Config) ->
-    Config.
-
-end_per_group(_Group, _Config) ->
-    fmke_test_setup:stop_node(?NODENAME),
-    fmke_test_setup:stop_all().
 
 init_per_testcase(facility_unit_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
