@@ -6,7 +6,7 @@
 -behaviour (fmke_gen_driver).
 
 -include ("fmke.hrl").
--include ("fmk_kv.hrl").
+-include ("fmke_kv.hrl").
 
 -export([
   start/1,
