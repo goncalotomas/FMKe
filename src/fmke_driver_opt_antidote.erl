@@ -8,6 +8,10 @@
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
+%% antidotec_pb:commit_transaction has some typing issues.
+%% Leave this here until sure that function will not return this error.
+-dialyzer({no_match, txn_commit_w_retry/4}).
+
 %% FMKE driver API
 -export([
   start/1,
