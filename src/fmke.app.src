@@ -6,21 +6,22 @@
   {applications,
    [kernel,
     stdlib,
+    runtime_tools,
+    tools,
     poolboy,
     lager,
     cowboy,
     jsx,
-    antidote_pb,
+    antidotec_pb,
     riak_pb,
-    riakc,
-    eredis
+    riak_client,
+    eredis,
+    eredis_cluster
    ]},
 
   {modules, []},
 
   {maintainers, ["Goncalo Tomas"]},
   {licenses, ["Apache 2"]},
-  {links, [
-    {"Github","https://github.com/goncalotomas/FMKe"}
-  ]}
+  {links, [{"Github","https://github.com/goncalotomas/FMKe"}]}
  ]}.

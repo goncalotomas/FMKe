@@ -1,16 +1,34 @@
+sudo: false
 dist: trusty
 language: erlang
-sudo: false
 otp_release:
-  - 20.0
+  - 20.3
+  - 21.1
 services:
   - docker
 install:
+  - rebar3 local upgrade
+  - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
+  - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
   - make all
+  - rebar3 xref
+  - rebar3 dialyzer
+  - rebar3 as lint lint
+before_script:
+  - epmd -daemon
+  - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
-  - make ct
-  - make bench-short
-  - make test-multiple-releases
+  - rebar3 eunit
+  - rebar3 ct --readable=false
+  - rebar3 as test coveralls send
+  # - make bench
+after_failure:
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/ct.latest.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/console.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/crash.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/error.log
+  - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/lib.fmke.logs/suite.log
 cache:
   directories:
   - "$HOME/.cache/rebar3/hex/default"

@@ -1,7 +1,7 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 %% Database driver for Riak KV, featuring a normalized data model (no CRDT nesting).
 %% ---------------------------------------------------------------------------------------------------------------------
--module (fmke_db_driver_riak_kv_norm).
+-module (fmke_driver_opt_riak_kv_parallel_fetch).
 
 -behaviour (fmke_gen_driver).
 
@@ -318,18 +318,7 @@ get_prescs_from_sets(Keys, {error, not_found}) -> riakc_set:value(Keys);
 get_prescs_from_sets(KeysL, KeysR) -> lists:flatten(riakc_set:value(KeysL), riakc_set:value(KeysR)).
 
 multi_read(Pid, Objects) ->
-    Results = lists:map(
-                fun({Key, BucketType, BucketName}) ->
-                    riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key)
-                end, Objects),
-    lists:map(
-        fun(ReadResult) ->
-            case ReadResult of
-              {error, {notfound, _Type}} -> {error, not_found};
-              {ok, Object} -> Object;
-              _SomethingElse -> _SomethingElse
-            end
-        end, Results).
+    parallel_fetch(Pid, Objects).
 
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) -> create_if_not_exists(patient, [Id, Name, Address]).
@@ -501,35 +490,40 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
     PrescriberKey = get_key(staff, PrescriberId),
     Pid = poolboy:checkout(fmke_db_connection_pool),
     %% check required pre-conditions
-    [ {taken, {patient, PatientId}}, {taken, {pharmacy, PharmacyId}}, {taken, {staff, PrescriberId}} ]
-      = check_keys(Pid,[{patient, PatientId},{pharmacy, PharmacyId},{staff, PrescriberId}]),
+    [ {taken, PatientKey}, {taken, PharmacyKey}, {taken, PrescriberKey}, {Status, PrescriptionKey}]
+      = check_keys(Pid, [
+          {PatientKey, get_bucket_type(patient), get_bucket(patient)},
+          {PharmacyKey, get_bucket_type(pharmacy), get_bucket(pharmacy)},
+          {PrescriberKey, get_bucket_type(staff), get_bucket(staff)},
+          {PrescriptionKey, get_bucket_type(prescription), get_bucket(prescription)}
+      ]),
 
-    PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
-    HandleCreateOpResult = create_if_not_exists(Pid, prescription, PrescriptionFields),
+    CreateOpResult = case Status of
+        taken -> {error, prescription_id_taken};
+        free ->
+            PrescriptionFields = [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
+            LocalObject = riakc_map:to_op(gen_entity(prescription, PrescriptionFields)),
+            BucketType1 = get_bucket_type(prescription),
+            BucketName1 = get_bucket(prescription),
+            riakc_pb_socket:update_type(Pid, {BucketType1, BucketName1}, PrescriptionKey, LocalObject)
+    end,
 
-    Result = case HandleCreateOpResult of
+    Result = case CreateOpResult of
         ok ->
             Prescriptions = riakc_set:new(),
-            Prescriptions1 = riakc_set:add_element(PrescriptionKey, Prescriptions),
+            Prescriptions1 = riakc_set:to_op(riakc_set:add_element(PrescriptionKey, Prescriptions)),
             BucketType = <<"sets">>,
             BucketName = <<"prescriptions">>,
-            lists:map(fun(Key) ->
-                          riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_set:to_op(Prescriptions1))
-                      end, [PatientKey, PharmacyKey, PrescriberKey]),
+            parallel_update(Pid, [
+                {PatientKey, BucketType, BucketName, Prescriptions1},
+                {PharmacyKey, BucketType, BucketName, Prescriptions1},
+                {PrescriberKey, BucketType, BucketName, Prescriptions1}
+            ]),
             ok;
         ErrorMessage -> ErrorMessage
     end,
     poolboy:checkin(fmke_db_connection_pool, Pid),
     Result.
-
-check_keys(_Pid, []) ->
-    [];
-check_keys(Pid, [H|T]) ->
-    {Entity, Id} = H,
-    case process_get_request(Pid, Entity, Id) of
-        {error, not_found} -> [{free, H}] ++ check_keys(Pid, T);
-        _Object -> [{taken, H}] ++ check_keys(Pid, T)
-    end.
 
 %% Creates a treatment event, with information about the staff member that registered it,
 %% along with a timestamp and description.
@@ -592,13 +586,15 @@ process_prescription(Pid, Id, Date) ->
                     AddBuckName = <<"processed_prescriptions">>,
                     BucketType = <<"sets">>,
 
-                    riakc_pb_socket:update_type(Pid, {<<"maps">>, <<"prescriptions">>}, PrescriptionKey, riakc_map:to_op(NewMap)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PatientKey, riakc_set:to_op(RemFromSetPat)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, PharmacyKey, riakc_set:to_op(RemFromSetPharm)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, DelBuckName}, StaffKey, riakc_set:to_op(RemFromSetStaff)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PatientKey, riakc_set:to_op(ProcPrescsLocal)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, PharmacyKey, riakc_set:to_op(ProcPrescsLocal)),
-                    riakc_pb_socket:update_type(Pid, {BucketType, AddBuckName}, StaffKey, riakc_set:to_op(ProcPrescsLocal)),
+                    [ok, ok, ok, ok, ok, ok, ok] = parallel_update(Pid, [
+                        {PrescriptionKey, <<"maps">>, <<"prescriptions">>, riakc_map:to_op(NewMap)},
+                        {PatientKey, BucketType, DelBuckName, riakc_set:to_op(RemFromSetPat)},
+                        {PharmacyKey, BucketType, DelBuckName, riakc_set:to_op(RemFromSetPharm)},
+                        {StaffKey, BucketType, DelBuckName, riakc_set:to_op(RemFromSetStaff)},
+                        {PatientKey, BucketType, AddBuckName, riakc_set:to_op(ProcPrescsLocal)},
+                        {PharmacyKey, BucketType, AddBuckName, riakc_set:to_op(ProcPrescsLocal)},
+                        {StaffKey, BucketType, AddBuckName, riakc_set:to_op(ProcPrescsLocal)}
+                    ]),
                     ok
            end
    end.
@@ -606,6 +602,52 @@ process_prescription(Pid, Id, Date) ->
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
+parallel_fetch(Pid, Keys) ->
+    Self = self(),
+    % Spawn a list of processed that will each fetch the value of an individual key
+    Procs = lists:map(
+                fun({Key, BucketType, BucketName}) ->
+                    spawn(fun() ->
+                            Result = riakc_pb_socket:fetch_type(Pid, {BucketType, BucketName}, Key),
+                            Self ! {self(), Result}
+                    end)
+                end, Keys),
+    % For each spawned process, receive its message and get the result
+    lists:map(
+        fun(Proc) ->
+            receive
+                {Proc, {error, {notfound, _Type}}} -> {error, not_found};
+                {Proc, {ok, Object}} -> Object;
+                {Proc, _SomethingElse} -> _SomethingElse
+            end
+        end, Procs).
+
+parallel_update(Pid, Updates) ->
+    Self = self(),
+    % Spawn a list of processed that will each fetch the value of an individual key
+    Procs = lists:map(fun({Key, BucketType, BucketName, Update}) ->
+                spawn(fun() ->
+                        Result = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, Update),
+                        Self ! {self(), Result}
+                end)
+            end, Updates),
+    % For each spawned process, receive its message and get the result
+    lists:map(fun(Proc) ->
+        receive
+            {Proc, Result} -> Result
+        end
+    end, Procs).
+
+check_keys(Pid, Keys) ->
+    Results = lists:map(
+                    fun(Result) ->
+                        case Result of
+                            {error, not_found} -> free;
+                            _Object -> taken
+                        end
+                    end,
+                    parallel_fetch(Pid, Keys)),
+    lists:zip(Results, lists:map(fun({Key, _, _}) -> Key end, Keys)).
 
 process_get_request(Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),

@@ -80,11 +80,11 @@ get_driver_setup(Database) when is_atom(Database) ->
       redis => {fmke_kv_driver, fmke_db_driver_redis},
       riak => {fmke_kv_driver, fmke_db_driver_riak_kv},
       riak_kv => {fmke_kv_driver, fmke_db_driver_riak_kv},
-      riak_kv_mg => {fmke_db_driver_riak_kv_norm_mg, undefined},
+      riak_kv_mg => {fmke_driver_opt_riak_kv_parallel_fetch, undefined},
       riak_norm => {fmke_db_driver_riak_kv_norm, undefined},
-      riak_norm_mg => {fmke_db_driver_riak_kv_norm_mg, undefined},
+      riak_norm_mg => {fmke_driver_opt_riak_kv_parallel_fetch, undefined},
       riak_kv_norm => {fmke_db_driver_riak_kv_norm, undefined},
-      riak_kv_norm_mg => {fmke_db_driver_riak_kv_norm_mg, undefined}
+      riak_kv_norm_mg => {fmke_driver_opt_riak_kv_parallel_fetch, undefined}
     },
     case maps:find(Database, DriverSetups) of
         {ok, Value} -> Value;

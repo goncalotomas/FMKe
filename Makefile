@@ -1,4 +1,4 @@
-REBAR = rebar3
+REBAR=rebar3
 BENCH=_build/test/lib/lasp_bench
 
 all: compile rel
@@ -63,33 +63,13 @@ bench-riak-norm-mg: rel
 
 compile:
 	${REBAR} as test compile
-	cd ./_build/test/lib/lasp_bench && rebar3 escriptize
+	escript -s scripts/populate_fmke.escript
 
 console: rel
 	./_build/default/rel/fmke/bin/env console
 
-ct: all
-	./travis.sh ct antidote
-	./travis.sh ct antidote_norm
-	./travis.sh ct redis
-	./travis.sh ct riak
-	./travis.sh ct riak_norm
-	./travis.sh ct riak_norm_mg
-
-ct-antidote: rel
-	./travis.sh ct antidote
-
-ct-antidote-norm: rel
-	./travis.sh ct antidote_norm
-
-ct-redis: rel
-	./travis.sh ct redis
-
-ct-riak: rel
-	./travis.sh ct riak
-
-ct-riak-norm: rel
-	./travis.sh ct riak_norm
+ct:
+	${REBAR} ct
 
 ct-riak-norm-mg: rel
 	./travis.sh ct riak_norm_mg
@@ -97,8 +77,11 @@ ct-riak-norm-mg: rel
 dialyzer:
 	${REBAR} dialyzer
 
-kv_driver_test:
-	ct_run -pa ./_build/default/lib/*/ebin -logdir logs -suite test/ct/kv_driver_SUITE
+eunit:
+	${REBAR} eunit
+
+lint:
+	rebar3 as lint lint
 
 populate: compile
 	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmke@127.0.0.1"
@@ -143,7 +126,7 @@ shell-riak: rel
 	./scripts/start_data_store.sh riak
 	./_build/default/rel/fmke/bin/env console
 
-start:
+start: rel
 	./scripts/start_fmke.sh
 
 start-antidote: select-antidote
@@ -176,26 +159,7 @@ stop-redis:
 stop-riak:
 	./scripts/stop_data_store.sh riak
 
-stop-riak-norm: stop-riak
+test: all eunit ct
 
-stop-riak-norm-mg: stop-riak
-
-test-multiple-releases:
-	rm -rf _build/default/rel
-	./scripts/start_data_store.sh antidote
-	./scripts/config/change_http_port.sh 9090
-	./scripts/config/change_db.sh antidote
-	./scripts/config/change_db_ports.sh antidote
-	${REBAR} release -n fmke
-	./_build/default/rel/fmke/bin/env start
-	sleep 10
-	./scripts/config/change_http_port.sh 9190
-	${REBAR} release -n fmke_test
-	./_build/default/rel/fmke_test/bin/env_test start
-	sleep 10
-	./scripts/populate_fmke.escript "antidote" "../config/benchmark_short.config" "fmke_test@127.0.0.1"
-	_build/test/lib/lasp_bench/_build/default/bin/lasp_bench config/benchmark_short.config
-	./scripts/config/change_http_port.sh 9090
-	./_build/default/rel/fmke/bin/env stop
-	./_build/default/rel/fmke_test/bin/env_test stop
-	./scripts/stop_data_store.sh antidote
+xref:
+	rebar3 xref

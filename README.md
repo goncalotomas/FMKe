@@ -1,4 +1,8 @@
-# FMKe [![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe)
+# FMKe
+![Erlang Version](https://img.shields.io/badge/Erlang%2FOTP-%E2%89%A520-brightgreen.svg)
+[![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe)
+[![Coverage Status](https://coveralls.io/repos/github/goncalotomas/FMKe/badge.svg?branch=master)](https://coveralls.io/github/goncalotomas/FMKe?branch=master)
+![Dialyzer Enabled](https://img.shields.io/badge/dialyzer-enabled-brightgreen.svg)  
 
 FMKe is an extendable real world benchmark for distributed key-value stores.  
 This repository contains code for the application server and a set of scripts for orchestrating deployment and local execution of micro-benchmarks.
@@ -33,13 +37,10 @@ Firstly, separating the application server from the workload generation componen
 We have a generic interface for key-value stores (implemented as an Erlang behaviour) that is well specified, which makes supporting a new database as simple as writing a driver for it. Furthermore, pull requests with new drivers or optimizations for existing ones are accepted and welcomed.
 
 ## Supported data stores
-- AntidoteDB (using nested CRDTs)
-- AntidoteDB (with a normalized data model)
-- Riak (using nested CRDTs)
-- Redis (with a normalized data model)
-### In a future release
-- Lasp
-
+- AntidoteDB
+- Cassandra
+- Redis
+- Riak KV
 
 ## How the benchmark is deployed
 By default FMKe keeps a connection pool to a single database node, and the workload generation is performed by [Lasp Bench][4].  
