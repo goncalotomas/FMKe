@@ -19,7 +19,12 @@ before_script:
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
   - rebar3 eunit
-  - rebar3 ct --readable=false
+  - rebar3 ct
+  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config
+  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config
+  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config
+  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config
+  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config
   - rebar3 as test coveralls send
   # - make bench
 after_failure:
