@@ -122,7 +122,7 @@ start_node(Name, Opts) ->
         {ok, Node} ->
             AdapterOps = case proplists:get_value(optimized_driver, Opts, undefined) of
                 undefined ->
-                    Opts;
+                    [{optimized_driver, false} | Opts];
                 true ->
                     %% optimized drivers imply that the driver implements the full FMKe interface
                     %% in such a case, the adapter to use is the passthrough adapter.
