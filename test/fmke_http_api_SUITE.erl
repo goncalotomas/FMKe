@@ -1,8 +1,11 @@
 -module(fmke_http_api_SUITE).
+
 -include_lib("common_test/include/ct.hrl").
+
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 -include("fmke_http.hrl").
+
 -define(NODENAME, 'fmke@127.0.0.1').
 -define(COOKIE, fmke).
 
@@ -50,15 +53,19 @@ all() ->
 %%%-------------------------------------------------------------------
 
 init_per_suite(Config) ->
-    {ok, _} = net_kernel:start(['fmke_http_api_test@127.0.0.1']),
-    true = erlang:set_cookie('fmke_http_api_test@127.0.0.1', ?COOKIE),
-    {ok, _} = application:ensure_all_started(inets),
-    Node = fmke_test_setup:start_node_with_ets_backend(?NODENAME, nested),
-    erlang:set_cookie(?NODENAME, ?COOKIE),
+    CTNodename = ct:get_config(ct_nodename, 'ct_http_suite@127.0.0.1'),
+    FMKeNodename = ct:get_config(fmke_nodename, ?NODENAME),
+    OptionValues = lists:map(fun(Opt) ->
+                        {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
+                    end, ?OPTIONS),
+    {ok, _} = net_kernel:start([CTNodename]),
+    true = erlang:set_cookie(CTNodename, ?COOKIE),
+    Node = fmke_test_setup:launch_app(FMKeNodename, OptionValues),
     [{node, Node} | Config].
 
 end_per_suite(_Config) ->
-    fmke_test_setup:stop_node(?NODENAME),
+    Nodename = ct:get_config(nodename, ?NODENAME),
+    fmke_test_setup:stop_node(Nodename),
     fmke_test_setup:stop_all(),
     net_kernel:stop(),
     ok.
@@ -566,7 +573,8 @@ successful_http_post(Url, Data)->
     true = proplists:get_value(<<"success">>, JsonResponse).
 
 http_get(Url) ->
-    FullUrl = "http://localhost:9090" ++ Url,
+    Port = integer_to_list(ct:get_config(http_port, 9090)),
+    FullUrl = "http://localhost:" ++ Port ++ Url,
     Headers = [],
     HttpOptions = [],
     Options = [{sync, true}],
@@ -589,7 +597,8 @@ http_req_w_body(Method, Url, Data) ->
     http_req_w_body(Method, Url, Data, 200).
 
 http_req_w_body(Method, Url, Data, ExpectedReturn) ->
-    FullUrl = "http://localhost:9090" ++ Url,
+    Port = integer_to_list(ct:get_config(http_port, 9090)),
+    FullUrl = "http://localhost:" ++ Port ++ Url,
     Headers = [],
     HttpOptions = [],
     Options = [{sync, true}],
