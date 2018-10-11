@@ -69,7 +69,7 @@ init_per_suite(Config) ->
     [{node, Node} | Config].
 
 end_per_suite(_Config) ->
-    Nodename = ct:get_config(nodename, ?NODENAME),
+    Nodename = ct:get_config(fmke_nodename, ?NODENAME),
     fmke_test_setup:stop_node(Nodename),
     fmke_test_setup:stop_all(),
     net_kernel:stop(),

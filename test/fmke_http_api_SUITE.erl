@@ -64,7 +64,7 @@ init_per_suite(Config) ->
     [{node, Node} | Config].
 
 end_per_suite(_Config) ->
-    Nodename = ct:get_config(nodename, ?NODENAME),
+    Nodename = ct:get_config(fmke_nodename, ?NODENAME),
     fmke_test_setup:stop_node(Nodename),
     fmke_test_setup:stop_all(),
     net_kernel:stop(),
@@ -631,4 +631,5 @@ build_generic_props([H1|T1], [H2|T2], Accum) ->
     build_generic_props(T1, T2, lists:append(Accum, [{H1, H2}])).
 
 rpc(Mod, Fun, Args) ->
-    rpc:block_call(?NODENAME, Mod, Fun, Args).
+    Nodename = ct:get_config(fmke_nodename, ?NODENAME),
+    rpc:block_call(Nodename, Mod, Fun, Args).
