@@ -38,8 +38,21 @@ compile:
 console: rel
 	./_build/default/rel/fmke/bin/env console
 
+coverage: eunit ct
+	${REBAR} cover --verbose
+
 ct:
-	${REBAR} ct
+	${REBAR} ct --cover
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=core_ets_nested
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=core_ets_non_nested
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=core_antidote_non_nested_opt
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=core_riak_non_nested_opt
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=core_redis_non_nested_opt
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=http_ets_nested
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=http_ets_non_nested
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=http_antidote_non_nested_opt
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=http_redis_non_nested_opt
 
 dialyzer:
 	${REBAR} dialyzer

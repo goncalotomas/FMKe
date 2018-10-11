@@ -59,13 +59,10 @@ stop(_) ->
 
 init([Hosts, Ports, PoolSize]) ->
     InitNodes = lists:zip(Hosts, Ports),
-    lager:info("initializing eredis_cluster..."),
-    %% this is probably not the best way to get eredis_cluster working, but it is definitely the fastest!
-    ok = application:stop(eredis_cluster),
-    application:set_env(eredis_cluster, init_nodes, InitNodes),
+    application:ensure_all_started(eredis_cluster),
     application:set_env(eredis_cluster, pool_size, PoolSize),
     application:set_env(eredis_cluster, pool_max_overflow, 2*PoolSize),
-    application:ensure_all_started(eredis_cluster),
+    eredis_cluster:connect(InitNodes),
     {ok, []}.
 
 handle_cast(_Msg, State) ->
