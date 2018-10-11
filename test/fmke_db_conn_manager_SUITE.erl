@@ -27,7 +27,6 @@ suite() ->
 init_per_suite(Config) ->
     {ok, _} = net_kernel:start(['fmke_db_conn_mgr_test@127.0.0.1']),
     true = erlang:set_cookie('fmke_db_conn_mgr_test@127.0.0.1', ?COOKIE),
-    io:format("Currently running on node ~p~n", [node()]),
     fmke_test_setup:start_node_with_mock_cluster(?NODENAME, true, non_nested),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
@@ -124,7 +123,7 @@ dead_pid_is_cleaned_from_manager_state(_Config) ->
 
 get_pids(Pool) ->
     Results = rpc(gen_server, call, [Pool, get_all_workers]),
-    lists:map(fun({_Monitors,Pid,_Type,_Module}) -> Pid end, Results).
+    lists:map(fun({_Monitors, Pid, _Type, _Module}) -> Pid end, Results).
 
 get_pools() ->
     rpc:call(?NODENAME, application, get_env, [?APP, pools]).

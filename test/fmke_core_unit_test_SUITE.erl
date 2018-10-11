@@ -43,14 +43,14 @@ suite() ->
 %% returns a list of all test sets to be executed by Common Test.
 all() ->
     [
-        event_unit_tests
-        ,facility_unit_tests
-        ,patient_unit_tests
-        ,pharmacy_unit_tests
-        ,prescription_unit_tests
-        ,staff_unit_tests
-        ,treatment_unit_tests
-        ,status_tests
+        event_unit_tests,
+        facility_unit_tests,
+        patient_unit_tests,
+        pharmacy_unit_tests,
+        prescription_unit_tests,
+        staff_unit_tests,
+        treatment_unit_tests,
+        status_tests
     ].
 
 %%%-------------------------------------------------------------------
@@ -79,26 +79,26 @@ init_per_testcase(facility_unit_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
     FacilityId = rand:uniform(1000000000000),
     ets:insert(TabId, {facility, FacilityId, "Some Hospital", "Somewhere", "Hospital"}),
-    ets:insert(TabId, {updated_facility, FacilityId, "Some Random Hospital", "Somewhere Portugal", "Treatment Facility"}),
-    [{table,TabId} | Config];
+    ets:insert(TabId, {updated_facility, FacilityId, "Some Random Hospital", "Beja, Portugal", "Treatment Facility"}),
+    [{table, TabId} | Config];
 
 init_per_testcase(patient_unit_tests, Config) ->
     TabId = ets:new(patients, [set, protected, named_table]),
     PatientId = rand:uniform(1000000000000),
     ets:insert(TabId, {patient, PatientId, "Goncalo Tomas", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_patient, PatientId, "Goncalo P. Tomas", "Caparica, Portugal"}),
-    [{table,TabId} | Config];
+    [{table, TabId} | Config];
 
 init_per_testcase(pharmacy_unit_tests, Config) ->
     TabId = ets:new(pharmacies, [set, protected, named_table]),
     PharmacyId = rand:uniform(1000000000000),
     ets:insert(TabId, {pharmacy, PharmacyId, "Some Pharmacy", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_pharmacy, PharmacyId, "Some Random Pharmacy", "Caparica, Portugal"}),
-    [{table,TabId} | Config];
+    [{table, TabId} | Config];
 
 init_per_testcase(prescription_unit_tests, Config) ->
     TabId = ets:new(prescriptions, [set, protected, named_table]),
-    [R1, R2, R3, R4, R5] = lists:map(fun(_) -> rand:uniform(1000000000000) end, lists:seq(1,5)),
+    [R1, R2, R3, R4, R5] = lists:map(fun(_) -> rand:uniform(1000000000000) end, lists:seq(1, 5)),
     ets:insert(TabId, {patient, R1, "Goncalo Tomas", "Somewhere in Portugal"}),
     ets:insert(TabId, {other_patient, R1+1, "Goncalo P. Tomas", "Caparica, Portugal"}),
     ets:insert(TabId, {facility, R2, "Some Hospital", "Somewhere", "Hospital"}),
@@ -106,21 +106,21 @@ init_per_testcase(prescription_unit_tests, Config) ->
     ets:insert(TabId, {pharmacy, R3, "Some Pharmacy", "Somewhere in Portugal"}),
     ets:insert(TabId, {other_pharmacy, R3+1, "Some Random Pharmacy", "Caparica, Portugal"}),
     ets:insert(TabId, {staff, R4, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
-    ets:insert(TabId, {other_staff, R4+1, "Some Random Doctor", "Caparica, Portugal", "weird esoteric kind of medicine"}),
+    ets:insert(TabId, {other_staff, R4+1, "Some Random Doctor", "Caparica, Portugal", "weird esoteric medicine"}),
     ets:insert(TabId, {prescription, R5, R1, R4, R3, "12/12/2012", ["Penicillin", "Diazepam"]}),
     ets:insert(TabId, {updated_prescription_drugs, R5, ["Adrenaline"]}),
     ets:insert(TabId, {processed_prescription_date, R5, "24/12/2012"}),
     ets:insert(TabId, {other_prescription, R5+1, R1+1, R4+1, R3+1, "01/10/2015", ["Diazepam"]}),
     ets:insert(TabId, {other_updated_prescription_drugs, R5+1, ["Penicillin", "Adrenaline"]}),
     ets:insert(TabId, {other_processed_prescription_date, R5+1, "01/01/2016"}),
-    [{table,TabId} | Config];
+    [{table, TabId} | Config];
 
 init_per_testcase(staff_unit_tests, Config) ->
     TabId = ets:new(staff, [set, protected, named_table]),
     StaffId = rand:uniform(1000000000000),
     ets:insert(TabId, {staff, StaffId, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
-    ets:insert(TabId, {updated_staff, StaffId, "Some Random Doctor", "Caparica, Portugal", "weird esoteric kind of medicine"}),
-    [{table,TabId} | Config];
+    ets:insert(TabId, {updated_staff, StaffId, "Some Random Doctor", "Caparica, Portugal", "weird esoteric medicine"}),
+    [{table, TabId} | Config];
 
 init_per_testcase(_, Config) ->
     Config.
@@ -445,29 +445,29 @@ get_existing_prescription(Config) ->
 
     %% check for same prescription inside patient, pharmacy and staff
     #patient{
-        id = _BinPatId
-        ,name = _Name1
-        ,address = _Address1
-        ,prescriptions = PatientPrescriptions
+        id = _BinPatId,
+        name = _Name1,
+        address = _Address1,
+        prescriptions = PatientPrescriptions
     } = rpc(Config, get_patient_by_id, [PatId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     #pharmacy{
-        id = _BinPharmId
-        ,name = _Name2
-        ,address = _Address2
-        ,prescriptions = PharmacyPrescriptions
+        id = _BinPharmId,
+        name = _Name2,
+        address = _Address2,
+        prescriptions = PharmacyPrescriptions
     } = rpc(Config, get_pharmacy_by_id, [PharmId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     #staff{
-        id = _BinPrescId
-        ,name = _Name3
-        ,address = _Address3
-        ,speciality = _Speciality
-        ,prescriptions = StaffPrescriptions
+        id = _BinPrescId,
+        name = _Name3,
+        address = _Address3,
+        speciality = _Speciality,
+        prescriptions = StaffPrescriptions
     } = rpc(Config, get_staff_by_id, [PrescId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
@@ -537,34 +537,33 @@ get_prescription_after_updates(Config) ->
 
     RemPrescription = rpc(Config, get_prescription_by_id, [Id]),
 
-    io:format("Expected Prescription is ~p~nRemote Prescription is ~p", [ExpectedPrescription, RemPrescription]),
     true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, RemPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff
     #patient{
-        id = _BinPatId
-        ,name = _Name1
-        ,address = _Address1
-        ,prescriptions = PatientPrescriptions
+        id = _BinPatId,
+        name = _Name1,
+        address = _Address1,
+        prescriptions = PatientPrescriptions
     } = rpc(Config, get_patient_by_id, [PatId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
     #pharmacy{
-        id = _BinPharmId
-        ,name = _Name2
-        ,address = _Address2
-        ,prescriptions = PharmacyPrescriptions
+        id = _BinPharmId,
+        name = _Name2,
+        address = _Address2,
+        prescriptions = PharmacyPrescriptions
     } = rpc(Config, get_pharmacy_by_id, [PharmId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
     #staff{
-        id = _BinPrescId
-        ,name = _Name3
-        ,address = _Address3
-        ,speciality = _Speciality
-        ,prescriptions = StaffPrescriptions
+        id = _BinPrescId,
+        name = _Name3,
+        address = _Address3,
+        speciality = _Speciality,
+        prescriptions = StaffPrescriptions
     } = rpc(Config, get_staff_by_id, [PrescId]),
 
     true = fmke_test_utils:search_prescription(ExpectedPrescription, StaffPrescriptions).
