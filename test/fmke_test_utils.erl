@@ -9,12 +9,12 @@
 -include("fmke_kv.hrl").
 
 -export ([
-    compare_facilities/2
-    ,compare_patients/2
-    ,compare_pharmacies/2
-    ,compare_prescriptions/2
-    ,compare_staff/2
-    ,search_prescription/2
+    compare_facilities/2,
+    compare_patients/2,
+    compare_pharmacies/2,
+    compare_prescriptions/2,
+    compare_staff/2,
+    search_prescription/2
 ]).
 
 %% Compares 2 facilities in the form of a list of fields, where the first argument is the expected result.
@@ -102,8 +102,8 @@ cmp_prescs_or_key(P1, P2) ->
             end
     end.
 
-gen_key(Entity,Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p",[Entity,Id]))).
+gen_key(Entity, Id) ->
+    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).
 
 presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_integer(Id) -> Id;
 presc_id({prescription, Id, _, _, _, _, _, _, _}) when is_binary(Id) -> list_to_integer(binary_to_list(Id));
@@ -125,14 +125,14 @@ presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary
 
 facility_comparison_test_() ->
     [
-        identity_facility_comparison()
-        ,facility_comparison_binary_id()
-        ,facility_comparison_binary_string_fields()
-        ,facility_comparison_all_binary_fields()
-        ,facility_comparison_wrong_id()
-        ,facility_comparison_wrong_name()
-        ,facility_comparison_wrong_address()
-        ,facility_comparison_wrong_type()
+        identity_facility_comparison(),
+        facility_comparison_binary_id(),
+        facility_comparison_binary_string_fields(),
+        facility_comparison_all_binary_fields(),
+        facility_comparison_wrong_id(),
+        facility_comparison_wrong_name(),
+        facility_comparison_wrong_address(),
+        facility_comparison_wrong_type()
     ].
 
 identity_facility_comparison() ->
@@ -176,21 +176,21 @@ facility_comparison_wrong_type() ->
 
 patient_comparison_test_() ->
     [
-        identity_patient_comparison()
-        ,patient_comparison_binary_id()
-        ,patient_comparison_binary_string_fields()
-        ,patient_comparison_all_binary_fields()
-        ,patient_comparison_with_single_nested_prescription()
-        ,patient_comparison_unordered_nested_prescriptions()
-        ,patient_comparison_with_single_prescription_ref()
-        ,patient_comparison_unordered_prescriptions_refs()
-        ,patient_comparison_wrong_id()
-        ,patient_comparison_wrong_name()
-        ,patient_comparison_wrong_address()
-        ,patient_comparison_missing_prescriptions()
-        ,patient_comparison_missing_prescription_refs()
-        ,patient_comparison_wrong_prescriptions()
-        ,patient_comparison_wrong_prescription_refs()
+        identity_patient_comparison(),
+        patient_comparison_binary_id(),
+        patient_comparison_binary_string_fields(),
+        patient_comparison_all_binary_fields(),
+        patient_comparison_with_single_nested_prescription(),
+        patient_comparison_unordered_nested_prescriptions(),
+        patient_comparison_with_single_prescription_ref(),
+        patient_comparison_unordered_prescriptions_refs(),
+        patient_comparison_wrong_id(),
+        patient_comparison_wrong_name(),
+        patient_comparison_wrong_address(),
+        patient_comparison_missing_prescriptions(),
+        patient_comparison_missing_prescription_refs(),
+        patient_comparison_wrong_prescriptions(),
+        patient_comparison_wrong_prescription_refs()
     ].
 
 identity_patient_comparison() ->
@@ -300,21 +300,21 @@ patient_comparison_wrong_prescription_refs() ->
 
 pharmacy_comparison_test_() ->
     [
-        identity_pharmacy_comparison()
-        ,pharmacy_comparison_binary_id()
-        ,pharmacy_comparison_binary_string_fields()
-        ,pharmacy_comparison_all_binary_fields()
-        ,pharmacy_comparison_with_single_nested_prescription()
-        ,pharmacy_comparison_unordered_nested_prescriptions()
-        ,pharmacy_comparison_with_single_prescription_ref()
-        ,pharmacy_comparison_unordered_prescriptions_refs()
-        ,pharmacy_comparison_wrong_id()
-        ,pharmacy_comparison_wrong_name()
-        ,pharmacy_comparison_wrong_address()
-        ,pharmacy_comparison_missing_prescriptions()
-        ,pharmacy_comparison_missing_prescription_refs()
-        ,pharmacy_comparison_wrong_prescriptions()
-        ,pharmacy_comparison_wrong_prescription_refs()
+        identity_pharmacy_comparison(),
+        pharmacy_comparison_binary_id(),
+        pharmacy_comparison_binary_string_fields(),
+        pharmacy_comparison_all_binary_fields(),
+        pharmacy_comparison_with_single_nested_prescription(),
+        pharmacy_comparison_unordered_nested_prescriptions(),
+        pharmacy_comparison_with_single_prescription_ref(),
+        pharmacy_comparison_unordered_prescriptions_refs(),
+        pharmacy_comparison_wrong_id(),
+        pharmacy_comparison_wrong_name(),
+        pharmacy_comparison_wrong_address(),
+        pharmacy_comparison_missing_prescriptions(),
+        pharmacy_comparison_missing_prescription_refs(),
+        pharmacy_comparison_wrong_prescriptions(),
+        pharmacy_comparison_wrong_prescription_refs()
     ].
 
 identity_pharmacy_comparison() ->
@@ -424,22 +424,22 @@ pharmacy_comparison_wrong_prescription_refs() ->
 
 prescription_comparison_test_() ->
     [
-        identity_prescription_comparison()
-        ,prescription_comparison_binary_id()
-        ,prescription_comparison_binary_patient_id()
-        ,prescription_comparison_binary_pharmacy_id()
-        ,prescription_comparison_binary_prescriber_id()
-        ,prescription_comparison_binary_string_fields()
-        ,prescription_comparison_all_binary_fields()
-        ,prescription_comparison_wrong_id()
-        ,prescription_comparison_wrong_patient_id()
-        ,prescription_comparison_wrong_pharmacy_id()
-        ,prescription_comparison_wrong_prescriber_id()
-        ,prescription_comparison_wrong_date_prescribed()
-        ,prescription_comparison_wrong_date_processed()
-        ,prescription_comparison_wrong_is_processed()
-        ,prescription_comparison_wrong_drugs()
-        ,prescription_comparison_missing_drugs()
+        identity_prescription_comparison(),
+        prescription_comparison_binary_id(),
+        prescription_comparison_binary_patient_id(),
+        prescription_comparison_binary_pharmacy_id(),
+        prescription_comparison_binary_prescriber_id(),
+        prescription_comparison_binary_string_fields(),
+        prescription_comparison_all_binary_fields(),
+        prescription_comparison_wrong_id(),
+        prescription_comparison_wrong_patient_id(),
+        prescription_comparison_wrong_pharmacy_id(),
+        prescription_comparison_wrong_prescriber_id(),
+        prescription_comparison_wrong_date_prescribed(),
+        prescription_comparison_wrong_date_processed(),
+        prescription_comparison_wrong_is_processed(),
+        prescription_comparison_wrong_drugs(),
+        prescription_comparison_missing_drugs()
     ].
 
 identity_prescription_comparison() ->
@@ -586,22 +586,22 @@ prescription_comparison_missing_drugs() ->
 
 staff_comparison_test_() ->
     [
-        identity_staff_comparison()
-        ,staff_comparison_binary_id()
-        ,staff_comparison_binary_string_fields()
-        ,staff_comparison_all_binary_fields()
-        ,staff_comparison_with_single_nested_prescription()
-        ,staff_comparison_unordered_nested_prescriptions()
-        ,staff_comparison_with_single_prescription_ref()
-        ,staff_comparison_unordered_prescriptions_refs()
-        ,staff_comparison_wrong_id()
-        ,staff_comparison_wrong_name()
-        ,staff_comparison_wrong_address()
-        ,staff_comparison_wrong_speciality()
-        ,staff_comparison_missing_prescriptions()
-        ,staff_comparison_missing_prescription_refs()
-        ,staff_comparison_wrong_prescriptions()
-        ,staff_comparison_wrong_prescription_refs()
+        identity_staff_comparison(),
+        staff_comparison_binary_id(),
+        staff_comparison_binary_string_fields(),
+        staff_comparison_all_binary_fields(),
+        staff_comparison_with_single_nested_prescription(),
+        staff_comparison_unordered_nested_prescriptions(),
+        staff_comparison_with_single_prescription_ref(),
+        staff_comparison_unordered_prescriptions_refs(),
+        staff_comparison_wrong_id(),
+        staff_comparison_wrong_name(),
+        staff_comparison_wrong_address(),
+        staff_comparison_wrong_speciality(),
+        staff_comparison_missing_prescriptions(),
+        staff_comparison_missing_prescription_refs(),
+        staff_comparison_wrong_prescriptions(),
+        staff_comparison_wrong_prescription_refs()
     ].
 
 identity_staff_comparison() ->

@@ -11,16 +11,14 @@
     poolboy,
     lager,
     cowboy,
-    jsx,
-    antidotec_pb,
-    riak_pb,
-    riak_client,
-    eredis,
-    eredis_cluster
+    jsx
    ]},
-
+  {included_applications, [
+    antidotec_pb,
+    riak_client,
+    eredis_cluster
+  ]},
   {modules, []},
-
   {maintainers, ["Goncalo Tomas"]},
   {licenses, ["Apache 2"]},
   {links, [{"Github","https://github.com/goncalotomas/FMKe"}]}

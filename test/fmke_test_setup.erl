@@ -12,6 +12,7 @@
     start_node_with_redis_backend/3,
     start_node_with_riak_backend/3,
     start_node_with_mock_cluster/3,
+    launch_app/2,
     stop_all/0,
     stop_antidote/0,
     stop_riak/0,
@@ -27,38 +28,58 @@
 -define(DOCKER_CMD_STOP_REDIS, "docker stop redis && docker rm redis").
 -define(DOCKER_CMD_STOP_ALL, "docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
 
--define(DOCKER_CMD_START_ANTIDOTE, "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
-                                   "\"4368:4368\" -p \"8085:8085\" -p \"8087:8087\" -p \"8099:8099\" -p \"9100:9100\" "
-                                   "mweber/antidotedb").
--define(DOCKER_CMD_START_RIAK, "docker run -d --name riak -p \"8087:8087\" -p \"8098:8098\" "
+-define(DOCKER_CMD_START_ANTIDOTE(Port), "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
+                                   "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" mweber/antidotedb").
+
+-define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
                                 "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
--define(DOCKER_CMD_START_REDIS, "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 -p "
-                                "\"7000:7000\" -p \"7001:7001\"  -p \"7002:7002\" -p \"7003:7003\" -p \"7004:7004\" "
-                                "-p \"7005:7005\" grokzen/redis-cluster:latest").
+
+-define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
+                                "-p \"" ++ integer_to_list(Port) ++ ":7000\" "
+                                "-p \"" ++ integer_to_list(Port+1) ++ ":7001\" "
+                                "-p \"" ++ integer_to_list(Port+2) ++ ":7002\" "
+                                "-p \"" ++ integer_to_list(Port+3) ++ ":7003\" "
+                                "-p \"" ++ integer_to_list(Port+4) ++ ":7004\" "
+                                "-p \"" ++ integer_to_list(Port+5) ++ ":7005\" grokzen/redis-cluster:latest").
 
 start_antidote() ->
-    0 = cmd:run(?DOCKER_CMD_START_ANTIDOTE, return_code),
+    start_antidote(8087).
+
+start_antidote(Port) ->
+    0 = cmd:run(?DOCKER_CMD_START_ANTIDOTE(Port), return_code),
     io:format("Started antidote.~n"),
-    timer:sleep(5000).
+    timer:sleep(5000),
+    ok.
 
 stop_antidote() ->
-    0 = cmd:run(?DOCKER_CMD_STOP_ANTIDOTE, return_code).
+    0 = cmd:run(?DOCKER_CMD_STOP_ANTIDOTE, return_code),
+    ok.
 
 start_riak() ->
-    0 = cmd:run(?DOCKER_CMD_START_RIAK, return_code),
+    start_riak(8087).
+
+start_riak(Port) ->
+    0 = cmd:run(?DOCKER_CMD_START_RIAK(Port), return_code),
     io:format("Started riak.~n"),
-    timer:sleep(30000).
+    timer:sleep(30000),
+    ok.
 
 stop_riak() ->
-    0 = cmd:run(?DOCKER_CMD_STOP_RIAK, return_code).
+    0 = cmd:run(?DOCKER_CMD_STOP_RIAK, return_code),
+    ok.
 
 start_redis() ->
-    0 = cmd:run(?DOCKER_CMD_START_REDIS, return_code),
+    start_redis(7000).
+
+start_redis(Port) ->
+    0 = cmd:run(?DOCKER_CMD_START_REDIS(Port), return_code),
     io:format("Started redis.~n"),
-    timer:sleep(10000).
+    timer:sleep(10000),
+    ok.
 
 stop_redis() ->
-    0 = cmd:run(?DOCKER_CMD_STOP_REDIS, return_code).
+    0 = cmd:run(?DOCKER_CMD_STOP_REDIS, return_code),
+    ok.
 
 stop_all() ->
     %% when we use the stop all command, we could be making sure that all instances are down
@@ -99,7 +120,17 @@ start_node(Name, Opts) ->
     %% start ct_slave node
     case ct_slave:start(Name, NodeConfig) of
         {ok, Node} ->
-            StartupOpts = lists:ukeymerge(1, lists:sort(Opts), lists:sort(maps:to_list(?DEFAULTS))),
+            AdapterOps = case proplists:get_value(optimized_driver, Opts, undefined) of
+                undefined ->
+                    [{optimized_driver, false} | Opts];
+                true ->
+                    %% optimized drivers imply that the driver implements the full FMKe interface
+                    %% in such a case, the adapter to use is the passthrough adapter.
+                    lists:keyreplace(adapter, 1, Opts, {adapter, fmke_pt_adapter});
+                false ->
+                    Opts
+            end,
+            StartupOpts = lists:ukeymerge(1, lists:sort(AdapterOps), lists:sort(maps:to_list(?DEFAULTS))),
             lists:map(
                 fun({Opt, Val}) ->
                     rpc:call(Node, application, set_env, [?APP, Opt, Val])
@@ -116,6 +147,27 @@ start_node(Name, Opts) ->
             wait_until_offline(Node),
             start_node(Name, Opts)
     end.
+
+stop_node(Node) ->
+    rpc:call(Node, application, stop, [?APP]),
+    ct_slave:stop(Node),
+    wait_until_offline(Node).
+
+launch_app(Nodename, Config) ->
+    io:format("Got config = ~p~n", [Config]),
+    Database = proplists:get_value(target_database, Config),
+    [Port] = proplists:get_value(database_ports, Config),
+    ok = start_db(Database, Port),
+    start_node(Nodename, Config).
+
+start_db(antidote, Port) ->
+    start_antidote(Port);
+start_db(ets, _Port) ->
+    ok; %% ets doesn't need to be started
+start_db(redis, Port) ->
+    start_redis(Port);
+start_db(riak, Port) ->
+    start_riak(Port).
 
 wait_until_offline(Node) ->
     wait_until(fun() -> pang == net_adm:ping(Node) end, 60*2, 500).
@@ -134,12 +186,6 @@ wait_until_result(Fun, Result, Retry, Delay) when Retry > 0 ->
             timer:sleep(Delay),
             wait_until_result(Fun, Result, Retry-1, Delay)
 end.
-
-stop_node(Node) ->
-    rpc:call(Node, application, stop, [?APP]),
-    ct_slave:stop(Node),
-    wait_until_offline(Node).
-
 
 load_client_lib(Node, antidote) ->
     rpc:call(Node, application, load, [antidotec_pb]);
