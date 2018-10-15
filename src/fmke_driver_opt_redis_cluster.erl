@@ -59,7 +59,7 @@ stop(_) ->
 
 init([Hosts, Ports, PoolSize]) ->
     InitNodes = lists:zip(Hosts, Ports),
-    application:ensure_all_started(eredis_cluster),
+    {ok, _Started} = application:ensure_all_started(eredis_cluster),
     application:set_env(eredis_cluster, pool_size, PoolSize),
     application:set_env(eredis_cluster, pool_max_overflow, 2*PoolSize),
     eredis_cluster:connect(InitNodes),
