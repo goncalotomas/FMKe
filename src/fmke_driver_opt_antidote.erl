@@ -73,6 +73,7 @@ stop(_) ->
     gen_server:stop(?SERVER).
 
 init([]) ->
+    {ok, _Started} = application:ensure_all_started(antidotec_pb),
     {ok, []}.
 
 create_patient(Id, Name, Address) ->

@@ -54,6 +54,7 @@ stop(_) ->
     gen_server:call(?MODULE, stop).
 
 init(_) ->
+    {ok, _Started} = application:ensure_all_started(riak_client),
     {ok, {}}.
 
 handle_cast(_Msg, State) ->
