@@ -19,7 +19,7 @@ elif [ $1 = "redis" ]; then
     docker run -d --name redis -p "6379:6379" redis
     sleep 15
     echo "redis started."
-elif [[ $1 = "riak" || $1 = "riak_norm" ]]; then
+elif [[ $1 = "riak" || $1 = "riak_norm" || $1 = "riak_norm_mg" ]]; then
     docker pull goncalotomas/riak
     set +e
     if docker inspect riak &> /dev/null; then

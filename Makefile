@@ -7,11 +7,38 @@ attach:
 	./_build/default/rel/fmke/bin/env attach
 
 bench: compile
+	./travis.sh bench normal antidote
+	./travis.sh bench normal antidote_norm
+	./travis.sh bench normal redis
+	./travis.sh bench normal riak
+	./travis.sh bench normal riak_norm
+	./travis.sh bench normal riak_norm_mg
+
+bench-short: compile
 	./travis.sh bench short antidote
 	./travis.sh bench short antidote_norm
 	./travis.sh bench short redis
 	./travis.sh bench short riak
 	./travis.sh bench short riak_norm
+	./travis.sh bench short riak_norm_mg
+
+bench-short-antidote: rel
+	./travis.sh bench short antidote
+
+bench-short-antidote-norm: rel
+	./travis.sh bench short antidote_norm
+
+bench-short-redis: rel
+	./travis.sh bench short redis
+
+bench-short-riak: rel
+	./travis.sh bench short riak
+
+bench-short-riak-norm: rel
+	./travis.sh bench short riak_norm
+
+bench-short-riak-norm-mg: rel
+	./travis.sh bench short riak_norm_mg
 
 bench-antidote: rel
 	./travis.sh bench normal antidote
@@ -30,6 +57,9 @@ bench-riak: rel
 
 bench-riak-norm: rel
 	./travis.sh bench normal riak_norm
+
+bench-riak-norm-mg: rel
+	./travis.sh bench normal riak_norm_mg
 
 compile:
 	${REBAR} as test compile
@@ -53,6 +83,9 @@ ct:
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=http_antidote_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=http_redis_non_nested_opt
+
+ct-riak-norm-mg: rel
+	./travis.sh ct riak_norm_mg
 
 dialyzer:
 	${REBAR} dialyzer
@@ -88,6 +121,9 @@ select-riak:
 select-riak-norm:
 	./scripts/config/change_db.sh riak_norm
 
+select-riak-norm-mg:
+	./scripts/config/change_db.sh riak_norm_mg
+
 shell:
 	${REBAR} shell --apps fmke --name fmke@127.0.0.1 --setcookie fmke
 
@@ -119,6 +155,9 @@ start-riak: select-riak
 	./scripts/start_data_store.sh riak
 
 start-riak-norm: select-riak-norm
+	./scripts/start_data_store.sh riak
+
+start-riak-norm-mg: select-riak-norm-mg
 	./scripts/start_data_store.sh riak
 
 stop:

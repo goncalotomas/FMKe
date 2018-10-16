@@ -4,7 +4,7 @@ echo "stopping $1..."
 if [[ $1 = "antidote" || $1 = "antidote_norm" ]]; then
     docker stop antidote > /dev/null
     docker rm antidote
-elif [[ $1 = "riak" || $1 = "riak_norm" ]]; then
+elif [[ $1 = "riak" || $1 = "riak_norm" || $1 = "riak_norm_mg" ]]; then
     docker stop riak > /dev/null
     docker rm riak
 else
