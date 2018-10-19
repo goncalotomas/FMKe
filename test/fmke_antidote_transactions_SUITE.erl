@@ -68,12 +68,7 @@ end_per_testcase(_TestCase, _Config) ->
 %% TestCase = atom()
 %% Reason = term()
 %%--------------------------------------------------------------------
-all() ->
-    [
-        read_read_succeds
-        ,read_write_succeeds
-        ,write_write_aborts
-    ].
+all() -> [read_read_succeds, read_write_succeeds, write_write_aborts].
 
 read_read_succeds(_Config) ->
     Key = list_to_binary(rand_str:get(64)),
@@ -160,10 +155,10 @@ write_write_aborts(_Config) ->
     ok.
 
 checkin_remote_pid(Pid) ->
-    rpc(fmke_db_conn_manager,checkout, [Pid]).
+    rpc(fmke_db_conn_manager, checkout, [Pid]).
 
 checkout_remote_pid() ->
-    rpc(fmke_db_conn_manager,checkout, []).
+    rpc(fmke_db_conn_manager, checkout, []).
 
 rpc(Mod, Fun, Args) ->
     rpc:call(?NODENAME, Mod, Fun, Args).
