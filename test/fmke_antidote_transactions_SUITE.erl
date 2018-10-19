@@ -12,7 +12,7 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 
--define (NODENAME, 'fmke@127.0.0.1').
+-define (NODENAME, 'fmke_antidote_transactions_SUITE@127.0.0.1').
 -define (COOKIE, fmke).
 
 suite() ->
