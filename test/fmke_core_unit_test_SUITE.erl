@@ -63,7 +63,7 @@ init_per_suite(Config) ->
     OptionValues = lists:map(fun(Opt) ->
                         {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
                     end, ?OPTIONS),
-    {ok, _} = net_kernel:start([CTNodename]),
+    ok = fmke_test_setup:ensure_start_dist_node(CTNodename),
     true = erlang:set_cookie(CTNodename, ?COOKIE),
     Node = fmke_test_setup:launch_app(FMKeNodename, OptionValues),
     [{node, Node} | Config].

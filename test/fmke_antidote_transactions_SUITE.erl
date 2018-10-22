@@ -25,8 +25,9 @@ suite() ->
 %% Reason = term()
 %%--------------------------------------------------------------------
 init_per_suite(Config) ->
-    {ok, _} = net_kernel:start(['fmke_antidote_ct@127.0.0.1']),
-    true = erlang:set_cookie('fmke_antidote_ct@127.0.0.1', ?COOKIE),
+    TestNode = 'fmke_antidote_ct@127.0.0.1',
+    ok = fmke_test_setup:ensure_start_dist_node(TestNode),
+    true = erlang:set_cookie(TestNode, ?COOKIE),
     fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
