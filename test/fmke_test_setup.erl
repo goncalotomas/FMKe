@@ -13,6 +13,7 @@
     start_node_with_riak_backend/3,
     start_node_with_mock_cluster/3,
     launch_app/2,
+    ensure_start_dist_node/1,
     stop_all/0,
     stop_antidote/0,
     stop_riak/0,
@@ -159,6 +160,19 @@ launch_app(Nodename, Config) ->
     [Port] = proplists:get_value(database_ports, Config),
     ok = start_db(Database, Port),
     start_node(Nodename, Config).
+
+ensure_start_dist_node(Nodename) ->
+    case node() of
+        'nonode@nohost' ->
+            {ok, _} = net_kernel:start([Nodename]),
+            ok;
+        Nodename ->
+            ok;
+        _Else ->
+            ok = net_kernel:stop(),
+            {ok, _} = net_kernel:start([Nodename]),
+            ok
+    end.
 
 start_db(antidote, Port) ->
     start_antidote(Port);
