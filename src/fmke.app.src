@@ -16,7 +16,8 @@
   {included_applications, [
     antidotec_pb,
     riak_client,
-    eredis_cluster
+    eredis_cluster,
+    erlcass
   ]},
   {modules, []},
   {maintainers, ["Goncalo Tomas"]},

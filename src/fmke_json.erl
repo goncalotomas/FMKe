@@ -80,16 +80,17 @@ encode(Object = #prescription{}) ->
         {<<"prescriptionDateProcessed">>, PrescriptionDateProcessed}
     ].
 
--spec encode_list_prescriptions(L :: list(binary() | prescription())) -> list(binary()).
+-spec encode_list_prescriptions(L :: list(binary() | list(prescription()) | list(non_neg_integer()))) ->
+                    list(binary()) | list(non_neg_integer()).
 encode_list_prescriptions(L) ->
     encode_list_prescriptions(L, []).
 
 encode_list_prescriptions([], Accum) ->
     lists:reverse(Accum);
-encode_list_prescriptions([H|T], Accum) when is_binary(H) ->
-    encode_list_prescriptions(T, [H | Accum]);
 encode_list_prescriptions([H|T], Accum) when is_record(H, prescription) ->
-    encode_list_prescriptions(T, [encode(H) | Accum]).
+    encode_list_prescriptions(T, [encode(H) | Accum]);
+encode_list_prescriptions([H|T], Accum) ->
+    encode_list_prescriptions(T, [H | Accum]).
 
 
 -spec encode_string_list(L :: list(string() | binary())) -> list(binary()).
@@ -117,7 +118,7 @@ decode(prescription, PropList) when is_list(PropList)->
         ,drugs = lists:sort(proplists:get_value(<<"prescriptionDrugs">>, PropList))
     };
 
-decode(prescription, Prescription) when is_binary(Prescription) ->
+decode(prescription, Prescription) when is_binary(Prescription); is_integer(Prescription) ->
     Prescription.
 
 -ifdef(TEST).

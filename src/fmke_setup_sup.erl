@@ -120,9 +120,10 @@ driver(ets) ->          fmke_driver_ets;
 driver(riak) ->         fmke_driver_riak_kv.
 
 -spec opt_driver(Database::atom()) -> module().
-opt_driver(antidote) -> fmke_driver_opt_antidote;
-opt_driver(redis) ->    fmke_driver_opt_redis_cluster;
-opt_driver(riak) ->     fmke_driver_opt_riak_kv.
+opt_driver(antidote) ->     fmke_driver_opt_antidote;
+opt_driver(cassandra) ->    fmke_driver_opt_cassandra;
+opt_driver(redis) ->        fmke_driver_opt_redis_cluster;
+opt_driver(riak) ->         fmke_driver_opt_riak_kv.
 
 -spec make_same_len(L1 :: list(), L2 :: list()) -> {list(), list()}.
 make_same_len(L1, L2) when length(L1) == length(L2) -> {L1, L2};
