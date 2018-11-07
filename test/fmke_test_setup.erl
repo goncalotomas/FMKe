@@ -43,6 +43,9 @@
                                 "-p \"" ++ integer_to_list(Port+4) ++ ":7004\" "
                                 "-p \"" ++ integer_to_list(Port+5) ++ ":7005\" grokzen/redis-cluster:latest").
 
+-define(DOCKER_CMD_START_CASSANDRA(Port), "docker run -d --name cassandra "
+                                        "-p \"" ++ integer_to_list(Port) ++ ":9042\" rinscy/cassandra").
+
 start_antidote() ->
     start_antidote(8087).
 
@@ -176,12 +179,29 @@ ensure_start_dist_node(Nodename) ->
 
 start_db(antidote, Port) ->
     start_antidote(Port);
+start_db(cassandra, Port) ->
+    start_cassandra(Port);
 start_db(ets, _Port) ->
     ok; %% ets doesn't need to be started
 start_db(redis, Port) ->
     start_redis(Port);
 start_db(riak, Port) ->
     start_riak(Port).
+
+start_cassandra(Port) ->
+    0 = cmd:run(?DOCKER_CMD_START_CASSANDRA(Port), return_code),
+    io:format("Started cassandra.~n"),
+    timer:sleep(10000),
+    PrivDir = code:priv_dir(fmke),
+    ProjectRoot = remove_trailing_newline(cmd:run("readlink -f " ++ PrivDir)) ++ "/..",
+    ShellFile = ProjectRoot ++ "/test/docker/build_schema.cql",
+    io:format("ShellFile === ~p~n", [ShellFile]),
+    0 = cmd:run("(docker exec -i cassandra /usr/bin/cqlsh) < " ++ ShellFile, return_code),
+    timer:sleep(10000),
+    ok.
+
+remove_trailing_newline(Str) ->
+    lists:droplast(Str).
 
 wait_until_offline(Node) ->
     wait_until(fun() -> pang == net_adm:ping(Node) end, 60*2, 500).
@@ -203,6 +223,8 @@ end.
 
 load_client_lib(Node, antidote) ->
     rpc:call(Node, application, load, [antidotec_pb]);
+load_client_lib(Node, cassandra) ->
+    rpc:call(Node, application, load, [erlcass]);
 load_client_lib(_Node, ets) ->
     ok;
 load_client_lib(Node, redis) ->

@@ -1,12 +1,19 @@
-sudo: false
+sudo: true
 dist: trusty
 language: erlang
 otp_release:
-  - 20.3
   - 21.1
 services:
   - docker
 install:
+  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial main" | sudo tee -a /etc/apt/sources.list
+  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial universe" | sudo tee -a /etc/apt/sources.list
+  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates universe" | sudo tee -a /etc/apt/sources.list
+  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates multiverse" | sudo tee -a /etc/apt/sources.list
+  - echo "deb http://security.ubuntu.com/ubuntu xenial-security main" | sudo tee -a /etc/apt/sources.list
+  - echo "deb http://security.ubuntu.com/ubuntu xenial-security multiverse" | sudo tee -a /etc/apt/sources.list
+  - sudo apt-get update -qq
+  - sudo apt-get install libuv1-dev g++ make cmake libssl-dev
   - rebar3 local upgrade
   - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
   - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
@@ -18,18 +25,7 @@ before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
-  - rebar3 eunit
-  - rebar3 ct
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=core_ets_nested
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=core_ets_non_nested
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=core_antidote_non_nested_opt
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=core_riak_non_nested_opt
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=core_redis_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=http_ets_nested
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=http_ets_non_nested
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=http_antidote_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=http_redis_non_nested_opt
+  - make coverage
   - rebar3 as test coveralls send
   # - make bench
 after_failure:

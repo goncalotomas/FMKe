@@ -50,8 +50,8 @@ compare_prescriptions(#prescription{} = Presc1, #prescription{} = Presc2) ->
     andalso integer_compare(Presc1#prescription.patient_id, Presc2#prescription.patient_id)
     andalso integer_compare(Presc1#prescription.prescriber_id, Presc2#prescription.prescriber_id)
     andalso integer_compare(Presc1#prescription.pharmacy_id, Presc2#prescription.pharmacy_id)
-    andalso string_compare(Presc1#prescription.date_prescribed, Presc2#prescription.date_prescribed)
-    andalso string_compare(Presc1#prescription.date_processed, Presc2#prescription.date_processed)
+    andalso date_compare(Presc1#prescription.date_prescribed, Presc2#prescription.date_prescribed)
+    andalso date_compare(Presc1#prescription.date_processed, Presc2#prescription.date_processed)
     andalso string_compare(Presc1#prescription.is_processed, Presc2#prescription.is_processed)
     andalso list_compare(Presc1#prescription.drugs, Presc2#prescription.drugs).
 
@@ -63,6 +63,14 @@ compare_staff(#staff{} = Staff1, #staff{} = Staff2) ->
     andalso string_compare(Staff1#staff.address, Staff2#staff.address)
     andalso string_compare(Staff1#staff.speciality, Staff2#staff.speciality)
     andalso list_compare(Staff1#staff.prescriptions, Staff2#staff.prescriptions).
+
+date_compare(Date1, Date2) ->
+    string_compare(Date1, Date2)
+    orelse integer_compare(calendar:rfc3339_to_system_time(Date1 ++ "T00:00:00"), Date2)
+    orelse integer_compare(convert_date_to_cassandra_time(Date1 ++ "T00:00:00"), Date2).
+
+convert_date_to_cassandra_time(Date) ->
+    erlcass_time:date_from_epoch(calendar:rfc3339_to_system_time(Date)).
 
 -spec search_prescription(Presc :: prescription(), L :: list(prescription() | binary())) -> boolean().
 
@@ -93,13 +101,20 @@ list_compare(L1, L2) ->
     end.
 
 cmp_prescs_or_key(P1, P2) ->
-    case gen_key(prescription, presc_id(P1)) =:= P2 of
-        true -> true;
-        false ->
-            case is_record(P2, prescription) of
-                true -> compare_prescriptions(P1, P2);
-                false -> compare_prescriptions(P1, fmke_json:decode(prescription, P2))
-            end
+    cmp_presc_id(P1, P2)
+    orelse cmp_prec_key(P1, P2)
+    orelse cmp_presc_rec(P1, P2).
+
+cmp_presc_id(P1, P2) ->
+    presc_id(P1) =:= P2.
+
+cmp_prec_key(P1, P2) ->
+    gen_key(prescription, presc_id(P1)) =:= P2.
+
+cmp_presc_rec(P1, P2) ->
+    case is_record(P2, prescription) of
+        true -> compare_prescriptions(P1, P2);
+        false -> compare_prescriptions(P1, fmke_json:decode(prescription, P2))
     end.
 
 gen_key(Entity, Id) ->
@@ -114,7 +129,9 @@ presc_id([{A, _B} | _T] = PropList) when is_binary(A) ->
         false -> Val
     end;
 presc_id([Id, _, _, _, _, _, _, _]) when is_integer(Id) -> Id;
-presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary_to_list(Id)).
+presc_id([Id, _, _, _, _, _, _, _]) when is_binary(Id) -> list_to_integer(binary_to_list(Id));
+presc_id(Id) when is_integer(Id) ->
+    Id.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%                                                     Eunit Tests                                                    %%

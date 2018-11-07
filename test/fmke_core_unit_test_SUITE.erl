@@ -77,28 +77,28 @@ end_per_suite(_Config) ->
 
 init_per_testcase(facility_unit_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
-    FacilityId = rand:uniform(1000000000000),
+    FacilityId = rand:uniform(1000000),
     ets:insert(TabId, {facility, FacilityId, "Some Hospital", "Somewhere", "Hospital"}),
     ets:insert(TabId, {updated_facility, FacilityId, "Some Random Hospital", "Beja, Portugal", "Treatment Facility"}),
     [{table, TabId} | Config];
 
 init_per_testcase(patient_unit_tests, Config) ->
     TabId = ets:new(patients, [set, protected, named_table]),
-    PatientId = rand:uniform(1000000000000),
+    PatientId = rand:uniform(1000000),
     ets:insert(TabId, {patient, PatientId, "Goncalo Tomas", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_patient, PatientId, "Goncalo P. Tomas", "Caparica, Portugal"}),
     [{table, TabId} | Config];
 
 init_per_testcase(pharmacy_unit_tests, Config) ->
     TabId = ets:new(pharmacies, [set, protected, named_table]),
-    PharmacyId = rand:uniform(1000000000000),
+    PharmacyId = rand:uniform(1000000),
     ets:insert(TabId, {pharmacy, PharmacyId, "Some Pharmacy", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_pharmacy, PharmacyId, "Some Random Pharmacy", "Caparica, Portugal"}),
     [{table, TabId} | Config];
 
 init_per_testcase(prescription_unit_tests, Config) ->
     TabId = ets:new(prescriptions, [set, protected, named_table]),
-    [R1, R2, R3, R4, R5] = lists:map(fun(_) -> rand:uniform(1000000000000) end, lists:seq(1, 5)),
+    [R1, R2, R3, R4, R5] = lists:map(fun(_) -> rand:uniform(1000000) end, lists:seq(1, 5)),
     ets:insert(TabId, {patient, R1, "Goncalo Tomas", "Somewhere in Portugal"}),
     ets:insert(TabId, {other_patient, R1+1, "Goncalo P. Tomas", "Caparica, Portugal"}),
     ets:insert(TabId, {facility, R2, "Some Hospital", "Somewhere", "Hospital"}),
@@ -107,17 +107,17 @@ init_per_testcase(prescription_unit_tests, Config) ->
     ets:insert(TabId, {other_pharmacy, R3+1, "Some Random Pharmacy", "Caparica, Portugal"}),
     ets:insert(TabId, {staff, R4, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
     ets:insert(TabId, {other_staff, R4+1, "Some Random Doctor", "Caparica, Portugal", "weird esoteric medicine"}),
-    ets:insert(TabId, {prescription, R5, R1, R4, R3, "12/12/2012", ["Penicillin", "Diazepam"]}),
+    ets:insert(TabId, {prescription, R5, R1, R4, R3, "2012-12-12", ["Penicillin", "Diazepam"]}),
     ets:insert(TabId, {updated_prescription_drugs, R5, ["Adrenaline"]}),
-    ets:insert(TabId, {processed_prescription_date, R5, "24/12/2012"}),
-    ets:insert(TabId, {other_prescription, R5+1, R1+1, R4+1, R3+1, "01/10/2015", ["Diazepam"]}),
+    ets:insert(TabId, {processed_prescription_date, R5, "2012-12-24"}),
+    ets:insert(TabId, {other_prescription, R5+1, R1+1, R4+1, R3+1, "2015-01-10", ["Diazepam"]}),
     ets:insert(TabId, {other_updated_prescription_drugs, R5+1, ["Penicillin", "Adrenaline"]}),
-    ets:insert(TabId, {other_processed_prescription_date, R5+1, "01/01/2016"}),
+    ets:insert(TabId, {other_processed_prescription_date, R5+1, "2016-01-01"}),
     [{table, TabId} | Config];
 
 init_per_testcase(staff_unit_tests, Config) ->
     TabId = ets:new(staff, [set, protected, named_table]),
-    StaffId = rand:uniform(1000000000000),
+    StaffId = rand:uniform(1000000),
     ets:insert(TabId, {staff, StaffId, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
     ets:insert(TabId, {updated_staff, StaffId, "Some Random Doctor", "Caparica, Portugal", "weird esoteric medicine"}),
     [{table, TabId} | Config];
@@ -244,7 +244,7 @@ update_existing_patient(Config) ->
 update_unexistent_patient(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
-    UnusedId = Id+rand:uniform(100000000),
+    UnusedId = Id+rand:uniform(1000000),
     {error, no_such_patient} = rpc(Config, update_patient_details, [UnusedId, Name, Address]).
 
 get_patient_after_update(Config) ->
@@ -299,7 +299,7 @@ update_existing_pharmacy(Config) ->
 update_unexistent_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
-    UnusedId = Id+rand:uniform(100000000),
+    UnusedId = Id+rand:uniform(1000000),
     {error, no_such_pharmacy} = rpc(Config, update_pharmacy_details, [UnusedId, Name, Address]).
 
 get_pharmacy_after_update(Config) ->
@@ -402,7 +402,7 @@ get_unexisting_prescription(Config) ->
 process_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    {error, no_such_prescription} = rpc(Config, process_prescription, [Id, "14/08/2017"]).
+    {error, no_such_prescription} = rpc(Config, process_prescription, [Id, "2017-08-14"]).
 
 add_medication_to_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -412,18 +412,18 @@ add_medication_to_unexisting_prescription(Config) ->
 
 add_prescription_with_unexistant_patient(Config) ->
     TabId = ?config(table, Config),
-    [{prescription, Id, _PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
-    {error, no_such_patient} = rpc(Config, create_prescription, [Id, 0, PrescId, PharmId, DatePresc, Drugs]).
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_patient} = rpc(Config, create_prescription, [Id, PatId*2-1, PrescId, PharmId, DatePresc, Drugs]).
 
 add_prescription_with_unexistant_pharmacy(Config) ->
     TabId = ?config(table, Config),
-    [{prescription, Id, PatId, PrescId, _PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
-    {error, no_such_pharmacy} = rpc(Config, create_prescription, [Id, PatId, PrescId, 0, DatePresc, Drugs]).
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_pharmacy} = rpc(Config, create_prescription, [Id, PatId, PrescId, PharmId*2-1, DatePresc, Drugs]).
 
 add_prescription_with_unexistant_staff(Config) ->
     TabId = ?config(table, Config),
-    [{prescription, Id, PatId, _PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
-    {error, no_such_staff} = rpc(Config, create_prescription, [Id, PatId, 0, PharmId, DatePresc, Drugs]).
+    [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
+    {error, no_such_staff} = rpc(Config, create_prescription, [Id, PatId, PrescId*2-1, PharmId, DatePresc, Drugs]).
 
 add_unexisting_prescription(Config) ->
     TabId = ?config(table, Config),
@@ -651,7 +651,7 @@ update_existing_staff(Config) ->
 update_unexistent_staff(Config) ->
     TabId = ?config(table, Config),
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
-    UnusedId = Id+rand:uniform(100000000),
+    UnusedId = Id+rand:uniform(1000000),
     {error, no_such_staff} = rpc(Config, update_staff_details, [UnusedId, Name, Address, Speciality]).
 
 get_staff_after_update(Config) ->

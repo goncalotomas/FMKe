@@ -72,21 +72,21 @@ end_per_suite(_Config) ->
 
 init_per_testcase(facility_http_tests, Config) ->
     TabId = ets:new(facilities, [set, protected, named_table]),
-    FacilityId = rand:uniform(1000000000000),
+    FacilityId = rand:uniform(1000000),
     ets:insert(TabId, {facility, FacilityId, "Some Hospital", "Somewhere", "Hospital"}),
     ets:insert(TabId, {updated_facility, FacilityId, "Some Random Hospital", "Beja, Portugal", "Treatment Facility"}),
     [{table, TabId} | Config];
 
 init_per_testcase(patient_http_tests, Config) ->
     TabId = ets:new(patients, [set, protected, named_table]),
-    PatientId = rand:uniform(1000000000000),
+    PatientId = rand:uniform(1000000),
     ets:insert(TabId, {patient, PatientId, "Goncalo Tomas", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_patient, PatientId, "Goncalo P. Tomas", "Caparica, Portugal"}),
     [{table, TabId} | Config];
 
 init_per_testcase(pharmacy_http_tests, Config) ->
     TabId = ets:new(pharmacies, [set, protected, named_table]),
-    PharmacyId = rand:uniform(1000000000000),
+    PharmacyId = rand:uniform(1000000),
     ets:insert(TabId, {pharmacy, PharmacyId, "Some Pharmacy", "Somewhere in Portugal"}),
     ets:insert(TabId, {updated_pharmacy, PharmacyId, "Some Random Pharmacy", "Caparica, Portugal"}),
     [{table, TabId} | Config];
@@ -101,18 +101,18 @@ init_per_testcase(prescription_http_tests, Config) ->
     ets:insert(TabId, {other_pharmacy, 2, "Some Random Pharmacy", "Caparica, Portugal"}),
     ets:insert(TabId, {staff, 1, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
     ets:insert(TabId, {other_staff, 2, "Some Random Doctor", "Caparica, Portugal", "weird esoteric kind of medicine"}),
-    PrescriptionId = rand:uniform(1000000000000),
-    ets:insert(TabId, {prescription, PrescriptionId, 1, 1, 1, "12/12/2012", "Penicillin, Diazepam"}),
+    PrescriptionId = rand:uniform(1000000),
+    ets:insert(TabId, {prescription, PrescriptionId, 1, 1, 1, "2012-12-12", "Penicillin, Diazepam"}),
     ets:insert(TabId, {updated_prescription_drugs, PrescriptionId, "Adrenaline"}),
-    ets:insert(TabId, {processed_prescription_date, PrescriptionId, "24/12/2012"}),
-    ets:insert(TabId, {other_prescription, PrescriptionId+1, 2, 2, 2, "01/10/2015", "Diazepam"}),
+    ets:insert(TabId, {processed_prescription_date, PrescriptionId, "2012-12-24"}),
+    ets:insert(TabId, {other_prescription, PrescriptionId+1, 2, 2, 2, "2015-10-01", "Diazepam"}),
     ets:insert(TabId, {other_updated_prescription_drugs, PrescriptionId+1, "Penicillin, Adrenaline"}),
-    ets:insert(TabId, {other_processed_prescription_date, PrescriptionId+1, "01/01/2016"}),
+    ets:insert(TabId, {other_processed_prescription_date, PrescriptionId+1, "2016-01-01"}),
     [{table, TabId} | Config];
 
 init_per_testcase(staff_http_tests, Config) ->
     TabId = ets:new(staff, [set, protected, named_table]),
-    StaffId = rand:uniform(1000000000000),
+    StaffId = rand:uniform(1000000),
     ets:insert(TabId, {staff, StaffId, "Some Doctor", "Somewhere in Portugal", "Traditional Chinese Medicine"}),
     ets:insert(TabId, {updated_staff, StaffId, "Some Random Doctor", "Caparica, Portugal", "weird esoteric medicine"}),
     [{table, TabId} | Config];

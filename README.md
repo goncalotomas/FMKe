@@ -1,5 +1,5 @@
 # FMKe
-![Erlang Version](https://img.shields.io/badge/Erlang%2FOTP-%E2%89%A520-brightgreen.svg)
+![Erlang Version](https://img.shields.io/badge/Erlang%2FOTP-%E2%89%A521-brightgreen.svg)
 [![Build Status](https://travis-ci.org/goncalotomas/FMKe.svg?branch=master)](https://travis-ci.org/goncalotomas/FMKe)
 [![Coverage Status](https://coveralls.io/repos/github/goncalotomas/FMKe/badge.svg?branch=master)](https://coveralls.io/github/goncalotomas/FMKe?branch=master)
 ![Dialyzer Enabled](https://img.shields.io/badge/dialyzer-enabled-brightgreen.svg)  

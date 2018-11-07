@@ -4,6 +4,7 @@
 -module(fmke_driver_opt_antidote).
 
 -behaviour(fmke_gen_driver).
+-behaviour(gen_server).
 
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
