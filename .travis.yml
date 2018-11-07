@@ -25,20 +25,7 @@ before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
 script:
-  - rebar3 eunit
-  - rebar3 ct
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=core_antidote_non_nested_opt
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=core_cassandra_non_nested_opt
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=core_ets_nested
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=core_ets_non_nested
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=core_redis_non_nested_opt
-  - rebar3 ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=core_riak_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=http_antidote_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=http_cassandra_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=http_ets_nested
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=http_ets_non_nested
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=http_redis_non_nested_opt
-  - rebar3 ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
+  - make coverage
   - rebar3 as test coveralls send
   # - make bench
 after_failure:
