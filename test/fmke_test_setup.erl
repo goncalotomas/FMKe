@@ -192,16 +192,12 @@ start_cassandra(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_CASSANDRA(Port), return_code),
     io:format("Started cassandra.~n"),
     timer:sleep(10000),
-    PrivDir = code:priv_dir(fmke),
-    ProjectRoot = remove_trailing_newline(cmd:run("readlink -f " ++ PrivDir)) ++ "/..",
-    ShellFile = ProjectRoot ++ "/test/docker/build_schema.cql",
-    io:format("ShellFile === ~p~n", [ShellFile]),
+    {ok, PrivDir} = file:read_link(code:priv_dir(?APP)),
+    AbsPrivDir = filename:absname(PrivDir),
+    ShellFile = AbsPrivDir ++ "/build_schema.cql",
     0 = cmd:run("(docker exec -i cassandra /usr/bin/cqlsh) < " ++ ShellFile, return_code),
     timer:sleep(10000),
     ok.
-
-remove_trailing_newline(Str) ->
-    lists:droplast(Str).
 
 wait_until_offline(Node) ->
     wait_until(fun() -> pang == net_adm:ping(Node) end, 60*2, 500).
