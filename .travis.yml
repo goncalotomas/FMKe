@@ -10,10 +10,10 @@ addons:
     - ppa:linuxjedi/ppa
   apt:
     packages:
-      - "libuv1-dev"
       - "g++"
       - "make"
       - "cmake"
+      - "libuv-dev"
       - "libssl-dev"
 before_script:
   - epmd -daemon
