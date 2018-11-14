@@ -75,7 +75,8 @@ start_riak(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_RIAK(Port), return_code),
     io:format("Started riak.~n"),
     0 = cmd:run(?WAIT_CMD_HTTP("/types/maps/props", 8098), return_code),
-    timer:sleep(3000),
+    %% timer:sleep/1 call still present to prevent insufficient vnodes error.
+    timer:sleep(2500),
     ok.
 
 stop_riak() ->
