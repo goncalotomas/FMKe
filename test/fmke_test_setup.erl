@@ -75,6 +75,7 @@ start_riak(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_RIAK(Port), return_code),
     io:format("Started riak.~n"),
     0 = cmd:run(?WAIT_CMD_HTTP("/types/maps/props", 8098), return_code),
+    timer:sleep(3000),
     ok.
 
 stop_riak() ->
