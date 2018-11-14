@@ -1,11 +1,13 @@
 sudo: false
-dist: trusty
+dist: xenial
 language: erlang
 otp_release:
   - 21.1
 services:
   - docker
 addons:
+  sources:
+    - ppa:linuxjedi/ppa
   apt:
     packages:
       - "libuv1-dev"
