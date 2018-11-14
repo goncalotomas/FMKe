@@ -33,7 +33,7 @@
                                    "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" mweber/antidotedb").
 
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
-                                "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
+                                "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
 
 -define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
                                 "-p \"" ++ integer_to_list(Port) ++ ":7000\" "
