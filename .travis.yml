@@ -1,5 +1,3 @@
-sudo: false
-dist: xenial
 language: erlang
 otp_release:
   - 21.1
@@ -13,7 +11,7 @@ addons:
       - "g++"
       - "make"
       - "cmake"
-      - "libuv-dev"
+      - "libuv1-dev"
       - "libssl-dev"
 before_script:
   - epmd -daemon
