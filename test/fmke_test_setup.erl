@@ -12,7 +12,8 @@
     start_node_with_redis_backend/3,
     start_node_with_riak_backend/3,
     start_node_with_mock_cluster/3,
-    launch_app/2,
+    launch_fmke/2,
+    launch_fmke_only/2,
     ensure_start_dist_node/1,
     stop_all/0,
     stop_antidote/0,
@@ -173,11 +174,15 @@ stop_node(Node) ->
     ct_slave:stop(Node),
     wait_until_offline(Node).
 
-launch_app(Nodename, Config) ->
+launch_fmke(Nodename, Config) ->
     io:format("Got config = ~p~n", [Config]),
     Database = proplists:get_value(target_database, Config),
     [Port] = proplists:get_value(database_ports, Config),
     ok = start_db(Database, Port),
+    start_node(Nodename, Config).
+
+launch_fmke_only(Nodename, Config) ->
+    io:format("Got config = ~p~n", [Config]),
     start_node(Nodename, Config).
 
 ensure_start_dist_node(Nodename) ->

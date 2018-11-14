@@ -60,7 +60,7 @@ init_per_suite(Config) ->
                     end, ?OPTIONS),
     ok = fmke_test_setup:ensure_start_dist_node(CTNodename),
     true = erlang:set_cookie(CTNodename, ?COOKIE),
-    Node = fmke_test_setup:launch_app(FMKeNodename, OptionValues),
+    Node = fmke_test_setup:launch_fmke(FMKeNodename, OptionValues),
     [{node, Node} | Config].
 
 end_per_suite(_Config) ->
