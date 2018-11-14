@@ -4,15 +4,15 @@ otp_release:
 services:
   - docker
 addons:
-  sources:
-    - ppa:linuxjedi/ppa
   apt:
+    sources:
+      - ppa:linuxjedi/ppa
     packages:
-      - "g++"
-      - "make"
-      - "cmake"
-      - "libuv1-dev"
-      - "libssl-dev"
+      - g++
+      - make
+      - cmake
+      - libuv1-dev
+      - libssl-dev
 before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
