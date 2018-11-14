@@ -46,6 +46,12 @@
 -define(DOCKER_CMD_START_CASSANDRA(Port), "docker run -d --name cassandra "
                                         "-p \"" ++ integer_to_list(Port) ++ ":9042\" rinscy/cassandra").
 
+-define(WAIT_CMD_TCP(Port), "until ruby -rsocket -e 's=TCPSocket.new(\"localhost\"," ++ integer_to_list(Port) ++
+                            ")' 2> /dev/null; do sleep 0.5; done").
+-define(WAIT_CMD_HTTP(Path, Port), "bash -c 'until [ \"$(curl -s -o /dev/null -w '%{http_code}' http://localhost:"
+                                    ++ integer_to_list(Port) ++ Path ++
+                                    ")\" == \"200\" ]; do sleep 1; done'").
+
 start_antidote() ->
     start_antidote(8087).
 
