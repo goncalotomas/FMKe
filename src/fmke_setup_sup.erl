@@ -37,7 +37,7 @@ init([Adapter, Database, DataModel, Optimized]) ->
     end,
 
     RestartStrategy = #{
-        strategy => one_for_all,
+        strategy => rest_for_one,
         intensity => 10,
         period => 10
     },
