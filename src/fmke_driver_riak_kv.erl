@@ -180,8 +180,7 @@ unpack(nested, patient, #patient{id = Id, name = Name, address = Address, prescr
     riakc_map:update({?PATIENT_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PATIENT_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?PATIENT_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
-    riakc_map:new()))));
+    update_map(?PATIENT_PRESCRIPTIONS_KEY, Prescriptions))));
 
 unpack(non_nested, patient, #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
     riakc_map:update({?PATIENT_ID_KEY, register}, update_reg(Id),
@@ -193,8 +192,7 @@ unpack(nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, pres
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PHARMACY_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?PHARMACY_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
-    riakc_map:new()))));
+    update_map(?PHARMACY_PRESCRIPTIONS_KEY, Prescriptions))));
 
 unpack(non_nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
@@ -220,8 +218,7 @@ unpack(nested, staff,
     riakc_map:update({?STAFF_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?STAFF_ADDRESS_KEY, register}, update_reg(Address),
     riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality),
-    riakc_map:update({?STAFF_PRESCRIPTIONS_KEY, set}, update_set(lists:map(fun unpack_nested/1, Prescriptions)),
-    riakc_map:new())))));
+    update_map(?STAFF_PRESCRIPTIONS_KEY, Prescriptions)))));
 
 unpack(non_nested, staff,
             #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}) ->
@@ -235,6 +232,14 @@ update_reg(V) when is_list(V) -> fun(R) -> riakc_register:set(list_to_binary(V),
 update_reg(V) when is_binary(V) -> fun(R) -> riakc_register:set(V, R) end;
 update_reg(V) when is_integer(V) -> fun(R) -> riakc_register:set(list_to_binary(integer_to_list(V)), R) end.
 update_set(Vs) -> fun(S) -> riakc_set:add_elements(lists:map(fun bin/1, Vs), S) end.
+update_map(NestedKey, Ps) ->
+    lists:foldl(fun(P, Acc) ->
+        riakc_map:update({NestedKey, map}, fun(M) ->
+            riakc_map:update({bin(P#prescription.id), register}, fun(R) ->
+                riakc_register:set(term_to_binary(P), R) end, M)
+            end,
+        Acc)
+    end, riakc_map:new(), Ps).
 
 bin(V) when is_list(V) -> list_to_binary(V);
 bin(V) when is_binary(V) -> V;
@@ -251,27 +256,13 @@ fetch(Map, Key, Type, DefaultVal) ->
         _:_ -> DefaultVal
     end.
 
-fetch_prescs(DataModel, Map, Key) ->
-    Prescs = fetch(Map, Key, set, []),
-    parse_prescs(DataModel, Prescs).
-
-unpack_nested(#prescription{id = Id, patient_id = PatientId, prescriber_id = PrescriberId,
-                            pharmacy_id = PharmacyId, date_prescribed = DatePrescribed,
-                            date_processed = DateProcessed, drugs = Drugs, is_processed = IsProcessed}) ->
-    #prescription{
-        id = bin(Id),
-        patient_id = bin(PatientId),
-        prescriber_id = bin(PrescriberId),
-        pharmacy_id = bin(PharmacyId),
-        date_prescribed = bin(DatePrescribed),
-        date_processed = bin(DateProcessed),
-        drugs = lists:map(fun bin/1, Drugs),
-        is_processed = bin(IsProcessed)
-    }.
+fetch_prescs(nested, Map, Key) ->
+    parse_prescs(nested, fetch(Map, Key, map, []));
+fetch_prescs(non_nested, Map, Key) ->
+    parse_prescs(non_nested, fetch(Map, Key, set, [])).
 
 parse_prescs(nested, Prescs) ->
-    lager:info("UNPACKING NESTED PRESCRIPTIONS!~nPrescs = ~p", [Prescs]),
-    lists:map(fun(P) -> binary_to_term(P) end, Prescs);
+    lists:map(fun({{_PrescId, register}, Bin}) -> binary_to_term(Bin) end, Prescs);
 parse_prescs(non_nested, Prescs) -> Prescs.
 
 %% Returns the name of the Riak bucket where entities of a certain type should be stored.

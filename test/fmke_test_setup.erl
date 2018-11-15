@@ -12,7 +12,8 @@
     start_node_with_redis_backend/3,
     start_node_with_riak_backend/3,
     start_node_with_mock_cluster/3,
-    launch_app/2,
+    launch_fmke/2,
+    launch_fmke_only/2,
     ensure_start_dist_node/1,
     stop_all/0,
     stop_antidote/0,
@@ -33,7 +34,7 @@
                                    "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" mweber/antidotedb").
 
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
-                                "-e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
+                                "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
 
 -define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
                                 "-p \"" ++ integer_to_list(Port) ++ ":7000\" "
@@ -46,13 +47,22 @@
 -define(DOCKER_CMD_START_CASSANDRA(Port), "docker run -d --name cassandra "
                                         "-p \"" ++ integer_to_list(Port) ++ ":9042\" rinscy/cassandra").
 
+-define(WAIT_CMD_TCP(Port), "until ruby -rsocket -e 's=TCPSocket.new(\"localhost\"," ++ integer_to_list(Port) ++
+                            ")' 2> /dev/null; do sleep 0.5; done").
+-define(WAIT_CMD_HTTP(Path, Port), "bash -c 'until [ \"$(curl -s -o /dev/null -w '%{http_code}' http://localhost:"
+                                    ++ integer_to_list(Port) ++ Path ++
+                                    ")\" == \"200\" ]; do sleep 1; done'").
+
 start_antidote() ->
     start_antidote(8087).
 
 start_antidote(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_ANTIDOTE(Port), return_code),
     io:format("Started antidote.~n"),
-    timer:sleep(5000),
+    0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
+    %% we are using a timer sleep here aside from the TCP wait because after
+    %% AntidoteDB is performing actions after binding to the TCP socket.
+    timer:sleep(4000),
     ok.
 
 stop_antidote() ->
@@ -65,7 +75,9 @@ start_riak() ->
 start_riak(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_RIAK(Port), return_code),
     io:format("Started riak.~n"),
-    timer:sleep(30000),
+    0 = cmd:run(?WAIT_CMD_HTTP("/types/maps/props", 8098), return_code),
+    %% timer:sleep/1 call still present to prevent insufficient vnodes error.
+    timer:sleep(2500),
     ok.
 
 stop_riak() ->
@@ -78,7 +90,12 @@ start_redis() ->
 start_redis(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_REDIS(Port), return_code),
     io:format("Started redis.~n"),
-    timer:sleep(10000),
+    0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
+    %% we are using a timer sleep here aside from the TCP wait because after
+    %% the individual Redis nodes are started, they still need to be joined
+    %% in a cluster, which takes its time. The original sleep value was 10s,
+    %% so we still managed to reduce it by 25%.
+    timer:sleep(7500),
     ok.
 
 stop_redis() ->
@@ -157,11 +174,15 @@ stop_node(Node) ->
     ct_slave:stop(Node),
     wait_until_offline(Node).
 
-launch_app(Nodename, Config) ->
+launch_fmke(Nodename, Config) ->
     io:format("Got config = ~p~n", [Config]),
     Database = proplists:get_value(target_database, Config),
     [Port] = proplists:get_value(database_ports, Config),
     ok = start_db(Database, Port),
+    start_node(Nodename, Config).
+
+launch_fmke_only(Nodename, Config) ->
+    io:format("Got config = ~p~n", [Config]),
     start_node(Nodename, Config).
 
 ensure_start_dist_node(Nodename) ->
@@ -196,7 +217,7 @@ start_cassandra(Port) ->
     AbsPrivDir = filename:absname(PrivDir),
     ShellFile = AbsPrivDir ++ "/build_schema.cql",
     0 = cmd:run("(docker exec -i cassandra /usr/bin/cqlsh) < " ++ ShellFile, return_code),
-    timer:sleep(10000),
+    0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
     ok.
 
 wait_until_offline(Node) ->

@@ -227,13 +227,14 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
                                             lists:map(
                                                 fun(Pscp) -> case Pscp#prescription.id of
                                                     Id -> P;
+                                                    BinId -> P;
                                                     _ -> Pscp
                                                 end end, Pharm#pharmacy.prescriptions)},
                     NStaff = Staff#staff{prescriptions =
                                             lists:map(
                                                 fun(Pscp) -> case Pscp#prescription.id of
-                                                    % Id -> io:format("WROTE IT!"),P;
                                                     Id -> P;
+                                                    BinId -> P;
                                                     _ -> Pscp
                                                 end end, Staff#staff.prescriptions)},
                     {WResult, Context4} = Driver:put([

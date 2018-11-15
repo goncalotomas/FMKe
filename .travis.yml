@@ -1,33 +1,28 @@
-sudo: true
-dist: trusty
+dist: xenial
 language: erlang
 otp_release:
   - 21.1
 services:
   - docker
-install:
-  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial main" | sudo tee -a /etc/apt/sources.list
-  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial universe" | sudo tee -a /etc/apt/sources.list
-  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates universe" | sudo tee -a /etc/apt/sources.list
-  - echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial-updates multiverse" | sudo tee -a /etc/apt/sources.list
-  - echo "deb http://security.ubuntu.com/ubuntu xenial-security main" | sudo tee -a /etc/apt/sources.list
-  - echo "deb http://security.ubuntu.com/ubuntu xenial-security multiverse" | sudo tee -a /etc/apt/sources.list
-  - sudo apt-get update -qq
-  - sudo apt-get install libuv1-dev g++ make cmake libssl-dev
-  - rebar3 local upgrade
-  - chmod u+x /home/travis/.cache/rebar3/bin/rebar3
-  - cp /home/travis/.cache/rebar3/bin/rebar3 /usr/local/bin/
-  - make all
-  - rebar3 xref
-  - rebar3 dialyzer
-  - rebar3 as lint lint
+addons:
+  apt:
+    packages:
+      - g++
+      - make
+      - cmake
+      - libuv1-dev
+      - libssl-dev
 before_script:
   - epmd -daemon
   - sudo sh -c 'echo 0 > /proc/sys/net/ipv6/conf/all/disable_ipv6'
+  - rebar3 --version
 script:
+  - rebar3 as test compile
+  - rebar3 xref
+  - rebar3 dialyzer
+  - rebar3 as lint lint
   - make coverage
   - rebar3 as test coveralls send
-  # - make bench
 after_failure:
   - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/ct.latest.log
   - cat /home/travis/build/goncalotomas/FMKe/_build/test/logs/*/log/console.log
