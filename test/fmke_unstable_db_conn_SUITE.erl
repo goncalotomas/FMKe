@@ -100,7 +100,6 @@ kill_database(_Config) ->
 check_that_database_is_down(Config) ->
     _FmkeOpts = ?config(fmke_opts, Config),
     {ok, Pools} = rpc(application, get_env, [?APP, pools]),
-    io:format("pools === ~p~n", [Pools]),
     lists:map(fun(Pool) ->
         {badrpc, {'EXIT', {timeout, _MoreInfo}}} = rpc(gen_server, call, [Pool, get_avail_workers])
     end, Pools),
