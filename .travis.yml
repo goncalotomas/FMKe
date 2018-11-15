@@ -6,8 +6,6 @@ services:
   - docker
 addons:
   apt:
-    sources:
-      - ppa:linuxjedi/ppa
     packages:
       - g++
       - make
