@@ -6,7 +6,7 @@
 -export ([
     start_antidote/0,
     start_riak/0,
-    start_redis/0,
+    start_redis_cluster/0,
     start_node_with_antidote_backend/3,
     start_node_with_ets_backend/2,
     start_node_with_redis_backend/3,
@@ -36,7 +36,10 @@
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
                                 "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
 
--define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
+-define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -p \"" ++ integer_to_list(Port) ++
+                                      ":6379\" redis:latest").
+
+-define(DOCKER_CMD_START_REDIS_CLUSTER(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
                                 "-p \"" ++ integer_to_list(Port) ++ ":7000\" "
                                 "-p \"" ++ integer_to_list(Port+1) ++ ":7001\" "
                                 "-p \"" ++ integer_to_list(Port+2) ++ ":7002\" "
@@ -84,11 +87,17 @@ stop_riak() ->
     0 = cmd:run(?DOCKER_CMD_STOP_RIAK, return_code),
     ok.
 
-start_redis() ->
-    start_redis(7000).
-
 start_redis(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_REDIS(Port), return_code),
+    io:format("Started redis.~n"),
+    0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
+    ok.
+
+start_redis_cluster() ->
+    start_redis_cluster(7000).
+
+start_redis_cluster(Port) ->
+    0 = cmd:run(?DOCKER_CMD_START_REDIS_CLUSTER(Port), return_code),
     io:format("Started redis.~n"),
     0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
     %% we are using a timer sleep here aside from the TCP wait because after
@@ -123,7 +132,7 @@ start_node_with_riak_backend(Name, Optimized, DataModel) ->
                       {database_ports, [?RIAK_PORT]}]).
 
 start_node_with_redis_backend(Name, Optimized, DataModel) ->
-    fmke_test_setup:start_redis(),
+    fmke_test_setup:start_redis_cluster(),
     start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
                       {database_ports, ?REDIS_PORTS}]).
 
@@ -205,6 +214,8 @@ start_db(cassandra, Port) ->
 start_db(ets, _Port) ->
     ok; %% ets doesn't need to be started
 start_db(redis, Port) ->
+    start_redis_cluster(Port);
+start_db(redis_crdb, Port) ->
     start_redis(Port);
 start_db(riak, Port) ->
     start_riak(Port).
@@ -247,6 +258,8 @@ load_client_lib(_Node, ets) ->
 load_client_lib(Node, redis) ->
     rpc:call(Node, application, load, [eredis]),
     rpc:call(Node, application, load, [eredis_cluster]);
+load_client_lib(Node, redis_crdb) ->
+    rpc:call(Node, application, load, [eredis]);
 load_client_lib(Node, riak) ->
     rpc:call(Node, application, load, [riak_pb]);
 load_client_lib(Node, riak_kv) ->
