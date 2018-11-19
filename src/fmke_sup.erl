@@ -39,21 +39,14 @@ start_link(Args) ->
 init(_Args) ->
     config_env(),
     %% read required parameters from app environment
-    {ok, Database} = application:get_env(?APP, target_database),
-    {ok, DataModel} = application:get_env(?APP, data_model),
-    {ok, Optimized} = application:get_env(?APP, optimized_driver),
     {ok, HttpPort} = application:get_env(?APP, http_port),
-
-    Adapter = case Optimized of
-      true -> ?PASS_THROUGH_ADAPTER;
-      false -> adapter(Database)
-    end,
+    Adapter = fmke_driver_config:selected_adapter(),
 
     RestartStrategy = #{strategy => one_for_one, intensity => 10, period => 10},
     {ok, {RestartStrategy, [
         gen_web_server_spec(HttpPort),
         fmke_spec(Adapter),
-        setup_sup_spec(Adapter, Database, DataModel, Optimized)
+        setup_sup_spec()
     ]}}.
 
 %%====================================================================
@@ -92,21 +85,14 @@ fmke_spec(Adapter) ->
         type => worker
     }.
 
--spec setup_sup_spec(Adapter::module(), Database::atom(), DataModel::atom(), Optimized::atom()) ->
-    supervisor:child_spec().
-setup_sup_spec(Adapter, Database, DataModel, Optimized) ->
+-spec setup_sup_spec() -> supervisor:child_spec().
+setup_sup_spec() ->
     #{
         id => setup_sup,
-        start => {fmke_setup_sup, start_link, [[Adapter, Database, DataModel, Optimized]]},
+        start => {fmke_setup_sup, start_link, [[]]},
         restart => permanent,
         type => supervisor
     }.
-
--spec adapter(Database::atom()) -> module().
-adapter(antidote) ->    ?KV_ADAPTER;
-adapter(ets) ->         ?KV_ADAPTER;
-adapter(redis) ->       ?KV_ADAPTER;
-adapter(riak) ->        ?KV_ADAPTER.
 
 config_env() ->
     try

@@ -47,13 +47,13 @@
     update_prescription_medication/3
   ]).
 
-start(Driver) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Driver], []).
+start(Args) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
 
 stop() ->
     gen_server:call(?MODULE, stop).
 
-init([[Driver, _DataModel]]) ->
+init([Driver, _DataModel]) ->
     {ok, Driver}.
 
 handle_cast(_Msg, State) ->
