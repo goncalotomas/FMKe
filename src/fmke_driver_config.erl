@@ -57,6 +57,7 @@ is_opt_driver(fmke_driver_riak_kv) ->       false;
 is_opt_driver(_Driver) ->                   true.
 
 -spec is_sql_driver(Driver::module()) -> boolean().
+is_sql_driver(fmke_driver_postgres) -> true;
 is_sql_driver(_Driver) -> false.
 
 -spec requires_ets_table(Driver::module()) -> true | false.
@@ -73,13 +74,16 @@ get_client_lib(fmke_driver_riak) ->                 riakc_pb_socket.
 -spec driver_adapter(Driver::module()) -> module().
 driver_adapter(Driver) ->
     case is_opt_driver(Driver) of
-        true ->
-            ?PT_ADAPTER;
         false ->
-            case is_sql_driver(Driver) of
-                true ->
-                    ?SQL_ADAPTER;
-                false ->
-                    ?KV_ADAPTER
-            end
+            sql_or_kv_adapter(Driver);
+        true ->
+            ?PT_ADAPTER
+    end.
+
+sql_or_kv_adapter(Driver) ->
+    case is_sql_driver(Driver) of
+        false ->
+            ?KV_ADAPTER;
+        true ->
+            ?SQL_ADAPTER
     end.
