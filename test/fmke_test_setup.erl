@@ -6,12 +6,12 @@
 -export ([
     start_antidote/0,
     start_riak/0,
-    start_redis_cluster/0,
-    start_node_with_antidote_backend/3,
+    start_redis/0,
+    start_node_with_antidote_backend/1,
     start_node_with_ets_backend/2,
-    start_node_with_redis_backend/3,
-    start_node_with_riak_backend/3,
-    start_node_with_mock_cluster/3,
+    start_node_with_redis_backend/1,
+    start_node_with_riak_backend/1,
+    start_node_with_mock_cluster/1,
     launch_fmke/2,
     launch_fmke_only/2,
     ensure_start_dist_node/1,
@@ -22,9 +22,19 @@
     stop_node/1
 ]).
 
+%% Add your client dependencies to be loaded onto remote *testing* nodes here.
+-define(CLIENT_LIBS, [
+    antidotec_pb,
+    eredis,
+    eredis_cluster,
+    erlcass,
+    riak_pb
+]).
+
 -define(ANTIDOTE_PORT, 8087).
 -define(RIAK_PORT, 8087).
--define(REDIS_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
+-define(REDIS_PORT, 6379).
+-define(REDIS_CLUSTER_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
 -define(DOCKER_CMD_STOP_ANTIDOTE, "docker stop antidote && docker rm antidote").
 -define(DOCKER_CMD_STOP_RIAK, "docker stop riak && docker rm riak").
 -define(DOCKER_CMD_STOP_REDIS, "docker stop redis && docker rm redis").
@@ -87,14 +97,14 @@ stop_riak() ->
     0 = cmd:run(?DOCKER_CMD_STOP_RIAK, return_code),
     ok.
 
-start_redis(Port) ->
+start_redis() ->
+    start_single_redis(?REDIS_PORT).
+
+start_single_redis(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_REDIS(Port), return_code),
     io:format("Started redis.~n"),
     0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
     ok.
-
-start_redis_cluster() ->
-    start_redis_cluster(7000).
 
 start_redis_cluster(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_REDIS_CLUSTER(Port), return_code),
@@ -118,28 +128,25 @@ stop_all() ->
     Result = cmd:run(?DOCKER_CMD_STOP_ALL, return_code),
     io:format("Stopped all running Docker containers (return code ~p).~n", [Result]).
 
-start_node_with_antidote_backend(Name, Optimized, DataModel) ->
+start_node_with_antidote_backend(Name) ->
     fmke_test_setup:start_antidote(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, antidote},
-                      {database_ports, [?ANTIDOTE_PORT]}]).
+    start_node(Name, [{target_database, antidote}, {database_ports, [?ANTIDOTE_PORT]}]).
 
 start_node_with_ets_backend(Name, DataModel) ->
     start_node(Name, [{data_model, DataModel}, {target_database, ets}]).
 
-start_node_with_riak_backend(Name, Optimized, DataModel) ->
+start_node_with_riak_backend(Name) ->
     fmke_test_setup:start_riak(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, riak},
-                      {database_ports, [?RIAK_PORT]}]).
+    start_node(Name, [{target_database, riak}, {database_ports, [?RIAK_PORT]}]).
 
-start_node_with_redis_backend(Name, Optimized, DataModel) ->
-    fmke_test_setup:start_redis_cluster(),
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, redis},
-                      {database_ports, ?REDIS_PORTS}]).
+start_node_with_redis_backend(Name) ->
+    fmke_test_setup:start_redis(),
+    start_node(Name, [{target_database, redis}, {database_ports, ?REDIS_CLUSTER_PORTS}]).
 
-start_node_with_mock_cluster(Name, Optimized, DataModel) ->
+start_node_with_mock_cluster(Name) ->
     fmke_test_setup:start_antidote(),
     %% Uses two different loopback addresses to create pools (one IPv4, one IPv6)
-    start_node(Name, [{optimized_driver, Optimized}, {data_model, DataModel}, {target_database, antidote},
+    start_node(Name, [{target_database, antidote},
                       {database_addresses, ["127.0.0.1", "localhost"]}, {database_ports, [?ANTIDOTE_PORT]}]).
 
 start_node(Name, Opts) ->
@@ -150,23 +157,11 @@ start_node(Name, Opts) ->
     %% start ct_slave node
     case ct_slave:start(Name, NodeConfig) of
         {ok, Node} ->
-            AdapterOps = case proplists:get_value(optimized_driver, Opts, undefined) of
-                undefined ->
-                    [{optimized_driver, false} | Opts];
-                true ->
-                    %% optimized drivers imply that the driver implements the full FMKe interface
-                    %% in such a case, the adapter to use is the passthrough adapter.
-                    lists:keyreplace(adapter, 1, Opts, {adapter, fmke_pt_adapter});
-                false ->
-                    Opts
-            end,
-            StartupOpts = lists:ukeymerge(1, lists:sort(AdapterOps), lists:sort(maps:to_list(?DEFAULTS))),
-            lists:map(
-                fun({Opt, Val}) ->
-                    rpc:call(Node, application, set_env, [?APP, Opt, Val])
-                end, StartupOpts),
-            {target_database, Database} = lists:keyfind(target_database, 1, StartupOpts),
-            ok = load_client_lib(Node, Database),
+            %% load all client libs at once (doesn't matter which it is, this is only a test)
+            remote_load_clt_libs(Node),
+            %% load options remotely onto node before starting the application
+            io:format("Passing in Opts=~p~n", [Opts]),
+            remote_parse_opts(Node, Opts),
             %% start the application remotely
             {ok, _} = rpc:call(Node, application, ensure_all_started, [?APP]),
             io:format("Node ~p started", [Node]),
@@ -186,8 +181,8 @@ stop_node(Node) ->
 launch_fmke(Nodename, Config) ->
     io:format("Got config = ~p~n", [Config]),
     Database = proplists:get_value(target_database, Config),
-    [Port] = proplists:get_value(database_ports, Config),
-    ok = start_db(Database, Port),
+    Ports = proplists:get_value(database_ports, Config),
+    ok = start_db(Database, Ports),
     start_node(Nodename, Config).
 
 launch_fmke_only(Nodename, Config) ->
@@ -207,6 +202,45 @@ ensure_start_dist_node(Nodename) ->
             ok
     end.
 
+remote_load_clt_libs(Node) ->
+    lists:map(fun(Lib) ->
+        ok = rpc:call(Node, application, load, [Lib])
+    end, ?CLIENT_LIBS).
+
+remote_parse_opts(_Node, []) ->
+    ok;
+remote_parse_opts(Node, [H|T]) ->
+    parse_opt(Node, H),
+    remote_parse_opts(Node, T).
+
+parse_opt(_Node, {_OptName, undefined}) ->
+    ok;
+parse_opt(Node, {target_database, Database}) ->
+    Driver = fmke_driver_config:default_driver(Database),
+    Adapter = fmke_driver_config:driver_adapter(Driver),
+    set_remote_opt(Node, driver, Driver),
+    set_remote_opt(Node, adapter, Adapter);
+parse_opt(Node, {driver, Driver}) ->
+    Adapter = fmke_driver_config:driver_adapter(Driver),
+    set_remote_opt(Node, driver, Driver),
+    set_remote_opt(Node, adapter, Adapter);
+parse_opt(Node, {connection_pool_size, Size}) ->
+    set_remote_opt(Node, connection_pool_size, Size);
+parse_opt(Node, {data_model, Model}) ->
+    set_remote_opt(Node, data_model, Model);
+parse_opt(Node, {database_addresses, Addrs}) ->
+    set_remote_opt(Node, database_addresses, Addrs);
+parse_opt(Node, {database_ports, Ports}) ->
+    set_remote_opt(Node, database_ports, Ports);
+parse_opt(Node, {http_port, Port}) ->
+    set_remote_opt(Node, http_port, Port).
+
+set_remote_opt(Node, Key, Val) ->
+    io:format("Setting ~p=~p...~n", [Key, Val]),
+    rpc:call(Node, application, set_env, [?APP, Key, Val]).
+
+start_db(Database, [Port]) ->
+    start_db(Database, Port);
 start_db(antidote, Port) ->
     start_antidote(Port);
 start_db(cassandra, Port) ->
@@ -214,9 +248,11 @@ start_db(cassandra, Port) ->
 start_db(ets, _Port) ->
     ok; %% ets doesn't need to be started
 start_db(redis, Port) ->
-    start_redis_cluster(Port);
+    start_single_redis(Port);
 start_db(redis_crdb, Port) ->
-    start_redis(Port);
+    start_single_redis(Port);
+start_db(redis_cluster, Port) ->
+    start_redis_cluster(Port);
 start_db(riak, Port) ->
     start_riak(Port).
 
@@ -248,19 +284,3 @@ wait_until_result(Fun, Result, Retry, Delay) when Retry > 0 ->
             timer:sleep(Delay),
             wait_until_result(Fun, Result, Retry-1, Delay)
 end.
-
-load_client_lib(Node, antidote) ->
-    rpc:call(Node, application, load, [antidotec_pb]);
-load_client_lib(Node, cassandra) ->
-    rpc:call(Node, application, load, [erlcass]);
-load_client_lib(_Node, ets) ->
-    ok;
-load_client_lib(Node, redis) ->
-    rpc:call(Node, application, load, [eredis]),
-    rpc:call(Node, application, load, [eredis_cluster]);
-load_client_lib(Node, redis_crdb) ->
-    rpc:call(Node, application, load, [eredis]);
-load_client_lib(Node, riak) ->
-    rpc:call(Node, application, load, [riak_pb]);
-load_client_lib(Node, riak_kv) ->
-    rpc:call(Node, application, load, [riak_pb]).

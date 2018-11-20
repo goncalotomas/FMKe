@@ -60,9 +60,18 @@ all() ->
 init_per_suite(Config) ->
     CTNodename = ct:get_config(ct_nodename, 'ct_core_suite@127.0.0.1'),
     FMKeNodename = ct:get_config(fmke_nodename, ?NODENAME),
-    OptionValues = lists:map(fun(Opt) ->
-                        {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
-                    end, ?OPTIONS),
+    Options = [target_database, driver, database_addresses, database_ports, connection_pool_size, http_port],
+    ConfigSrc = get_initial_config_src(),
+    ConfigVals = get_initial_config(Config),
+    OptionValues = lists:map(
+        fun(Opt) ->
+            case ConfigSrc of
+                default ->
+                    {Opt, ?config(Opt, ConfigVals)};
+                external ->
+                    {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
+            end
+        end, Options),
     ok = fmke_test_setup:ensure_start_dist_node(CTNodename),
     true = erlang:set_cookie(CTNodename, ?COOKIE),
     Node = fmke_test_setup:launch_fmke(FMKeNodename, OptionValues),
@@ -676,56 +685,25 @@ treatment_unit_tests(_Config) ->
 %%%-------------------------------------------------------------------
 
 status_tests(Config) ->
-    {ok, TargetDatabase} = rpc(Config, application, get_env, [?APP, target_database]),
-    {ok, Addresses} = rpc(Config, application, get_env, [?APP, database_addresses]),
-    {ok, Ports} = rpc(Config, application, get_env, [?APP, database_ports]),
-    {ok, ConnPoolSize} = rpc(Config, application, get_env, [?APP, connection_pool_size]),
-    {ok, HttpPort} = rpc(Config, application, get_env, [?APP, http_port]),
-    ok = application:set_env(?APP, connection_pool_size, ConnPoolSize),
-    ok = application:set_env(?APP, target_database, TargetDatabase),
-    ok = application:set_env(?APP, database_addresses, Addresses),
-    ok = application:set_env(?APP, database_ports, Ports),
-    ok = application:set_env(?APP, http_port, HttpPort),
+    ExpectedVals = lists:map(
+        fun(Prop) ->
+            case rpc(Config, application, get_env, [?APP, Prop]) of
+                {ok, Val} ->
+                    {Prop, Val};
+                undefined ->
+                    {Prop, undefined}
+            end
+        end, [target_database, driver, database_addresses, database_ports, connection_pool_size, http_port, pools]),
     PropList = rpc(Config, get_status, []),
     true = ([] =/= PropList),
-    check_status(PropList).
+    %% remove all options that we aren't checking for
+    FilteredProps = lists:filter(fun({Opt, _Val}) -> proplists:is_defined(Opt, ExpectedVals) end, PropList),
+    check_status(lists:sort(ExpectedVals), lists:sort(FilteredProps)).
 
-check_status([]) -> ok;
-check_status([{fmke_up, true} | Other]) -> check_status(Other);
-check_status([{connection_manager_up, _Status} | Other]) -> check_status(Other);
-check_status([{web_server_up, true} | Other]) -> check_status(Other);
-check_status([{connection_pool_size, PoolSize} | Other]) ->
-    {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
-    check_status(Other);
-check_status([{target_database, Target} | Other]) ->
-    {ok, Target} = application:get_env(?APP, target_database),
-    check_status(Other);
-check_status([{database_addresses, BinAddresses} | Other]) ->
-    {ok, Addresses} = application:get_env(?APP, database_addresses),
-    ListAddresses = lists:map(fun binary_to_list/1, BinAddresses),
-    true = (ListAddresses == Addresses),
-    check_status(Other);
-check_status([{database_ports, Ports} | Other]) ->
-    {ok, Ports} = application:get_env(?APP, database_ports),
-    check_status(Other);
-check_status([{http_port, Port} | Other]) ->
-    {ok, Port} = application:get_env(?APP, http_port),
-    check_status(Other);
-check_status([{pools, Pools} | Other]) ->
-    lists:map(
-        fun({_PoolName, PoolData}) ->
-            true = ([] =/= PoolData),
-            ok = check_pool_status(PoolData)
-        end, Pools),
-    check_status(Other).
-
-check_pool_status([]) -> ok;
-check_pool_status([{pool_is_up, true} | Other]) -> check_pool_status(Other);
-check_pool_status([{pool_status, ready} | Other]) -> check_pool_status(Other);
-check_pool_status([{current_overflow, 0} | Other]) -> check_pool_status(Other);
-check_pool_status([{worker_pool_size, S} | Other]) ->
-    {ok, S} = application:get_env(?APP, connection_pool_size),
-    check_pool_status(Other).
+check_status([], []) ->
+    ok;
+check_status([A | T1], [A | T2]) ->
+    check_status(T1, T2).
 
 %%%-------------------------------------------------------------------
 %%% Auxiliary functions
@@ -737,3 +715,34 @@ rpc(Config, Mod, Fun, Args) ->
 rpc(Config, Fun, Args) ->
     Node = ?config(node, Config),
     rpc:block_call(Node, fmke, Fun, Args).
+
+get_initial_config_src() ->
+    Driver = ct:get_config(driver, undefined),
+    Database = ct:get_config(target_database, undefined),
+    case valid_config(Driver, Database) of
+        false -> default;
+        true -> external
+    end.
+
+get_initial_config(Config) ->
+    Driver = ct:get_config(driver, undefined),
+    Database = ct:get_config(target_database, undefined),
+    case valid_config(Driver, Database) of
+        false ->
+            default_config(Config);
+        true ->
+            Config
+    end.
+
+valid_config(undefined, undefined) ->
+    false;
+valid_config(_, _) ->
+    %% we actually don't know if this is a valid config
+    %% but it should be enough to boot a valid config of FMKe
+    true.
+
+default_config(Config) ->
+    DataDir = ?config(data_dir, Config),
+    Filepath = DataDir ++ "default.config",
+    {ok, FileConfig} = file:consult(Filepath),
+    FileConfig.

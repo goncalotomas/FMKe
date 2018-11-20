@@ -34,8 +34,6 @@ init_per_suite(Config) ->
       {database_addresses, ["127.0.0.1"]},
       {database_ports, [8087]},
       {target_database, riak},
-      {data_model, non_nested},
-      {optimized_driver, true},
       {connection_pool_size, 2},
       {http_port, 10008}
     ],

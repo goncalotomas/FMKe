@@ -2,6 +2,8 @@
 
 -include("fmke.hrl").
 
+-type database() :: atom().
+
 -define(KV_ADAPTER, fmke_kv_adapter).
 -define(SQL_ADAPTER, fmke_sql_adapter).
 -define(PT_ADAPTER, fmke_pt_adapter).
@@ -11,75 +13,89 @@
     driver_adapter/1,
     get_client_lib/1,
     is_opt_driver/1,
+    is_simple_kv_driver/1,
     requires_conn_manager/1,
     requires_ets_table/1,
     selected_driver/0,
     selected_adapter/0
 ]).
 
--type database() :: atom().
+%% Stores the default drivers for each database.
+%% These typically only get updated once a new database is supported.
+-define(DEFAULT_DRIVER, #{
+    antidote =>         fmke_driver_opt_antidote,
+    cassandra =>        fmke_driver_opt_cassandra,
+    ets =>              fmke_driver_ets,
+    redis =>            fmke_driver_opt_redis_crdb,
+    redis_crdb =>       fmke_driver_opt_redis_crdb,
+    redis_cluster =>    fmke_driver_opt_redis_cluster,
+    riak =>             fmke_driver_opt_riak_kv
+}).
+
+%% Add your driver to this list if you wish to use FMKe's connection manager
+-define(REQUIRE_CONN_MANAGER, [
+    fmke_driver_antidote,
+    fmke_driver_opt_antidote,
+    fmke_driver_opt_redis_crdb,
+    fmke_driver_opt_riak_kv,
+    fmke_driver_riak_kv
+]).
+
+%% Add your driver to this list if you wish to have an ETS table created at boot
+-define(REQUIRE_ETS, [
+    fmke_driver_ets
+]).
+
+%% Add your driver to this list if your driver implements only the simple KV
+%% interface and not the entire FMKe API. Drivers that are not on this list
+%% or on the SIMPLE_SQL_DRIVERS are assumed to implement the entire FMKe API.
+-define(SIMPLE_KV_DRIVERS, [
+    fmke_driver_antidote,
+    fmke_driver_ets,
+    fmke_driver_riak_kv
+]).
 
 -spec selected_driver() -> module().
 selected_driver() ->
-    case application:get_env(?APP, driver) of
-        undefined ->
-            {ok, Database} = application:get_env(?APP, target_database),
-            default_driver(Database);
-        {ok, RequestedDriver} ->
-            RequestedDriver
-    end.
+    {ok, Driver} = application:get_env(?APP, driver),
+    Driver.
 
 -spec selected_adapter() -> module().
 selected_adapter() ->
     driver_adapter(selected_driver()).
 
 -spec requires_conn_manager(Driver::module()) -> true | false.
-requires_conn_manager(fmke_driver_antidote) ->              true;
-requires_conn_manager(fmke_driver_opt_antidote) ->          true;
-requires_conn_manager(fmke_driver_opt_redis_crdb) ->        true;
-requires_conn_manager(fmke_driver_opt_riak_kv) ->           true;
-requires_conn_manager(fmke_driver_riak_kv) ->               true;
-requires_conn_manager(_Driver) ->                           false.
+requires_conn_manager(Driver) ->
+    lists:member(Driver, ?REQUIRE_CONN_MANAGER) .
 
 -spec default_driver(Database::database()) -> module().
-default_driver(antidote) ->         fmke_driver_opt_antidote;
-default_driver(cassandra) ->        fmke_driver_opt_cassandra;
-default_driver(ets) ->              fmke_driver_ets;
-default_driver(redis) ->            fmke_driver_opt_redis_crdb;
-default_driver(redis_crdb) ->       fmke_driver_opt_redis_crdb;
-default_driver(redis_cluster) ->    fmke_driver_opt_redis_cluster;
-default_driver(riak) ->             fmke_driver_opt_riak_kv.
+default_driver(Database) ->
+    maps:get(Database, ?DEFAULT_DRIVER).
 
 -spec is_opt_driver(Driver::module()) -> boolean().
-is_opt_driver(fmke_driver_antidote) ->      false;
-is_opt_driver(fmke_driver_ets) ->           false;
-is_opt_driver(fmke_driver_riak_kv) ->       false;
-is_opt_driver(_Driver) ->                   true.
+is_opt_driver(Driver) ->
+    not lists:member(Driver, ?SIMPLE_KV_DRIVERS).
 
--spec is_sql_driver(Driver::module()) -> boolean().
-is_sql_driver(_Driver) -> false.
+-spec is_simple_kv_driver(Driver::module()) -> boolean().
+is_simple_kv_driver(Driver) ->
+    lists:member(Driver, ?SIMPLE_KV_DRIVERS).
 
 -spec requires_ets_table(Driver::module()) -> true | false.
-requires_ets_table(fmke_driver_ets) ->          true;
-requires_ets_table(_Driver) ->                  false.
+requires_ets_table(Driver) ->
+    lists:member(Driver, ?REQUIRE_ETS).
 
 -spec get_client_lib(Driver::module()) -> atom().
 get_client_lib(fmke_driver_antidote) ->             antidotec_pb_socket;
 get_client_lib(fmke_driver_opt_antidote) ->         antidotec_pb_socket;
 get_client_lib(fmke_driver_opt_redis_crdb) ->       eredis;
 get_client_lib(fmke_driver_opt_riak_kv) ->          riakc_pb_socket;
-get_client_lib(fmke_driver_riak) ->                 riakc_pb_socket.
+get_client_lib(fmke_driver_riak_kv) ->              riakc_pb_socket.
 
 -spec driver_adapter(Driver::module()) -> module().
 driver_adapter(Driver) ->
     case is_opt_driver(Driver) of
-        true ->
-            ?PT_ADAPTER;
         false ->
-            case is_sql_driver(Driver) of
-                true ->
-                    ?SQL_ADAPTER;
-                false ->
-                    ?KV_ADAPTER
-            end
+            ?KV_ADAPTER;
+        true ->
+            ?PT_ADAPTER
     end.
