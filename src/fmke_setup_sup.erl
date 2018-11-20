@@ -25,8 +25,8 @@ start_link(Args) ->
 
 init([]) ->
     %% Driver, adapter, data_model and connection_pool_size are assumed to be defined at this point by fmke_sup.
-    {ok, Driver} = application:get_env(?APP, driver),
-    {ok, Adapter} = application:get_env(?APP, adapter),
+    Driver = fmke_driver_config:selected_driver(),
+    Adapter = fmke_driver_config:selected_adapter(),
     {ok, DataModel} = application:get_env(?APP, data_model),
     {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
     %% these remaining 2 options may be undefined if working with Mnesia, ETS, or other types of connections that don't
