@@ -28,7 +28,7 @@ init_per_suite(Config) ->
     TestNode = 'fmke_antidote_ct@127.0.0.1',
     ok = fmke_test_setup:ensure_start_dist_node(TestNode),
     true = erlang:set_cookie(TestNode, ?COOKIE),
-    fmke_test_setup:start_node_with_antidote_backend(?NODENAME, true, non_nested),
+    fmke_test_setup:start_node_with_antidote_backend(?NODENAME),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
 
