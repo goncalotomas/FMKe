@@ -46,8 +46,8 @@
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
                                 "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
 
--define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis "
-                                "-p \"" ++ integer_to_list(Port) ++ ":6379\" redis:latest").
+-define(DOCKER_CMD_START_REDIS(Port), "docker run -d --name redis -p \"" ++ integer_to_list(Port) ++
+                                      ":6379\" redis:latest").
 
 -define(DOCKER_CMD_START_REDIS_CLUSTER(Port), "docker run -d --name redis -e CLUSTER_ONLY=true -e IP=0.0.0.0 "
                                 "-p \"" ++ integer_to_list(Port) ++ ":7000\" "
@@ -248,6 +248,8 @@ start_db(cassandra, Port) ->
 start_db(ets, _Port) ->
     ok; %% ets doesn't need to be started
 start_db(redis, Port) ->
+    start_single_redis(Port);
+start_db(redis_crdb, Port) ->
     start_single_redis(Port);
 start_db(redis_cluster, Port) ->
     start_redis_cluster(Port);

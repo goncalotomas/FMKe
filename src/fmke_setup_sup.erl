@@ -45,6 +45,13 @@ init([]) ->
         period => 10
     },
 
+    DataModel = case application:get_env(?APP, data_model) of
+        undefined ->
+            ?DEFAULT(data_model);
+        {ok, RequestedDataModel} ->
+            RequestedDataModel
+    end,
+
     BaseChildren = [adapter_spec(Adapter, Driver, DataModel), driver_spec(Driver, DataModel)],
 
     Children = case {Hostnames, PortNums} of
