@@ -21,7 +21,9 @@ handle_req(<<"PUT">>, _, Req) ->
 perform_operation(<<"GET">>, Req, [], []) ->
     try
         StatusPropList = fmke:get_status(),
-        fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, true, proplists:delete(http_port, StatusPropList) )
+        DatabaseAddrs = lists:map(fun erlang:list_to_binary/1, proplists:get_value(database_addresses, StatusPropList)),
+        StatusPropList1 = lists:keyreplace(database_addresses, 1, StatusPropList, {database_addresses, DatabaseAddrs}),
+        fmke_gen_http_handler:handle_reply(?MODULE, Req, ok, true, proplists:delete(http_port, StatusPropList1) )
     catch error:ErrReason ->
         lager:debug("Error getting status:~n~p~n", [ErrReason]),
         fmke_gen_http_handler:handle_reply(?MODULE, Req, {error, bad_req}, false, ErrReason)
