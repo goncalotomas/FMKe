@@ -48,32 +48,38 @@ init([Adapter]) ->
     lager:info("~p will use the ~p adapter~n", [?MODULE, Adapter]),
     {ok, Adapter}.
 
-get_status() ->
-    Status = is_alive(fmke),
-    ConnManagerStatus = is_alive(fmke_db_conn_manager),
-    WebServerStatus = is_alive(cowboy_sup),
-    {ok, Pools} = application:get_env(?APP, pools),
-    PoolStatuses = lists:map(
-                        fun(Pool) ->
-                            PoolUp = is_alive(Pool),
-                            {PoolStatus, CurrPoolSize, CurrOverflow, _Monitors} = gen_server:call(Pool, status),
-                            [
-                                {pool_is_up, PoolUp}, {pool_status, PoolStatus},
-                                {worker_pool_size, CurrPoolSize}, {current_overflow, CurrOverflow}
-                            ]
-                        end, Pools),
-    PoolDetails = lists:zip(Pools, PoolStatuses),
-    {ok, TargetDatabase} = application:get_env(?APP, target_database),
-    {ok, HttpPort} = application:get_env(?APP, http_port),
-    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
-    {ok, Addresses} = application:get_env(?APP, database_addresses),
-    {ok, Ports} = application:get_env(?APP, database_ports),
-    [{fmke_up, Status}, {connection_manager_up, ConnManagerStatus}, {web_server_up, WebServerStatus},
-     {target_database, TargetDatabase}, {connection_pool_size, ConnPoolSize}, {http_port, HttpPort},
-     {database_addresses, lists:map(fun list_to_binary/1, Addresses)}, {database_ports, Ports}, {pools, PoolDetails}].
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
+
+handle_call(get_status, _From, Adapter) ->
+    {ok, Pools} = application:get_env(?APP, pools),
+    PoolStatuses = lists:map(
+        fun(Pool) ->
+            PoolUp = is_alive(Pool),
+            {PoolStatus, CurrPoolSize, CurrOverflow, _Monitors} = gen_server:call(Pool, status),
+            [
+                {pool_is_up, PoolUp}, {pool_status, PoolStatus},
+                {worker_pool_size, CurrPoolSize}, {current_overflow, CurrOverflow}
+            ]
+        end, Pools),
+    PoolDetails = lists:zip(Pools, PoolStatuses),
+    EnvOpts = [driver, target_database, database_addresses, database_ports, connection_pool_size, http_port, pools],
+    EnvVals = lists:map(
+        fun(Opt) ->
+            case application:get_env(?APP, Opt) of
+                {ok, Val} ->
+                    {Opt, Val};
+                undefined ->
+                    {Opt, undefined}
+            end
+        end, EnvOpts),
+    Reply = [
+        {fmke_up, is_alive(fmke)},
+        {connection_manager_up, is_alive(fmke_db_conn_manager)},
+        {web_server_up, is_alive(cowboy_sup)},
+        {pool_details, PoolDetails}
+    ] ++ EnvVals,
+    {reply, Reply, Adapter};
 
 handle_call({create_patient, Id, Name, Address}, _From, Adapter) ->
     {reply, Adapter:create_patient(Id, Name, Address), Adapter};
@@ -254,3 +260,6 @@ process_prescription(Id, Date) ->
 
 is_alive(Proc) ->
     undefined =/= whereis(Proc).
+
+get_status() ->
+    gen_server:call(?MODULE, get_status).
