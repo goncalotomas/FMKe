@@ -47,7 +47,7 @@ ct:
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=core_cassandra_non_nested_opt
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=core_ets_nested
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=core_ets_non_nested
-	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=core_redis_non_nested_opt
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config --cover --cover_export_name=core_redis_cluster_non_nested_opt
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=core_riak_non_nested_opt
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_simple_nested.config --cover --cover_export_name=core_riak_simple_nested
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_simple_non_nested.config --cover --cover_export_name=core_riak_simple_non_nested
@@ -55,7 +55,7 @@ ct:
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=http_cassandra_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=http_ets_nested
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config --cover --cover_export_name=http_ets_non_nested
-	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_non_nested_data_model.config --cover --cover_export_name=http_redis_non_nested_opt
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config --cover --cover_export_name=http_redis_cluster_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_nested.config --cover --cover_export_name=http_riak_simple_nested
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_non_nested.config --cover --cover_export_name=http_riak_simple_non_nested

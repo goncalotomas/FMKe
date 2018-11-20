@@ -39,21 +39,14 @@ start_link(Args) ->
 init(_Args) ->
     config_env(),
     %% read required parameters from app environment
-    {ok, Database} = application:get_env(?APP, target_database),
-    {ok, DataModel} = application:get_env(?APP, data_model),
-    {ok, Optimized} = application:get_env(?APP, optimized_driver),
     {ok, HttpPort} = application:get_env(?APP, http_port),
-
-    Adapter = case Optimized of
-      true -> ?PASS_THROUGH_ADAPTER;
-      false -> adapter(Database)
-    end,
+    Adapter = fmke_driver_config:selected_adapter(),
 
     RestartStrategy = #{strategy => one_for_one, intensity => 10, period => 10},
     {ok, {RestartStrategy, [
         gen_web_server_spec(HttpPort),
         fmke_spec(Adapter),
-        setup_sup_spec(Adapter, Database, DataModel, Optimized)
+        setup_sup_spec()
     ]}}.
 
 %%====================================================================
@@ -92,21 +85,14 @@ fmke_spec(Adapter) ->
         type => worker
     }.
 
--spec setup_sup_spec(Adapter::module(), Database::atom(), DataModel::atom(), Optimized::atom()) ->
-    supervisor:child_spec().
-setup_sup_spec(Adapter, Database, DataModel, Optimized) ->
+-spec setup_sup_spec() -> supervisor:child_spec().
+setup_sup_spec() ->
     #{
         id => setup_sup,
-        start => {fmke_setup_sup, start_link, [[Adapter, Database, DataModel, Optimized]]},
+        start => {fmke_setup_sup, start_link, [[]]},
         restart => permanent,
         type => supervisor
     }.
-
--spec adapter(Database::atom()) -> module().
-adapter(antidote) ->    ?KV_ADAPTER;
-adapter(ets) ->         ?KV_ADAPTER;
-adapter(redis) ->       ?KV_ADAPTER;
-adapter(riak) ->        ?KV_ADAPTER.
 
 config_env() ->
     try
@@ -123,15 +109,52 @@ config_env() ->
 
 %% Sets all options needed to start FMKe, from the 4 following sources, ordered by priority:
 %% OS Environment, Application Environment, config file, default value
-config(ConfigProps) ->
-    lists:foreach(
-        fun(Param) ->
-            {Source, Value} = get_value(os:getenv(atom_to_list(Param)), application:get_env(?APP, Param),
-                                        proplists:get_value(Param, ConfigProps), maps:get(Param, ?DEFAULTS)),
-            lager:info("~p option '~p' read from ~p, set to ~p", [?APP, Param, Source, Value]),
-            ok = application:set_env(?APP, Param, Value)
-        end,
-    ?OPTIONS).
+config(Config) ->
+    Driver = get_option(driver, Config),
+    Database = get_option(target_database, Config),
+    PoolSize = get_option(connection_pool_size, Config),
+    Addresses = get_option(database_addresses, Config),
+    Ports = get_option(database_ports, Config),
+    HttpPort = get_option(http_port, Config),
+    Model = get_option(data_model, Config),
+    config(driver, {Driver, Database}),
+    config(adapter, {driver, Driver}),
+    config(pool_size, PoolSize),
+    config(database_addresses, Addresses),
+    config(database_ports, Ports),
+    config(http_port, HttpPort),
+    config(data_model, Model).
+
+config(data_model, Model) ->
+    maybe_config(data_model, Model);
+config(http_port, HttpPort) ->
+    maybe_config(http_port, HttpPort);
+config(database_ports, Ports) ->
+    maybe_config(database_ports, Ports);
+config(database_addresses, Addresses) ->
+    maybe_config(database_addresses, Addresses);
+config(pool_size, Size) ->
+    maybe_config(connection_pool_size, Size);
+config(adapter, {driver, Driver}) ->
+    maybe_config(adapter, fmke_driver_config:driver_adapter(Driver));
+config(driver, {undefined, Database}) ->
+    maybe_config(driver, fmke_driver_config:default_driver(Database));
+config(driver, {Driver, _Database}) ->
+    maybe_config(driver, Driver).
+
+maybe_config(Key, undefined) ->
+    lager:info("Unable to set ~p (value undefined)~n", [Key]),
+    ok;
+maybe_config(Key, Val) ->
+    lager:info("Setting FMKe option ~p = ~p~n", [Key, Val]),
+    ok = application:set_env(?APP, Key, Val).
+
+get_option(Opt, Config) ->
+    {_Source, Val} = get_value(os:getenv(atom_to_list(Opt)),
+                               application:get_env(?APP, Opt),
+                               proplists:get_value(Opt, Config),
+                               maps:get(Opt, ?DEFAULTS, undefined)),
+    Val.
 
 get_value(false, undefined, undefined, Val) ->      {defaults, Val};
 get_value(false, undefined, Val, _) ->              {config_file, Val};

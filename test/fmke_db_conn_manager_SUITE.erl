@@ -28,7 +28,7 @@ init_per_suite(Config) ->
     TestNode = 'fmke_db_conn_mgr_test@127.0.0.1',
     ok = fmke_test_setup:ensure_start_dist_node(TestNode),
     true = erlang:set_cookie(TestNode, ?COOKIE),
-    fmke_test_setup:start_node_with_mock_cluster(?NODENAME, true, non_nested),
+    fmke_test_setup:start_node_with_mock_cluster(?NODENAME),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
 

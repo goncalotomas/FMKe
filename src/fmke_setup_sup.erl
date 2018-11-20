@@ -20,20 +20,23 @@
 -define(SERVER, ?MODULE).
 -define(ETS_TABLE_OPTS, [set, public, named_table, {keypos,1}, {write_concurrency,false}, {read_concurrency,false}]).
 
--type database() :: antidote | ets | redis | riak.
-
 start_link(Args) ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, Args).
 
-init([Adapter, Database, DataModel, Optimized]) ->
-    case requires_ets_table(Database, DataModel, Optimized) of
+init([]) ->
+    %% Driver, adapter, data_model and connection_pool_size are assumed to be defined at this point by fmke_sup.
+    Driver = fmke_driver_config:selected_driver(),
+    Adapter = fmke_driver_config:selected_adapter(),
+    {ok, DataModel} = application:get_env(?APP, data_model),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    %% these remaining 2 options may be undefined if working with Mnesia, ETS, or other types of connections that don't
+    %% use {hostname, port} combinations to connect to the data store.
+    Hostnames = application:get_env(?APP, database_addresses),
+    PortNums = application:get_env(?APP, database_ports),
+
+    case fmke_driver_config:requires_ets_table(Driver) of
         true -> ets:new(?ETS_TABLE_NAME, ?ETS_TABLE_OPTS);
         false -> ok
-    end,
-
-    Driver = case Optimized of
-        true -> opt_driver(Database);
-        false -> driver(Database)
     end,
 
     RestartStrategy = #{
@@ -44,23 +47,34 @@ init([Adapter, Database, DataModel, Optimized]) ->
 
     BaseChildren = [adapter_spec(Adapter, Driver, DataModel), driver_spec(Driver, DataModel)],
 
-    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
-    {ok, Hostnames} = application:get_env(?APP, database_addresses),
-    {ok, PortNums} = application:get_env(?APP, database_ports),
-    {Hosts, Ports} = make_same_len(Hostnames, PortNums),
-
-    Children = case requires_conn_manager(Database, DataModel, Optimized) of
-        false ->
+    Children = case {Hostnames, PortNums} of
+        {undefined, undefined} ->
+            lager:info("list of hosts and ports are undefined, cannot create connection pools."),
             ok = application:set_env(?APP, pools, []),
-            ok = application:set_env(?APP, hosts, Hosts),
-            ok = application:set_env(?APP, ports, Ports),
             BaseChildren;
-        true ->
-            Mod = get_client_lib(Database, DataModel, Optimized),
-            Pools = gen_pool_names(Hosts, Ports),
-            Connections = lists:zip(Hosts, Ports),
-            Args = [Pools, Connections, Mod, ConnPoolSize],
-            BaseChildren ++ [conn_mgr_sup_spec(Args)]
+        {_Hosts, undefined} ->
+            lager:info("list of ports is undefined, cannot create connection pools."),
+            ok = application:set_env(?APP, pools, []),
+            BaseChildren;
+        {undefined, _Ports} ->
+            lager:info("list of hosts is undefined, cannot create connection pools."),
+            ok = application:set_env(?APP, pools, []),
+            BaseChildren;
+        {{ok, Hs}, {ok, Ps}} ->
+            {Hosts, Ports} = make_same_len(Hs, Ps),
+            case fmke_driver_config:requires_conn_manager(Driver) of
+                false ->
+                    ok = application:set_env(?APP, pools, []),
+                    ok = application:set_env(?APP, hosts, Hosts),
+                    ok = application:set_env(?APP, ports, Ports),
+                    BaseChildren;
+                true ->
+                    Mod = fmke_driver_config:get_client_lib(Driver),
+                    Pools = gen_pool_names(Hosts, Ports),
+                    Connections = lists:zip(Hosts, Ports),
+                    Args = [Pools, Connections, Mod, ConnPoolSize],
+                    BaseChildren ++ [conn_mgr_sup_spec(Args)]
+            end
     end,
 
     {ok, {RestartStrategy, Children}}.
@@ -100,30 +114,6 @@ gen_pool_names([], [], Accum) ->
     lists:reverse(Accum);
 gen_pool_names([A|T], [P|T2], Accum) ->
     gen_pool_names(T, T2, [gen_pool_name(A, P) | Accum]).
-
--spec get_client_lib(Database::atom(), DataModel::atom(), Optimized::atom()) -> atom().
-get_client_lib(antidote, _, _) ->       antidotec_pb_socket;
-get_client_lib(riak, _, _) ->           riakc_pb_socket.
-
--spec requires_ets_table(Database::atom(), DataModel::atom(), Optimized::atom()) -> true | false.
-requires_ets_table(ets, _, _) ->        true;
-requires_ets_table(_, _, _) ->          false.
-
--spec requires_conn_manager(Database::atom(), DataModel::atom(), Optimized::atom()) -> true | false.
-requires_conn_manager(antidote, _, _) ->    true;
-requires_conn_manager(riak, _, _) ->        true;
-requires_conn_manager(_, _, _) ->           false.
-
--spec driver(Database::database()) -> module().
-driver(antidote) ->     fmke_driver_antidote;
-driver(ets) ->          fmke_driver_ets;
-driver(riak) ->         fmke_driver_riak_kv.
-
--spec opt_driver(Database::atom()) -> module().
-opt_driver(antidote) ->     fmke_driver_opt_antidote;
-opt_driver(cassandra) ->    fmke_driver_opt_cassandra;
-opt_driver(redis) ->        fmke_driver_opt_redis_cluster;
-opt_driver(riak) ->         fmke_driver_opt_riak_kv.
 
 -spec make_same_len(L1 :: list(), L2 :: list()) -> {list(), list()}.
 make_same_len(L1, L2) when length(L1) == length(L2) -> {L1, L2};
