@@ -1,19 +1,14 @@
 -define(APP, fmke).
 -define(OPTIONS, [
-    adapter, connection_pool_size, database_addresses, database_ports, http_port,
-    target_database, data_model, optimized_driver
+    target_database, connection_pool_size, database_addresses, database_ports, http_port, driver
 ]).
 -define(DEFAULTS, #{
-    adapter => fmke_pt_adapter,
     connection_pool_size => 64,
     database_addresses => ["127.0.0.1"],
-    database_ports => [8087],
     http_port => 9090,
-    target_database => riak,
-    data_model => non_nested,
-    optimized_driver => true
+    data_model => non_nested
 }).
--define(DEFAULT(Opt), maps:get(Opt, ?DEFAULTS)).
+-define(DEFAULT(Opt), maps:get(Opt, ?DEFAULTS, undefined)).
 
 -define(TIMEOUT, 60000).
 
