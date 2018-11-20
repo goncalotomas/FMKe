@@ -24,20 +24,20 @@ start_link(Args) ->
   supervisor:start_link({local, ?SERVER}, ?MODULE, Args).
 
 init([]) ->
-    Driver = case application:get_env(?APP, driver) of
-        undefined ->
-            {ok, Database} = application:get_env(?APP, target_database),
-            fmke_driver_config:default_driver(Database);
-        {ok, RequestedDriver} ->
-            RequestedDriver
-    end,
+    %% Driver, adapter, data_model and connection_pool_size are assumed to be defined at this point by fmke_sup.
+    {ok, Driver} = application:get_env(?APP, driver),
+    {ok, Adapter} = application:get_env(?APP, adapter),
+    {ok, DataModel} = application:get_env(?APP, data_model),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    %% these remaining 2 options may be undefined if working with Mnesia, ETS, or other types of connections that don't
+    %% use {hostname, port} combinations to connect to the data store.
+    Hostnames = application:get_env(?APP, database_addresses),
+    PortNums = application:get_env(?APP, database_ports),
 
     case fmke_driver_config:requires_ets_table(Driver) of
         true -> ets:new(?ETS_TABLE_NAME, ?ETS_TABLE_OPTS);
         false -> ok
     end,
-
-    Adapter = fmke_driver_config:driver_adapter(Driver),
 
     RestartStrategy = #{
         strategy => rest_for_one,
@@ -45,32 +45,36 @@ init([]) ->
         period => 10
     },
 
-    DataModel = case application:get_env(?APP, data_model) of
-        undefined ->
-            ?DEFAULT(data_model);
-        {ok, RequestedDataModel} ->
-            RequestedDataModel
-    end,
-
     BaseChildren = [adapter_spec(Adapter, Driver, DataModel), driver_spec(Driver, DataModel)],
 
-    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
-    {ok, Hostnames} = application:get_env(?APP, database_addresses),
-    {ok, PortNums} = application:get_env(?APP, database_ports),
-    {Hosts, Ports} = make_same_len(Hostnames, PortNums),
-
-    Children = case fmke_driver_config:requires_conn_manager(Driver) of
-        false ->
+    Children = case {Hostnames, PortNums} of
+        {undefined, undefined} ->
+            lager:info("list of hosts and ports are undefined, cannot create connection pools."),
             ok = application:set_env(?APP, pools, []),
-            ok = application:set_env(?APP, hosts, Hosts),
-            ok = application:set_env(?APP, ports, Ports),
             BaseChildren;
-        true ->
-            Mod = fmke_driver_config:get_client_lib(Driver),
-            Pools = gen_pool_names(Hosts, Ports),
-            Connections = lists:zip(Hosts, Ports),
-            Args = [Pools, Connections, Mod, ConnPoolSize],
-            BaseChildren ++ [conn_mgr_sup_spec(Args)]
+        {_Hosts, undefined} ->
+            lager:info("list of ports is undefined, cannot create connection pools."),
+            ok = application:set_env(?APP, pools, []),
+            BaseChildren;
+        {undefined, _Ports} ->
+            lager:info("list of hosts is undefined, cannot create connection pools."),
+            ok = application:set_env(?APP, pools, []),
+            BaseChildren;
+        {{ok, Hs}, {ok, Ps}} ->
+            {Hosts, Ports} = make_same_len(Hs, Ps),
+            case fmke_driver_config:requires_conn_manager(Driver) of
+                false ->
+                    ok = application:set_env(?APP, pools, []),
+                    ok = application:set_env(?APP, hosts, Hosts),
+                    ok = application:set_env(?APP, ports, Ports),
+                    BaseChildren;
+                true ->
+                    Mod = fmke_driver_config:get_client_lib(Driver),
+                    Pools = gen_pool_names(Hosts, Ports),
+                    Connections = lists:zip(Hosts, Ports),
+                    Args = [Pools, Connections, Mod, ConnPoolSize],
+                    BaseChildren ++ [conn_mgr_sup_spec(Args)]
+            end
     end,
 
     {ok, {RestartStrategy, Children}}.
