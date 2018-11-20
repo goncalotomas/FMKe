@@ -55,13 +55,23 @@ all() ->
 init_per_suite(Config) ->
     CTNodename = ct:get_config(ct_nodename, 'ct_http_suite@127.0.0.1'),
     FMKeNodename = ct:get_config(fmke_nodename, ?NODENAME),
-    OptionValues = lists:map(fun(Opt) ->
-                        {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
-                    end, ?OPTIONS),
+    Options = [target_database, driver, database_addresses, database_ports, connection_pool_size, http_port],
+    ConfigSrc = get_initial_config_src(),
+    ConfigVals = get_initial_config(Config),
+    OptionValues = lists:map(
+        fun(Opt) ->
+            case ConfigSrc of
+                default ->
+                    {Opt, ?config(Opt, ConfigVals)};
+                external ->
+                    {Opt, ct:get_config(Opt, ?DEFAULT(Opt))}
+            end
+        end, Options),
     ok = fmke_test_setup:ensure_start_dist_node(CTNodename),
     true = erlang:set_cookie(CTNodename, ?COOKIE),
     Node = fmke_test_setup:launch_fmke(FMKeNodename, OptionValues),
-    [{node, Node} | Config].
+    HttpPort = proplists:get_value(http_port, OptionValues),
+    [{node, Node}, {http_port, HttpPort} | Config].
 
 end_per_suite(_Config) ->
     Nodename = ct:get_config(fmke_nodename, ?NODENAME),
@@ -152,15 +162,15 @@ facility_http_tests(Config) ->
     update_facility(Config),
     read_facility(Config).
 
-facility_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/facilities", <<>>),
+facility_handler_rejects_empty_post_request(Config) ->
+    PropList = bad_req_http_post(Config, "/facilities", <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
 facility_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{facility, FacilityId, _, _, _}] = ets:lookup(TabId, facility),
-    PropList = bad_req_http_put("/facilities/" ++ integer_to_list(FacilityId), <<>>),
+    PropList = bad_req_http_put(Config, "/facilities/" ++ integer_to_list(FacilityId), <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
@@ -168,7 +178,7 @@ create_facility(Config) ->
     TabId = ?config(table, Config),
     [{facility, Id, Name, Address, Type}] = ets:lookup(TabId, facility),
     FacilityProps = build_facility_props([Id, Name, Address, Type]),
-    ResponseJson = http_post("/facilities", FacilityProps),
+    ResponseJson = http_post(Config, "/facilities", FacilityProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -176,14 +186,14 @@ update_facility(Config) ->
     TabId = ?config(table, Config),
     [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
     FacilityProps = [{name, Name}, {address, Address}, {type, Type}],
-    ResponseJson = http_put("/facilities/" ++ integer_to_list(Id), FacilityProps),
+    ResponseJson = http_put(Config, "/facilities/" ++ integer_to_list(Id), FacilityProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
 read_facility(Config) ->
     TabId = ?config(table, Config),
     [{updated_facility, Id, Name, Address, Type}] = ets:lookup(TabId, updated_facility),
-    PropListJson = http_get("/facilities/" ++ integer_to_list(Id)),
+    PropListJson = http_get(Config, "/facilities/" ++ integer_to_list(Id)),
     true = proplists:get_value(<<"success">>, PropListJson),
     FacilityObject = proplists:get_value(<<"result">>, PropListJson),
     JsonId = proplists:get_value(<<"facilityId">>, FacilityObject),
@@ -207,15 +217,15 @@ patient_http_tests(Config) ->
     update_patient(Config),
     read_patient(Config).
 
-patient_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/patients", <<>>),
+patient_handler_rejects_empty_post_request(Config) ->
+    PropList = bad_req_http_post(Config, "/patients", <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
 patient_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{patient, PatientId, _, _}] = ets:lookup(TabId, patient),
-    PropList = bad_req_http_put("/patients/" ++ integer_to_list(PatientId), <<>>),
+    PropList = bad_req_http_put(Config, "/patients/" ++ integer_to_list(PatientId), <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
@@ -223,7 +233,7 @@ create_patient(Config) ->
     TabId = ?config(table, Config),
     [{patient, Id, Name, Address}] = ets:lookup(TabId, patient),
     PatientProps = [{id, Id}, {name, Name}, {address, Address}],
-    ResponseJson = http_post("/patients", PatientProps),
+    ResponseJson = http_post(Config, "/patients", PatientProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -231,14 +241,14 @@ update_patient(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
     PatientProps = [{name, Name}, {address, Address}],
-    ResponseJson = http_put("/patients/" ++ integer_to_list(Id), PatientProps),
+    ResponseJson = http_put(Config, "/patients/" ++ integer_to_list(Id), PatientProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
 read_patient(Config) ->
     TabId = ?config(table, Config),
     [{updated_patient, Id, Name, Address}] = ets:lookup(TabId, updated_patient),
-    PropListJson = http_get("/patients/" ++ integer_to_list(Id)),
+    PropListJson = http_get(Config, "/patients/" ++ integer_to_list(Id)),
     true = proplists:get_value(<<"success">>, PropListJson),
     PatientObject = proplists:get_value(<<"result">>, PropListJson),
     JsonId = proplists:get_value(<<"patientId">>, PatientObject),
@@ -261,15 +271,15 @@ pharmacy_http_tests(Config) ->
     update_pharmacy(Config),
     read_pharmacy(Config).
 
-pharmacy_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/pharmacies", <<>>),
+pharmacy_handler_rejects_empty_post_request(Config) ->
+    PropList = bad_req_http_post(Config, "/pharmacies", <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
 pharmacy_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{pharmacy, PharmacyId, _, _}] = ets:lookup(TabId, pharmacy),
-    PropList = bad_req_http_put("/pharmacies/" ++ integer_to_list(PharmacyId), <<>>),
+    PropList = bad_req_http_put(Config, "/pharmacies/" ++ integer_to_list(PharmacyId), <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
@@ -277,7 +287,7 @@ create_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{pharmacy, Id, Name, Address}] = ets:lookup(TabId, pharmacy),
     PharmacyProps = [{id, Id}, {name, Name}, {address, Address}],
-    ResponseJson = http_post("/pharmacies", PharmacyProps),
+    ResponseJson = http_post(Config, "/pharmacies", PharmacyProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -285,14 +295,14 @@ update_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
     PharmacyProps = [{name, Name}, {address, Address}],
-    ResponseJson = http_put("/pharmacies/" ++ integer_to_list(Id), PharmacyProps),
+    ResponseJson = http_put(Config, "/pharmacies/" ++ integer_to_list(Id), PharmacyProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
 read_pharmacy(Config) ->
     TabId = ?config(table, Config),
     [{updated_pharmacy, Id, Name, Address}] = ets:lookup(TabId, updated_pharmacy),
-    PropListJson = http_get("/pharmacies/" ++ integer_to_list(Id)),
+    PropListJson = http_get(Config, "/pharmacies/" ++ integer_to_list(Id)),
     true = proplists:get_value(<<"success">>, PropListJson),
     PharmacyObject = proplists:get_value(<<"result">>, PropListJson),
     JsonId = proplists:get_value(<<"pharmacyId">>, PharmacyObject),
@@ -328,14 +338,14 @@ prescription_http_tests(Config) ->
     StaffProps1 = build_staff_props([StaId1, StaName1, StaAddr1, StaSpec1]),
     StaffProps2 = build_staff_props([StaId2, StaName2, StaAddr2, StaSpec2]),
 
-    successful_http_post("/facilities/" ++ integer_to_list(FacId1), FacilityProps1),
-    successful_http_post("/facilities/" ++ integer_to_list(FacId2), FacilityProps2),
-    successful_http_post("/patients/" ++ integer_to_list(PatId1), PatientProps1),
-    successful_http_post("/patients/" ++ integer_to_list(PatId2), PatientProps2),
-    successful_http_post("/pharmacies/" ++ integer_to_list(PharmId1), PharmacyProps1),
-    successful_http_post("/pharmacies/" ++ integer_to_list(PharmId2), PharmacyProps2),
-    successful_http_post("/staff/" ++ integer_to_list(StaId1), StaffProps1),
-    successful_http_post("/staff/" ++ integer_to_list(StaId2), StaffProps2),
+    successful_http_post(Config, "/facilities/" ++ integer_to_list(FacId1), FacilityProps1),
+    successful_http_post(Config, "/facilities/" ++ integer_to_list(FacId2), FacilityProps2),
+    successful_http_post(Config, "/patients/" ++ integer_to_list(PatId1), PatientProps1),
+    successful_http_post(Config, "/patients/" ++ integer_to_list(PatId2), PatientProps2),
+    successful_http_post(Config, "/pharmacies/" ++ integer_to_list(PharmId1), PharmacyProps1),
+    successful_http_post(Config, "/pharmacies/" ++ integer_to_list(PharmId2), PharmacyProps2),
+    successful_http_post(Config, "/staff/" ++ integer_to_list(StaId1), StaffProps1),
+    successful_http_post(Config, "/staff/" ++ integer_to_list(StaId2), StaffProps2),
 
     prescription_handler_rejects_empty_post_request(Config),
     prescription_handler_rejects_empty_put_request(Config),
@@ -344,15 +354,15 @@ prescription_http_tests(Config) ->
     process_prescription(Config),
     read_prescription(Config).
 
-prescription_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/prescriptions", <<>>),
+prescription_handler_rejects_empty_post_request(Config) ->
+    PropList = bad_req_http_post(Config, "/prescriptions", <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
 prescription_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, _, _, _, _, _}] = ets:lookup(TabId, prescription),
-    PropList = bad_req_http_put("/prescriptions/" ++ integer_to_list(Id), <<>>),
+    PropList = bad_req_http_put(Config, "/prescriptions/" ++ integer_to_list(Id), <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
@@ -360,7 +370,7 @@ create_prescription(Config) ->
     TabId = ?config(table, Config),
     [{prescription, Id, PatId, PrescId, PharmId, DatePresc, Drugs}] = ets:lookup(TabId, prescription),
     PrescriptionProps = build_prescription_props([Id, PatId, PrescId, PharmId, DatePresc, Drugs]),
-    ResponseJson = http_post("/prescriptions", PrescriptionProps),
+    ResponseJson = http_post(Config, "/prescriptions", PrescriptionProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -368,7 +378,7 @@ update_prescription_medication(Config) ->
     TabId = ?config(table, Config),
     [{updated_prescription_drugs, Id, Drugs}] = ets:lookup(TabId, updated_prescription_drugs),
     PrescriptionProps = [{drugs, Drugs}],
-    ResponseJson = http_put("/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
+    ResponseJson = http_put(Config, "/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -376,7 +386,7 @@ process_prescription(Config) ->
     TabId = ?config(table, Config),
     [{processed_prescription_date, Id, Date}] = ets:lookup(TabId, processed_prescription_date),
     PrescriptionProps = [{date_processed, Date}],
-    ResponseJson = http_put("/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
+    ResponseJson = http_put(Config, "/prescriptions/" ++ integer_to_list(Id), PrescriptionProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -387,7 +397,7 @@ read_prescription(Config) ->
     [{updated_prescription_drugs, Id, AdditionalDrugs}] = ets:lookup(TabId, updated_prescription_drugs),
     ExpectedDrugs = lists:append(fmke_http_utils:parse_csv_string(Drugs),
                                 fmke_http_utils:parse_csv_string(AdditionalDrugs)),
-    PropListJson = http_get("/prescriptions/" ++ integer_to_list(Id)),
+    PropListJson = http_get(Config, "/prescriptions/" ++ integer_to_list(Id)),
     true = proplists:get_value(<<"success">>, PropListJson),
     PrescriptionObject = proplists:get_value(<<"result">>, PropListJson),
 
@@ -412,21 +422,21 @@ read_prescription(Config) ->
     true = fmke_test_utils:compare_prescriptions(ExpectedPrescription, JsonPrescription),
 
     %% check for same prescription inside patient, pharmacy and staff
-    PatientReqResult = http_get("/patients/" ++ integer_to_list(PatId)),
+    PatientReqResult = http_get(Config, "/patients/" ++ integer_to_list(PatId)),
     true = proplists:get_value(<<"success">>, PatientReqResult),
     PatientObject = proplists:get_value(<<"result">>, PatientReqResult),
     PatientPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
         proplists:get_value(<<"patientPrescriptions">>, PatientObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PatientPrescriptions),
 
-    PharmacyReqResult = http_get("/pharmacies/" ++ integer_to_list(PharmId)),
+    PharmacyReqResult = http_get(Config, "/pharmacies/" ++ integer_to_list(PharmId)),
     true = proplists:get_value(<<"success">>, PharmacyReqResult),
     PharmacyObject = proplists:get_value(<<"result">>, PharmacyReqResult),
     PharmacyPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
         proplists:get_value(<<"pharmacyPrescriptions">>, PharmacyObject)),
     true = fmke_test_utils:search_prescription(ExpectedPrescription, PharmacyPrescriptions),
 
-    StaffReqResult = http_get("/staff/" ++ integer_to_list(PrescId)),
+    StaffReqResult = http_get(Config, "/staff/" ++ integer_to_list(PrescId)),
     true = proplists:get_value(<<"success">>, StaffReqResult),
     StaffObject = proplists:get_value(<<"result">>, StaffReqResult),
     StaffPrescriptions = lists:map(fun(P) -> fmke_json:decode(prescription, P) end,
@@ -446,15 +456,15 @@ staff_http_tests(Config) ->
     update_staff(Config),
     read_staff(Config).
 
-staff_handler_rejects_empty_post_request(_Config) ->
-    PropList = bad_req_http_post("/staff", <<>>),
+staff_handler_rejects_empty_post_request(Config) ->
+    PropList = bad_req_http_post(Config, "/staff", <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
 staff_handler_rejects_empty_put_request(Config) ->
     TabId = ?config(table, Config),
     [{staff, StaffId, _, _, _}] = ets:lookup(TabId, staff),
-    PropList = bad_req_http_put("/staff/" ++ integer_to_list(StaffId), <<>>),
+    PropList = bad_req_http_put(Config, "/staff/" ++ integer_to_list(StaffId), <<>>),
     false = proplists:get_value(<<"success">>, PropList),
     ?ERR_MISSING_BODY = proplists:get_value(<<"result">>, PropList).
 
@@ -462,7 +472,7 @@ create_staff(Config) ->
     TabId = ?config(table, Config),
     [{staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, staff),
     StaffProps = build_staff_props([Id, Name, Address, Speciality]),
-    ResponseJson = http_post("/staff", StaffProps),
+    ResponseJson = http_post(Config, "/staff", StaffProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
@@ -470,14 +480,14 @@ update_staff(Config) ->
     TabId = ?config(table, Config),
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
     StaffProps = [{name, Name}, {address, Address}, {speciality, Speciality}],
-    ResponseJson = http_put("/staff/" ++ integer_to_list(Id), StaffProps),
+    ResponseJson = http_put(Config, "/staff/" ++ integer_to_list(Id), StaffProps),
     true = proplists:get_value(<<"success">>, ResponseJson),
     <<"ok">> = proplists:get_value(<<"result">>, ResponseJson).
 
 read_staff(Config) ->
     TabId = ?config(table, Config),
     [{updated_staff, Id, Name, Address, Speciality}] = ets:lookup(TabId, updated_staff),
-    PropListJson = http_get("/staff/" ++ integer_to_list(Id)),
+    PropListJson = http_get(Config, "/staff/" ++ integer_to_list(Id)),
     true = proplists:get_value(<<"success">>, PropListJson),
     StaffObject = proplists:get_value(<<"result">>, PropListJson),
     JsonId = proplists:get_value(<<"staffId">>, StaffObject),
@@ -502,78 +512,50 @@ treatment_http_tests(_Config) ->
 %%% status tests
 %%%-------------------------------------------------------------------
 
-status_http_tests(_Config) ->
-    {ok, TargetDatabase} = rpc(application, get_env, [?APP, target_database]),
-    {ok, Addresses} = rpc(application, get_env, [?APP, database_addresses]),
-    {ok, Ports} = rpc(application, get_env, [?APP, database_ports]),
-    {ok, ConnPoolSize} = rpc(application, get_env, [?APP, connection_pool_size]),
-    {ok, HttpPort} = rpc(application, get_env, [?APP, http_port]),
-    ok = application:set_env(?APP, connection_pool_size, ConnPoolSize),
-    ok = application:set_env(?APP, target_database, TargetDatabase),
-    ok = application:set_env(?APP, database_addresses, Addresses),
-    ok = application:set_env(?APP, database_ports, Ports),
-    ok = application:set_env(?APP, http_port, HttpPort),
-    get_returns_valid_status(),
-    post_returns_valid_status(),
-    put_returns_valid_status().
+status_http_tests(Config) ->
+    ExpectedVals = lists:map(
+        fun(Prop) ->
+            case rpc(Config, application, get_env, [?APP, Prop]) of
+                {ok, Val} ->
+                    {list_to_binary(atom_to_list(Prop)), maybe_bin(Val)};
+                undefined ->
+                    {list_to_binary(atom_to_list(Prop)), <<"undefined">>}
+            end
+        end, [target_database, driver, database_addresses, database_ports, connection_pool_size, pools]),
+    PropList = proplists:get_value(<<"result">>, http_get(Config, "/")),
+    true = ([] =/= PropList),
+    %% remove all options that we aren't checking for
+    FilteredProps = lists:filter(
+        fun({Opt, _Val}) ->
+            proplists:is_defined(Opt, ExpectedVals)
+        end, PropList),
+    check_status(lists:sort(ExpectedVals), lists:sort(FilteredProps)).
 
-get_returns_valid_status() ->
-    StatusPropList = http_get("/"),
-    check_status(proplists:get_value(<<"result">>, StatusPropList)).
+check_status([], []) ->
+    ok;
+check_status([{O, V} | T1], [{O, [V]} | T2]) ->
+    check_status(T1, T2);
+check_status([O | T1], [O | T2]) ->
+    check_status(T1, T2).
 
-post_returns_valid_status() ->
-    StatusPropList = http_post("/", <<>>),
-    check_status(proplists:get_value(<<"result">>, StatusPropList)).
-
-put_returns_valid_status() ->
-    StatusPropList = http_put("/", <<>>),
-    check_status(proplists:get_value(<<"result">>, StatusPropList)).
-
-check_status([]) -> ok;
-check_status([{<<"fmke_up">>, true} | Other]) -> check_status(Other);
-check_status([{<<"connection_manager_up">>, _Boolean} | Other]) -> check_status(Other);
-check_status([{<<"web_server_up">>, true} | Other]) -> check_status(Other);
-check_status([{<<"connection_pool_size">>, PoolSize} | Other]) ->
-    {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
-    check_status(Other);
-check_status([{<<"target_database">>, Target} | Other]) ->
-    {ok, TargetDatabase} = application:get_env(?APP, target_database),
-    true = (list_to_atom(binary_to_list(Target)) == TargetDatabase),
-    check_status(Other);
-check_status([{<<"database_addresses">>, BinAddresses} | Other]) ->
-    ListAddresses = lists:map(fun binary_to_list/1, BinAddresses),
-    {ok, Addresses} = application:get_env(?APP, database_addresses),
-    true = (ListAddresses == Addresses),
-    check_status(Other);
-check_status([{<<"database_ports">>, Ports} | Other]) ->
-    {ok, Ports} = application:get_env(?APP, database_ports),
-    check_status(Other);
-check_status([{<<"pools">>, Pools} | Other]) ->
-    lists:map(
-        fun({_PoolName, PoolData}) ->
-            true = ([] =/= PoolData),
-            ok = check_pool_status(PoolData)
-        end, Pools),
-    check_status(Other).
-
-check_pool_status([]) -> ok;
-check_pool_status([{<<"pool_is_up">>, true} | Other]) -> check_pool_status(Other);
-check_pool_status([{<<"pool_status">>, <<"ready">>} | Other]) -> check_pool_status(Other);
-check_pool_status([{<<"current_overflow">>, 0} | Other]) -> check_pool_status(Other);
-check_pool_status([{<<"worker_pool_size">>, S} | Other]) ->
-    {ok, S} = application:get_env(?APP, connection_pool_size),
-    check_pool_status(Other).
+maybe_bin([]) -> [];
+maybe_bin([E]) when is_integer(E) -> [E];
+maybe_bin([E]) when is_atom(E) -> [list_to_binary(atom_to_list(E))];
+maybe_bin(E) when is_integer(E) -> E;
+maybe_bin(E) when is_list(E) -> list_to_binary(E);
+maybe_bin(E) when is_boolean(E) -> E;
+maybe_bin(E) when is_atom(E) -> list_to_binary(atom_to_list(E)).
 
 %%%-------------------------------------------------------------------
 %%% Auxiliary functions
 %%%-------------------------------------------------------------------
 
-successful_http_post(Url, Data)->
-    JsonResponse = http_post(Url, Data),
+successful_http_post(Config, Url, Data)->
+    JsonResponse = http_post(Config, Url, Data),
     true = proplists:get_value(<<"success">>, JsonResponse).
 
-http_get(Url) ->
-    Port = integer_to_list(ct:get_config(http_port, 9090)),
+http_get(Config, Url) ->
+    Port = integer_to_list(?config(http_port, Config)),
     FullUrl = "http://localhost:" ++ Port ++ Url,
     Headers = [],
     HttpOptions = [],
@@ -581,23 +563,23 @@ http_get(Url) ->
     {ok, {{_, 200, _}, _, Body}} = httpc:request(get, {FullUrl, Headers}, HttpOptions, Options),
     jsx:decode(list_to_binary(Body)).
 
-http_post(Url, Data) ->
-    http_req_w_body(post, Url, Data).
+http_post(Config, Url, Data) ->
+    http_req_w_body(Config, post, Url, Data).
 
-bad_req_http_post(Url, Data) ->
-    http_req_w_body(post, Url, Data, 400).
+bad_req_http_post(Config, Url, Data) ->
+    http_req_w_body(Config, post, Url, Data, 400).
 
-http_put(Url, Data) ->
-    http_req_w_body(put, Url, Data).
+http_put(Config, Url, Data) ->
+    http_req_w_body(Config, put, Url, Data).
 
-bad_req_http_put(Url, Data) ->
-    http_req_w_body(put, Url, Data, 400).
+bad_req_http_put(Config, Url, Data) ->
+    http_req_w_body(Config, put, Url, Data, 400).
 
-http_req_w_body(Method, Url, Data) ->
-    http_req_w_body(Method, Url, Data, 200).
+http_req_w_body(Config, Method, Url, Data) ->
+    http_req_w_body(Config, Method, Url, Data, 200).
 
-http_req_w_body(Method, Url, Data, ExpectedReturn) ->
-    Port = integer_to_list(ct:get_config(http_port, 9090)),
+http_req_w_body(Config, Method, Url, Data, ExpectedReturn) ->
+    Port = integer_to_list(?config(http_port, Config)),
     FullUrl = "http://localhost:" ++ Port ++ Url,
     Headers = [],
     HttpOptions = [],
@@ -630,6 +612,37 @@ build_generic_props([], [], Accum) ->
 build_generic_props([H1|T1], [H2|T2], Accum) ->
     build_generic_props(T1, T2, lists:append(Accum, [{H1, H2}])).
 
-rpc(Mod, Fun, Args) ->
-    Nodename = ct:get_config(fmke_nodename, ?NODENAME),
+rpc(Config, Mod, Fun, Args) ->
+    Nodename = ?config(node, Config),
     rpc:block_call(Nodename, Mod, Fun, Args).
+
+get_initial_config_src() ->
+    Driver = ct:get_config(driver, undefined),
+    Database = ct:get_config(target_database, undefined),
+    case valid_config(Driver, Database) of
+        false -> default;
+        true -> external
+    end.
+
+get_initial_config(Config) ->
+    Driver = ct:get_config(driver, undefined),
+    Database = ct:get_config(target_database, undefined),
+    case valid_config(Driver, Database) of
+        false ->
+            default_config(Config);
+        true ->
+            Config
+    end.
+
+valid_config(undefined, undefined) ->
+    false;
+valid_config(_, _) ->
+    %% we actually don't know if this is a valid config
+    %% but it should be enough to boot a valid config of FMKe
+    true.
+
+default_config(Config) ->
+    DataDir = ?config(data_dir, Config),
+    Filepath = DataDir ++ "default.config",
+    {ok, FileConfig} = file:consult(Filepath),
+    FileConfig.
