@@ -182,26 +182,12 @@ handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, 
         {false, Reason} ->
             {error, Reason};
         true ->
-            PharmacyKey =      gen_key(pharmacy, binary_to_integer(Prescription#prescription.pharmacy_id)),
-            PatientKey =       gen_key(patient, binary_to_integer(Prescription#prescription.patient_id)),
-            StaffKey =         gen_key(staff, binary_to_integer(Prescription#prescription.prescriber_id)),
             PrescriptionKey =  gen_key(prescription, Id),
-
-            IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG,
-            ?PRESCRIPTION_PROCESSED_VALUE),
+            IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_PROCESSED_VALUE),
             ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, DateProcessed),
             PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
 
-            PharmacyOp1 =  gen_entity_update(remove_entity_prescription, [PharmacyKey, PrescriptionKey]),
-            PharmacyOp2 =  gen_entity_update(add_entity_processed_prescription, [PharmacyKey, PrescriptionKey]),
-            PatientOp1 =   gen_entity_update(remove_entity_prescription, [PatientKey, PrescriptionKey]),
-            PatientOp2 =   gen_entity_update(add_entity_processed_prescription, [PatientKey, PrescriptionKey]),
-            StaffOp1 =     gen_entity_update(remove_entity_prescription, [StaffKey, PrescriptionKey]),
-            StaffOp2 =     gen_entity_update(add_entity_processed_prescription, [StaffKey, PrescriptionKey]),
-
-            txn_update_objects([
-              PrescriptionUpdate, PharmacyOp1, PharmacyOp2, PatientOp1, PatientOp2, StaffOp1, StaffOp2
-            ], Txn),
+            txn_update_objects([PrescriptionUpdate], Txn),
             ok
       end,
     ok = txn_commit(Txn),
@@ -241,15 +227,12 @@ handle_call({get, Entity, Id, prescriptions}, _From, State) ->
         {error, not_found} ->
             {error, no_such_entity_error(Entity)};
         _ ->
-            [Prescriptions, ProcessedPrescriptions] = multi_read([
-              create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET),
-              create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
+            [Prescriptions] = multi_read([
+              create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET)
             ], Txn),
-            case {Prescriptions, ProcessedPrescriptions} of
-                {{error, not_found}, {error, not_found}} -> [];
-                {{error, not_found}, PrescriptionKeys2} ->  PrescriptionKeys2;
-                {PrescriptionKeys1, {error, not_found}} ->  PrescriptionKeys1;
-                {PrescriptionKeys1, PrescriptionKeys2} ->   lists:append(PrescriptionKeys1, PrescriptionKeys2)
+            case Prescriptions of
+                {error, not_found} -> [];
+                Keys -> Keys
             end
     end,
     txn_commit(Txn),
@@ -262,19 +245,25 @@ handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
         {error, not_found} ->
             {error, no_such_entity_error(Entity)};
         _ ->
-            [ProcessedPrescriptions] = multi_read([
-              create_bucket(<<Key/binary, "_prescriptions_processed">>, ?ORSET)
+            [Prescriptions] = multi_read([
+              create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET)
             ], Txn),
-            case ProcessedPrescriptions of
+            case Prescriptions of
                 {error, not_found} -> [];
-                Keys ->  Keys
+                Keys ->
+                    Buckets = lists:map(fun(K) -> create_bucket(K, ?MAP) end, Keys),
+                    ReadResults = multi_read(Buckets, Txn),
+                    PrescObjs = lists:map(fun(Obj) -> build_app_record(prescription, Obj) end, ReadResults),
+                    lists:filter(fun(Presc) ->
+                                        Presc#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE
+                                    end, PrescObjs)
             end
     end,
     txn_commit(Txn),
     {reply, Result, State};
 
 handle_call({get, prescription, Id, drugs}, _From, State) ->
-    Prescription = get_prescription_by_id(Id),
+    Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP)),
     Result = case Prescription of
         {error, _} -> {error, no_such_prescription};
         _ -> Prescription#prescription.drugs
@@ -368,10 +357,6 @@ gen_entity_update(staff, [Id, Name, Address, Speciality]) ->
     AddressOp = build_lwwreg_op(?STAFF_ADDRESS_KEY, ?LWWREG, Address),
     SpecialityOp = build_lwwreg_op(?STAFF_SPECIALITY_KEY, ?LWWREG, Speciality),
     [IdOp, NameOp, AddressOp, SpecialityOp];
-gen_entity_update(remove_entity_prescription, [EntityKey, PrescriptionKey]) ->
-    {create_bucket(<<EntityKey/binary, "_prescriptions">>, ?ORSET), remove, PrescriptionKey};
-gen_entity_update(add_entity_processed_prescription, [EntityKey, PrescriptionKey]) ->
-    {create_bucket(<<EntityKey/binary, "_prescriptions_processed">>, ?ORSET), add, PrescriptionKey};
 gen_entity_update(add_entity_prescription, [EntityKey, PrescriptionKey]) ->
     {create_bucket(<<EntityKey/binary, "_prescriptions">>, ?ORSET), add, PrescriptionKey}.
 

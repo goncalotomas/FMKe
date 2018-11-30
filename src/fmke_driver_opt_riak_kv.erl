@@ -132,11 +132,11 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
         {error, not_found} ->
             {error, no_such_entity(Entity)};
         _ ->
-            [Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
-              {Key, <<"sets">>, <<"prescriptions">>},
-              {Key, <<"sets">>, <<"processed_prescriptions">>}
-            ]),
-            get_prescs_from_sets(Prescriptions, ProcessedPrescriptions)
+            [Prescriptions] = multi_read(Pid, [{Key, <<"sets">>, <<"prescriptions">>}]),
+            case Prescriptions of
+                {error, not_found} -> [];
+                Set -> riakc_set:value(Set)
+            end
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
@@ -150,24 +150,31 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
         {error, not_found} ->
             {error, no_such_entity(Entity)};
         _ ->
-            [ProcessedPrescriptions] = multi_read(Pid, [
-              {Key, <<"sets">>, <<"processed_prescriptions">>}
-            ]),
-            lists:map(fun(PRef) ->
-                BucketType = get_bucket_type(prescription),
-                BucketName = get_bucket(prescription),
-                build_app_record(prescription, parse_read_result(get(Pid, PRef, BucketType, BucketName)))
-            end, get_prescs_from_sets(ProcessedPrescriptions, {error, not_found}))
+            [Prescriptions] = multi_read(Pid, [{Key, <<"sets">>, <<"prescriptions">>}]),
+            case Prescriptions of
+                {error, not_found} -> [];
+                Set ->
+                    Keys = riakc_set:value(Set),
+                    BucketType = get_bucket_type(prescription),
+                    BucketName = get_bucket(prescription),
+                    PrescObjs = lists:map(fun(PRef) ->
+                        build_app_record(prescription, parse_read_result(get(Pid, PRef, BucketType, BucketName)))
+                    end, Keys),
+                    lists:filter(fun(P) -> P#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE end, PrescObjs)
+            end
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
 
 handle_call({read, prescription, Id, drugs}, _From, State) ->
-    Prescription = get_prescription_by_id(Id),
+    Pid = fmke_db_conn_manager:checkout(),
+    {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
+    Prescription = build_app_record(prescription, parse_read_result(get(Pid, Key, BucketType, BucketName))),
     Result = case Prescription of
         {error, _} -> {error, no_such_prescription};
         _ -> Prescription#prescription.drugs
     end,
+    fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
 
 handle_call({read, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
@@ -242,18 +249,8 @@ handle_call({update, prescription, Id, Action}, _From, State) ->
                     PrescObj2 = riakc_map:update({?PRESCRIPTION_IS_PROCESSED_KEY, register},
                                         fun(R) -> riakc_register:set(?PRESCRIPTION_PROCESSED_VALUE, R) end,
                                         PrescObj1),
-                    PatientKey = get_key(patient, binary_to_integer(P#prescription.patient_id)),
-                    PharmacyKey = get_key(pharmacy, binary_to_integer(P#prescription.pharmacy_id)),
-                    StaffKey = get_key(staff, binary_to_integer(P#prescription.prescriber_id)),
 
-                    ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(PrescObj2)),
-
-                    rm_presc_ref(Pid, ?PRESC_BUCKET, PatientKey, Key),
-                    rm_presc_ref(Pid, ?PRESC_BUCKET, PharmacyKey, Key),
-                    rm_presc_ref(Pid, ?PRESC_BUCKET, StaffKey, Key),
-                    add_presc_ref(Pid, ?PROC_PRESC_BUCKET, PatientKey, Key),
-                    add_presc_ref(Pid, ?PROC_PRESC_BUCKET, PharmacyKey, Key),
-                    add_presc_ref(Pid, ?PROC_PRESC_BUCKET, StaffKey, Key)
+                    ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(PrescObj2))
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
@@ -281,11 +278,6 @@ missing_keys([{taken, _Key} | T]) ->
     missing_keys(T);
 missing_keys([{free, {Entity, _Key}} | _T]) ->
     {true, Entity}.
-
-rm_presc_ref(Pid, Bucket, Key, PKey) ->
-    RefList = parse_read_result(riakc_pb_socket:fetch_type(Pid, {?REF_BUCKET_TYPE, Bucket}, Key)),
-    ok = riakc_pb_socket:update_type(Pid, {?REF_BUCKET_TYPE, Bucket}, Key,
-                         riakc_set:to_op(riakc_set:del_element(PKey, RefList))).
 
 add_presc_ref(Pid, Bucket, Key, PKey) ->
     RefList = parse_read_result(riakc_pb_socket:fetch_type(Pid, {?REF_BUCKET_TYPE, Bucket}, Key)),
@@ -504,27 +496,21 @@ get_entity_with_prescriptions(Entity, Id) ->
 
 get_entity_with_prescriptions(Pid, Entity, Id) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    [EntityObject, Prescriptions, ProcessedPrescriptions] = multi_read(Pid, [
+    [EntityObject, Prescriptions] = multi_read(Pid, [
       {Key, BucketType, BucketName},
-      {Key, <<"sets">>, <<"prescriptions">>},
-      {Key, <<"sets">>, <<"processed_prescriptions">>}
+      {Key, <<"sets">>, <<"prescriptions">>}
     ]),
-    case get_prescs_from_sets(Prescriptions, ProcessedPrescriptions) of
-        [] -> build_app_record(Entity, EntityObject);
-        Prescs ->
+    case Prescriptions of
+        {error, not_found} -> build_app_record(Entity, EntityObject);
+        PrescsSet ->
             {map, Values, Updates, Removals, Context} = EntityObject,
-            NewValues = orddict:append({get_prescriptions_key(Entity), set}, Prescs, Values),
+            NewValues = orddict:append({get_prescriptions_key(Entity), set}, riakc_set:value(PrescsSet), Values),
             build_app_record(Entity, {map, NewValues, Updates, Removals, Context})
     end.
 
 get_prescriptions_key(patient) -> ?PATIENT_PRESCRIPTIONS_KEY;
 get_prescriptions_key(pharmacy) -> ?PHARMACY_PRESCRIPTIONS_KEY;
 get_prescriptions_key(staff) -> ?STAFF_PRESCRIPTIONS_KEY.
-
-get_prescs_from_sets({error, not_found}, {error, not_found}) -> [];
-get_prescs_from_sets({error, not_found}, Keys) -> riakc_set:value(Keys);
-get_prescs_from_sets(Keys, {error, not_found}) -> riakc_set:value(Keys);
-get_prescs_from_sets(KeysL, KeysR) -> lists:flatten(riakc_set:value(KeysL), riakc_set:value(KeysR)).
 
 multi_read(Pid, Objects) ->
     Results = lists:map(
