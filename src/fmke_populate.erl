@@ -9,11 +9,11 @@
 
 -export([
     supported/0,
-    add_facility/4,
-    add_patient/3,
-    add_pharmacy/3,
-    add_prescription/6,
-    add_staff/4
+    create_facility/4,
+    create_patient/3,
+    create_pharmacy/3,
+    create_prescription/6,
+    create_staff/4
 ]).
 
 -define(SERVER, ?MODULE).
@@ -32,19 +32,19 @@ stop() ->
 init([Database, DataModel]) ->
     {ok, {Database, DataModel}}.
 
-add_facility(Id, Name, Address, Type) ->
+create_facility(Id, Name, Address, Type) ->
     gen_server:call(?SERVER, {facility, [Id, Name, Address, Type]}).
 
-add_patient(Id, Name, Address) ->
+create_patient(Id, Name, Address) ->
     gen_server:call(?SERVER, {patient, [Id, Name, Address]}).
 
-add_pharmacy(Id, Name, Address) ->
+create_pharmacy(Id, Name, Address) ->
     gen_server:call(?SERVER, {pharmacy, [Id, Name, Address]}).
 
-add_staff(Id, Name, Address, Speciality) ->
+create_staff(Id, Name, Address, Speciality) ->
     gen_server:call(?SERVER, {staff, [Id, Name, Address, Speciality]}).
 
-add_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
+create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
     gen_server:call(?SERVER, {prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}).
 
 handle_call({Entity, Fields}, _From, {Database, DataModel} = State) ->
