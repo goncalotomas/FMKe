@@ -54,13 +54,13 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 do_add(redis_cluster, _, Entity, Fields) ->
-    Updates = gen_riak_updates(Entity, Fields),
+    Updates = gen_redis_updates(Entity, Fields),
     eredis_cluster:qmn(Updates),
     ok;
 
 do_add(redis_crdb, _, Entity, Fields) ->
     Pid = fmke_db_conn_manager:checkout(),
-    Updates = gen_riak_updates(Entity, Fields),
+    Updates = gen_redis_updates(Entity, Fields),
     eredis:qp(Pid, Updates),
     fmke_db_conn_manager:checkin(Pid),
     ok;
@@ -90,9 +90,9 @@ gen_redis_updates(prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePr
         ["HMSET", Key, ?PRESCRIPTION_ID_KEY, Id, ?PRESCRIPTION_PATIENT_ID_KEY, PatientId,
          ?PRESCRIPTION_PRESCRIBER_ID_KEY, PrescriberId, ?PRESCRIPTION_PHARMACY_ID_KEY, PharmacyId,
          ?PRESCRIPTION_DATE_PRESCRIBED_KEY, DatePrescribed, ?PRESCRIPTION_DRUGS_KEY, encode_drugs_redis(Drugs)],
-         ["SADD", gen_redis_prescriptions_key(patient, PatId), Key],
-         ["SADD", gen_redis_prescriptions_key(pharmacy, PharmId), Key],
-         ["SADD", gen_redis_prescriptions_key(staff, DocId), Key]
+         ["SADD", gen_redis_prescriptions_key(patient, PatientId), Key],
+         ["SADD", gen_redis_prescriptions_key(pharmacy, PharmacyId), Key],
+         ["SADD", gen_redis_prescriptions_key(staff, PrescriberId), Key]
     ];
 gen_redis_updates(staff, [Id, Name, Address, Speciality]) ->
     Key = "staff_" ++ integer_to_list(Id),
