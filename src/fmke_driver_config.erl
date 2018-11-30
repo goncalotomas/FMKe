@@ -9,6 +9,7 @@
 -define(PT_ADAPTER, fmke_pt_adapter).
 
 -export([
+    db_from_driver/1,
     default_driver/1,
     driver_adapter/1,
     get_client_lib/1,
@@ -99,3 +100,12 @@ driver_adapter(Driver) ->
         true ->
             ?PT_ADAPTER
     end.
+
+db_from_driver(fmke_driver_ets) -> ets;
+db_from_driver(fmke_driver_antidote) -> antidote;
+db_from_driver(fmke_driver_opt_antidote) -> antidote;
+db_from_driver(fmke_driver_riak_kv) -> riak;
+db_from_driver(fmke_driver_opt_riak_kv) -> riak;
+db_from_driver(fmke_driver_opt_cassandra) -> cassandra;
+db_from_driver(fmke_driver_opt_redis_crdb) -> redis_crdb;
+db_from_driver(fmke_driver_opt_redis_cluster) -> redis_cluster.

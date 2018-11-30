@@ -119,6 +119,7 @@ config(Config) ->
     Model = get_option(data_model, Config),
     config(driver, {Driver, Database}),
     config(adapter, {driver, Driver}),
+    config(target_database, fmke_driver_config:db_from_driver(Driver)),
     config(pool_size, PoolSize),
     config(database_addresses, Addresses),
     config(database_ports, Ports),
@@ -129,6 +130,8 @@ config(data_model, Model) ->
     maybe_config(data_model, Model);
 config(http_port, HttpPort) ->
     maybe_config(http_port, HttpPort);
+config(target_database, Database) ->
+    maybe_config(target_database, Database);
 config(database_ports, Ports) ->
     maybe_config(database_ports, Ports);
 config(database_addresses, Addresses) ->
