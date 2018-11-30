@@ -77,9 +77,7 @@ handle_call({update, prescription, Id, Action}, _From, State) ->
                 ?PRESCRIPTION_NOT_PROCESSED_VALUE ->
                     case Action of
                         {date_processed, Date} ->
-                            [{ok, <<"OK">>}, {ok, <<"1">>}, {ok, <<"1">>},
-                             {ok, <<"1">>}, {ok, <<"1">>}, {ok, <<"1">>},
-                             {ok, <<"1">>}] = eredis:qp(Pid, [gen_update_op(prescription, [
+                            {ok, <<"OK">>} = eredis:q(Pid, gen_update_op(prescription, [
                                 P#prescription.id,
                                 P#prescription.patient_id,
                                 P#prescription.prescriber_id,
@@ -87,14 +85,7 @@ handle_call({update, prescription, Id, Action}, _From, State) ->
                                 P#prescription.date_prescribed,
                                 P#prescription.drugs,
                                 Date
-                            ]),
-                            ["SREM", gen_prescriptions_key(patient, P#prescription.patient_id), PKey],
-                            ["SREM", gen_prescriptions_key(pharmacy, P#prescription.pharmacy_id), PKey],
-                            ["SREM", gen_prescriptions_key(staff, P#prescription.prescriber_id), PKey],
-                            ["SADD", gen_processed_prescriptions_key(patient, P#prescription.patient_id), PKey],
-                            ["SADD", gen_processed_prescriptions_key(pharmacy, P#prescription.pharmacy_id), PKey],
-                            ["SADD", gen_processed_prescriptions_key(staff, P#prescription.prescriber_id), PKey]
-                            ]),
+                            ])),
                             ok;
                         {drugs, add, Drugs} ->
                             NewDrugs = P#prescription.drugs ++ Drugs,
@@ -138,9 +129,8 @@ handle_call({read, Entity, Id}, _From, State) ->
             parse_fields(Entity, ListFields);
         [_H| _T] when Entity == patient; Entity == pharmacy; Entity == staff ->
             %% these entities have prescriptions associated with them
-            [{ok, Prescs}, {ok, ProcPrescs}] = eredis:qp(Pid, [["SMEMBERS", gen_prescriptions_key(Entity, Id)],
-                                                            ["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
-            parse_fields(Entity, ListFields ++ [entity_prescriptions_key(Entity), Prescs ++ ProcPrescs])
+            {ok, Prescs} = eredis:q(Pid, ["SMEMBERS", gen_prescriptions_key(Entity, Id)]),
+            parse_fields(Entity, ListFields ++ [entity_prescriptions_key(Entity), Prescs])
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
@@ -153,9 +143,8 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
         [] ->
             {error, no_such_entity(Entity)};
         [_H| _T] when Entity == patient; Entity == pharmacy; Entity == staff ->
-            [{ok, Prescs}, {ok, ProcPrescs}] = eredis:qp(Pid, [["SMEMBERS", gen_prescriptions_key(Entity, Id)],
-                                                            ["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
-            Prescs ++ ProcPrescs
+            {ok, Prescs} = eredis:q(Pid, ["SMEMBERS", gen_prescriptions_key(Entity, Id)]),
+            Prescs
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
@@ -168,8 +157,17 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
         [] ->
             {error, no_such_entity(Entity)};
         [_H|_T] when Entity == patient; Entity == pharmacy; Entity == staff ->
-            [{ok, ProcPrescs}] = eredis:qp(Pid, [["SMEMBERS", gen_processed_prescriptions_key(Entity, Id)]]),
-            ProcPrescs
+            {ok, Prescs} = eredis:q(Pid, ["SMEMBERS", gen_prescriptions_key(Entity, Id)]),
+            case Prescs of
+                [] -> [];
+                [_PrescsH | _PrescsT] ->
+                    Queries = lists:map(fun(PrescKey) -> ["HGETALL", binary_to_list(PrescKey)] end, Prescs),
+                    QResults = eredis:qp(Pid, Queries),
+                    ProcPrescs = lists:filter(fun({ok, PObj}) ->
+                                        is_processed(PObj) == true
+                                    end, QResults),
+                    lists:map(fun({ok, ProcP}) -> parse_fields(prescription, ProcP) end, ProcPrescs)
+            end
     end,
     fmke_db_conn_manager:checkin(Pid),
     {reply, Result, State};
@@ -401,9 +399,6 @@ gen_key(Entity, Id) ->
 gen_prescriptions_key(Entity, Id) ->
     atom_to_list(Entity) ++ "_" ++ bin_or_int_to_list(Id) ++ "_prescriptions".
 
-gen_processed_prescriptions_key(Entity, Id) ->
-    atom_to_list(Entity) ++ "_" ++ bin_or_int_to_list(Id) ++ "_processed_prescriptions".
-
 entity_prescriptions_key(patient) ->
     ?PATIENT_PRESCRIPTIONS_KEY;
 entity_prescriptions_key(pharmacy) ->
@@ -422,3 +417,13 @@ id_taken(patient) -> patient_id_taken;
 id_taken(pharmacy) -> pharmacy_id_taken;
 id_taken(prescription) -> prescription_id_taken;
 id_taken(staff) -> staff_id_taken.
+
+is_processed(PObj) ->
+    search_field(PObj, ?PRESCRIPTION_IS_PROCESSED_KEY) == ?PRESCRIPTION_PROCESSED_VALUE.
+
+search_field([], _Key) ->
+    {error, no_such_field};
+search_field([Key, Value | _T], Key) ->
+    Value;
+search_field([_K, _V | T], Key) ->
+    search_field(T, Key).
