@@ -46,6 +46,7 @@
 -define(SERVER, ?MODULE).
 -define(PROC_PRESC_BUCKET, <<"processed_prescriptions">>).
 -define(PRESC_BUCKET, <<"prescriptions">>).
+-define(BUCKET_TYPE, <<"maps">>).
 -define(REF_BUCKET_TYPE, <<"sets">>).
 
 start(_) ->
@@ -155,7 +156,7 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
                 {error, not_found} -> [];
                 Set ->
                     Keys = riakc_set:value(Set),
-                    BucketType = get_bucket_type(prescription),
+                    BucketType = ?BUCKET_TYPE,
                     BucketName = get_bucket(prescription),
                     PrescObjs = lists:map(fun(PRef) ->
                         build_app_record(prescription, parse_read_result(get(Pid, PRef, BucketType, BucketName)))
@@ -178,7 +179,21 @@ handle_call({read, prescription, Id, drugs}, _From, State) ->
     {reply, Result, State};
 
 handle_call({read, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
-    {reply, get_entity_with_prescriptions(Entity, Id), State};
+    Pid = fmke_db_conn_manager:checkout(),
+    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
+    [EntityObject, Prescriptions] = multi_read(Pid, [
+      {Key, BucketType, BucketName},
+      {Key, <<"sets">>, <<"prescriptions">>}
+    ]),
+    Result = case Prescriptions of
+        {error, not_found} -> build_app_record(Entity, EntityObject);
+        PrescsSet ->
+            {map, Values, Updates, Removals, Context} = EntityObject,
+            NewValues = orddict:append({get_prescriptions_key(Entity), set}, riakc_set:value(PrescsSet), Values),
+            build_app_record(Entity, {map, NewValues, Updates, Removals, Context})
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    {reply, Result, State};
 
 handle_call({read, Entity, Id}, _From, State) ->
     {reply, build_app_record(Entity, process_get_request(Entity, Id)), State};
@@ -291,12 +306,9 @@ add_presc_ref(Pid, Bucket, Key, PKey) ->
     end.
 
 get_riak_props(Entity, Id) when is_atom(Entity), is_integer(Id) ->
-    BucketType = get_bucket_type(Entity),
     BucketName = get_bucket(Entity),
     Key = get_key(Entity, Id),
-    {Key, {BucketType, BucketName}}.
-
-get_bucket_type(_Entity) -> <<"maps">>.
+    {Key, {?BUCKET_TYPE, BucketName}}.
 
 get_bucket(facility) ->         <<"facilities">>;
 get_bucket(patient) ->          <<"patients">>;
@@ -309,7 +321,7 @@ create_if_not_exists(Pid, Entity, Fields) ->
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     case check_key(Pid, Key, BucketType, BucketName) of
         taken ->
-            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))};
+            {error, id_taken(Entity)};
         free ->
             LocalObject = gen_entity(Entity, Fields),
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
@@ -322,8 +334,14 @@ check_key(Pid, Key, BucketType, BucketName) ->
         {ok, _Map} -> taken
     end.
 
-get_key(Entity, Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).
+get_key(facility, Id) ->        binary_str_w_int("facility_", Id);
+get_key(patient, Id) ->         binary_str_w_int("patient_", Id);
+get_key(pharmacy, Id) ->        binary_str_w_int("pharmacy_", Id);
+get_key(prescription, Id) ->    binary_str_w_int("prescription_", Id);
+get_key(staff, Id) ->           binary_str_w_int("staff_", Id).
+
+binary_str_w_int(Str, Int) when is_integer(Int) ->
+    list_to_binary(unicode:characters_to_list([Str, integer_to_list(Int)])).
 
 gen_entity(Entity, Fields) ->
     gen_entity(Entity, Fields, riakc_map:new()).
@@ -487,26 +505,6 @@ build_app_record(staff, Object) ->
         speciality = Speciality,
         prescriptions = Prescriptions
     }.
-
-get_entity_with_prescriptions(Entity, Id) ->
-    Pid = fmke_db_conn_manager:checkout(),
-    Result = get_entity_with_prescriptions(Pid, Entity, Id),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
-
-get_entity_with_prescriptions(Pid, Entity, Id) ->
-    {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
-    [EntityObject, Prescriptions] = multi_read(Pid, [
-      {Key, BucketType, BucketName},
-      {Key, <<"sets">>, <<"prescriptions">>}
-    ]),
-    case Prescriptions of
-        {error, not_found} -> build_app_record(Entity, EntityObject);
-        PrescsSet ->
-            {map, Values, Updates, Removals, Context} = EntityObject,
-            NewValues = orddict:append({get_prescriptions_key(Entity), set}, riakc_set:value(PrescsSet), Values),
-            build_app_record(Entity, {map, NewValues, Updates, Removals, Context})
-    end.
 
 get_prescriptions_key(patient) -> ?PATIENT_PRESCRIPTIONS_KEY;
 get_prescriptions_key(pharmacy) -> ?PHARMACY_PRESCRIPTIONS_KEY;
