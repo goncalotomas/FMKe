@@ -3,128 +3,46 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_riak_kv).
 
--behaviour(fmke_gen_driver).
+% -behaviour(fmke_gen_driver).
 -behaviour(gen_server).
 
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
-%% API
-
--export([
-  start/1
-  ,stop/1
-  ,create_patient/3
-  ,create_pharmacy/3
-  ,create_facility/4
-  ,create_staff/4
-  ,create_prescription/6
-  ,get_facility_by_id/1
-  ,get_patient_by_id/1
-  ,get_pharmacy_by_id/1
-  ,get_processed_pharmacy_prescriptions/1
-  ,get_pharmacy_prescriptions/1
-  ,get_prescription_by_id/1
-  ,get_prescription_medication/1
-  ,get_staff_by_id/1
-  ,get_staff_prescriptions/1
-  ,process_prescription/2
-  ,update_patient_details/3
-  ,update_pharmacy_details/3
-  ,update_facility_details/4
-  ,update_staff_details/4
-  ,update_prescription_medication/3
-]).
-
 %% gen_server exports
 -export ([
-    init/1
+    start_link/1
+    ,stop/1
+    ,init/1
     ,handle_cast/2
     ,handle_call/3
 ]).
 
 -define(SERVER, ?MODULE).
--define(PROC_PRESC_BUCKET, <<"processed_prescriptions">>).
 -define(PRESC_BUCKET, <<"prescriptions">>).
 -define(BUCKET_TYPE, <<"maps">>).
 -define(REF_BUCKET_TYPE, <<"sets">>).
 
-start(_) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
 
-stop(_) ->
-    gen_server:call(?MODULE, stop).
+stop(Pid) ->
+    gen_server:call(Pid, stop).
 
 init(_) ->
     {ok, _Started} = application:ensure_all_started(riak_client),
     {ok, {}}.
 
-handle_cast(_Msg, State) ->
+handle_call(_Msg, _From, State) ->
     {noreply, State}.
 
-create_patient(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, patient, [Id, Name, Address]}).
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
 
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?MODULE,
-        {create, prescription, [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}
-    ).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?MODULE, {read, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?MODULE, {read, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, processed_prescriptions}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, prescriptions}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id, [drugs]}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?MODULE, {read, staff, Id}).
-
-get_staff_prescriptions(Id) ->
-  gen_server:call(?MODULE, {read, staff, Id, prescriptions}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {update, staff, [Id, Name, Address, Speciality]}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
-
-handle_call({read, Entity, Id, prescriptions}, _From, State) ->
+call({read, Entity, Id, prescriptions}) ->
     {Key, {_BucketType, _BucketName}} = get_riak_props(Entity, Id),
     Pid = fmke_db_conn_manager:checkout(),
     Obj = process_get_request(Pid, Entity, Id),
@@ -140,9 +58,9 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
+call({read, Entity, Id, processed_prescriptions}) ->
     {Key, {_BucketType, _BucketName}} = get_riak_props(Entity, Id),
     Pid = fmke_db_conn_manager:checkout(),
     Obj = process_get_request(Pid, Entity, Id),
@@ -165,9 +83,9 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, prescription, Id, drugs}, _From, State) ->
+call({read, prescription, Id, drugs}) ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
     Prescription = build_app_record(prescription, parse_read_result(get(Pid, Key, BucketType, BucketName))),
@@ -176,9 +94,9 @@ handle_call({read, prescription, Id, drugs}, _From, State) ->
         _ -> Prescription#prescription.drugs
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
+call({read, Entity, Id}) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     [EntityObject, Prescriptions] = multi_read(Pid, [
@@ -193,12 +111,12 @@ handle_call({read, Entity, Id}, _From, State) when Entity =:= patient; Entity =:
             build_app_record(Entity, {map, NewValues, Updates, Removals, Context})
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id}, _From, State) ->
-    {reply, build_app_record(Entity, process_get_request(Entity, Id)), State};
+call({read, Entity, Id}) ->
+    build_app_record(Entity, process_get_request(Entity, Id));
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
+call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}) ->
     Pid = fmke_db_conn_manager:checkout(),
     %% gather required keys
     Key = get_key(prescription, Id),
@@ -224,10 +142,10 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Res, State};
+    Res;
 
 %% create (for facility, patient, pharmacy, staff)
-handle_call({create, Entity, [Id | _T] = Fields}, _From, State) ->
+call({create, Entity, [Id | _T] = Fields}) ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     Result = case check_key(Pid, Key, BucketType, BucketName) of
@@ -238,9 +156,9 @@ handle_call({create, Entity, [Id | _T] = Fields}, _From, State) ->
             ok = riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(LocalObject))
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({update, prescription, Id, Action}, _From, State) ->
+call({update, prescription, Id, Action}) ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(prescription, Id),
     PrescObj = process_get_request(Pid, prescription, Id),
@@ -269,10 +187,10 @@ handle_call({update, prescription, Id, Action}, _From, State) ->
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
 %% updates entity if it exists (for facility, patient, pharmacy and staff)
-handle_call({update, Entity, [Id | _T] = Fields}, _From, State) ->
+call({update, Entity, [Id | _T] = Fields}) ->
     Pid = fmke_db_conn_manager:checkout(),
     {Key, {BucketType, BucketName}} = get_riak_props(Entity, Id),
     Obj = process_get_request(Pid, Entity, Id),
@@ -285,7 +203,7 @@ handle_call({update, Entity, [Id | _T] = Fields}, _From, State) ->
             riakc_pb_socket:update_type(Pid, {BucketType, BucketName}, Key, riakc_map:to_op(EntityUpdate))
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State}.
+    Result.
 
 missing_keys([]) ->
     false;

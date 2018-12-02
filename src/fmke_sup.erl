@@ -98,11 +98,12 @@ config_env() ->
     try
         {ok, CurrentDirectory} = file:get_cwd(),
         ConfigFile = CurrentDirectory ++ ?CONFIG_FILE_PATH,
+        lager:info("Trying to fetch config from ~p...~n", [ConfigFile]),
         {ok, AppProps} = file:consult(ConfigFile),
         config(AppProps)
     catch
-        _:Reason ->
-            lager:info("Error reading from config file: ~p", [Reason]),
+        Error:Reason:Stack ->
+            lager:error("Error reading from config file: ~p:~p~nStacktrace: ~p~n", [Error, Reason, Stack]),
             lager:info("Could not read from config file, reverting to environment and default values..."),
             config([])
     end.

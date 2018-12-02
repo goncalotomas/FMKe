@@ -15,8 +15,6 @@
 
 %% FMKE driver API
 -export([
-  start/1,
-  stop/1,
   create_patient/3,
   create_pharmacy/3,
   create_facility/4,
@@ -41,9 +39,11 @@
 
 %% gen_server exports
 -export ([
-    init/1
-    ,handle_call/3
-    ,handle_cast/2
+    start_link/1,
+    stop/1,
+    init/1,
+    handle_call/3,
+    handle_cast/2
 ]).
 
 -define(SERVER, ?MODULE).
@@ -67,11 +67,11 @@
 % -type map_field_op() ::  {remove, field()}.
 % -type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
 
-start(_) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
 
-stop(_) ->
-    gen_server:stop(?SERVER).
+stop(Pid) ->
+    gen_server:stop(Pid).
 
 init([]) ->
     {ok, _Started} = application:ensure_all_started(antidotec_pb),
@@ -93,31 +93,31 @@ create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Dru
     gen_server:call(?SERVER, {create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}).
 
 get_facility_by_id(Id) ->
-    gen_server:call(?SERVER, {get, facility, Id}).
+    gen_server:call(?SERVER, {read, facility, Id}).
 
 get_patient_by_id(Id) ->
-    gen_server:call(?SERVER, {get, patient, Id}).
+    gen_server:call(?SERVER, {read, patient, Id}).
 
 get_pharmacy_by_id(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id}).
+    gen_server:call(?SERVER, {read, pharmacy, Id}).
 
 get_prescription_by_id(Id) ->
-    gen_server:call(?SERVER, {get, prescription, Id}).
+    gen_server:call(?SERVER, {read, prescription, Id}).
 
 get_staff_by_id(Id) ->
-    gen_server:call(?SERVER, {get, staff, Id}).
+    gen_server:call(?SERVER, {read, staff, Id}).
 
 get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id, prescriptions}).
+    gen_server:call(?SERVER, {read, pharmacy, Id, prescriptions}).
 
 get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id, processed_prescriptions}).
+    gen_server:call(?SERVER, {read, pharmacy, Id, processed_prescriptions}).
 
 get_prescription_medication(Id) ->
-    gen_server:call(?SERVER, {get, prescription, Id, drugs}).
+    gen_server:call(?SERVER, {read, prescription, Id, drugs}).
 
 get_staff_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, staff, Id, prescriptions}).
+    gen_server:call(?SERVER, {read, staff, Id, prescriptions}).
 
 update_patient_details(Id, Name, Address) ->
     gen_server:call(?SERVER, {update, patient, [Id, Name, Address]}).
@@ -233,10 +233,10 @@ handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:=
     txn_commit(Txn),
     {reply, Result, State};
 
-handle_call({get, Entity, Id}, _From, State) ->
+handle_call({read, Entity, Id}, _From, State) ->
     {reply, build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP)), State};
 
-handle_call({get, Entity, Id, prescriptions}, _From, State) ->
+handle_call({read, Entity, Id, prescriptions}, _From, State) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -254,7 +254,7 @@ handle_call({get, Entity, Id, prescriptions}, _From, State) ->
     txn_commit(Txn),
     {reply, Result, State};
 
-handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
+handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -278,7 +278,7 @@ handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
     txn_commit(Txn),
     {reply, Result, State};
 
-handle_call({get, prescription, Id, drugs}, _From, State) ->
+handle_call({read, prescription, Id, drugs}, _From, State) ->
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP)),
     Result = case Prescription of
         {error, _} -> {error, no_such_prescription};

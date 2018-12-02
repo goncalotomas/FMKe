@@ -67,13 +67,14 @@
 -type field() :: binary().
 -type reason() :: term().
 -type crdt() :: term().
+-type key() :: binary().
 -type app_record() :: #facility{} |
                       #patient{} |
                       #pharmacy{} |
                       #prescription{} |
-                      #staff{}.
+                      #staff{} |
+                      list(key()).
 -type entity() :: facility | patient | pharmacy | prescription | staff.
--type key() :: binary().
 
 -type facility() :: #facility{}.
 -type patient() :: #patient{}.

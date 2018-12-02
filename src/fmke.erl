@@ -81,65 +81,10 @@ handle_call(get_status, _From, Adapter) ->
     ] ++ EnvVals,
     {reply, Reply, Adapter};
 
-handle_call({create_patient, Id, Name, Address}, _From, Adapter) ->
-    {reply, Adapter:create_patient(Id, Name, Address), Adapter};
-
-handle_call({create_pharmacy, Id, Name, Address}, _From, Adapter) ->
-    {reply, Adapter:create_pharmacy(Id, Name, Address), Adapter};
-
-handle_call({create_facility, Id, Name, Address, Type}, _From, Adapter) ->
-    {reply, Adapter:create_facility(Id, Name, Address, Type), Adapter};
-
-handle_call({create_staff, Id, Name, Address, Speciality}, _From, Adapter) ->
-    {reply, Adapter:create_staff(Id, Name, Address, Speciality), Adapter};
-
-handle_call({create_prescription, Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}, _From, Adapter) ->
-    {reply, Adapter:create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs), Adapter};
-
-handle_call({get_facility_by_id, Id}, _From, Adapter) ->
-    {reply, Adapter:get_facility_by_id(Id), Adapter};
-
-handle_call({get_patient_by_id, Id}, _From, Adapter) ->
-    {reply, Adapter:get_patient_by_id(Id), Adapter};
-
-handle_call({get_pharmacy_by_id, Id}, _From, Adapter) ->
-    {reply, Adapter:get_pharmacy_by_id(Id), Adapter};
-
-handle_call({get_pharmacy_prescriptions, Id}, _From, Adapter) ->
-    {reply, Adapter:get_pharmacy_prescriptions(Id), Adapter};
-
-handle_call({get_processed_pharmacy_prescriptions, Id}, _From, Adapter) ->
-    {reply, Adapter:get_processed_pharmacy_prescriptions(Id), Adapter};
-
-handle_call({get_prescription_by_id, Id}, _From, Adapter) ->
-    {reply, Adapter:get_prescription_by_id(Id), Adapter};
-
-handle_call({get_prescription_medication, Id}, _From, Adapter) ->
-    {reply, Adapter:get_prescription_medication(Id), Adapter};
-
-handle_call({get_staff_by_id, Id}, _From, Adapter) ->
-    {reply, Adapter:get_staff_by_id(Id), Adapter};
-
-handle_call({get_staff_prescriptions, Id}, _From, Adapter) ->
-    {reply, Adapter:get_staff_prescriptions(Id), Adapter};
-
-handle_call({update_patient_details, Id, Name, Address}, _From, Adapter) ->
-    {reply, Adapter:update_patient_details(Id, Name, Address), Adapter};
-
-handle_call({update_pharmacy_details, Id, Name, Address}, _From, Adapter) ->
-    {reply, Adapter:update_pharmacy_details(Id, Name, Address), Adapter};
-
-handle_call({update_facility_details, Id, Name, Address, Type}, _From, Adapter) ->
-    {reply, Adapter:update_facility_details(Id, Name, Address, Type), Adapter};
-
-handle_call({update_staff_details, Id, Name, Address, Speciality}, _From, Adapter) ->
-    {reply, Adapter:update_staff_details(Id, Name, Address, Speciality), Adapter};
-
-handle_call({update_prescription_medication, Id, Operation, Drugs}, _From, Adapter) ->
-    {reply, Adapter:update_prescription_medication(Id, Operation, Drugs), Adapter};
-
-handle_call({process_prescription, Id, Date}, _From, Adapter) ->
-    {reply, Adapter:process_prescription(Id, Date), Adapter}.
+handle_call(Op, From, State) ->
+    Worker = poolboy:checkout(handlers),
+    gen_server:cast(Worker, {Op, From}),
+    {noreply, State}.
 
 %%-----------------------------------------------------------------------------
 %% Create functions - no transactional context
@@ -150,29 +95,29 @@ handle_call({process_prescription, Id, Date}, _From, Adapter) ->
 %% and if so the operation fails.
 -spec create_patient(id(), string(), string()) -> ok | {error, reason()}.
 create_patient(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create_patient, Id, Name, Address}).
+    gen_server:call(?MODULE, {create, patient, [Id, Name, Address]}).
 
 %% Adds a pharmacy to the FMK-- system if the ID for the pharmacy has not yet been seen.
 -spec create_pharmacy(id(), string(), string()) -> ok | {error, reason()}.
 create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create_pharmacy, Id, Name, Address}).
+    gen_server:call(?MODULE, {create, pharmacy, [Id, Name, Address]}).
 
 %% Adds a facility to the FMK-- system if the ID for the facility has not yet been seen.
 -spec create_facility(id(), string(), string(), string()) -> ok | {error, reason()}.
 create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {create_facility, Id, Name, Address, Type}).
+    gen_server:call(?MODULE, {create, facility, [Id, Name, Address, Type]}).
 
 %% Adds a staff member to the FMK-- system if the ID for the member has not yet been seen.
 -spec create_staff(id(), string(), string(), string()) -> ok | {error, reason()}.
 create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {create_staff, Id, Name, Address, Speciality}).
+    gen_server:call(?MODULE, {create, staff, [Id, Name, Address, Speciality]}).
 
 %% Creates a prescription that is associated with a pacient, prescriber (medicall staff),
 %% pharmacy. The prescription also includes the prescription date and the list of drugs that should be administered.
 -spec create_prescription(id(), id(), id(), id(), string(), [crdt()]) -> ok | {error, reason()}.
 create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
     gen_server:call(?MODULE,
-        {create_prescription, PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs}
+        {create, prescription, [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}
     ).
 
 %%-----------------------------------------------------------------------------
@@ -182,46 +127,46 @@ create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePre
 %% Fetches a patient by ID.
 -spec get_patient_by_id(id()) -> patient() | {error, reason()}.
 get_patient_by_id(Id) ->
-    gen_server:call(?MODULE, {get_patient_by_id, Id}).
+    gen_server:call(?MODULE, {read, patient, Id}).
 
 %% Fetches a facility by id.
 -spec get_facility_by_id(id()) -> facility() | {error, reason()}.
 get_facility_by_id(Id) ->
-    gen_server:call(?MODULE, {get_facility_by_id, Id}).
+    gen_server:call(?MODULE, {read, facility, Id}).
 
 %% Fetches a pharmacy by ID.
 -spec get_pharmacy_by_id(id()) -> pharmacy() | {error, reason()}.
 get_pharmacy_by_id(Id) ->
-    gen_server:call(?MODULE, {get_pharmacy_by_id, Id}).
+    gen_server:call(?MODULE, {read, pharmacy, Id}).
 
 %% Fetches a prescription by ID.
 -spec get_prescription_by_id(id()) -> prescription() | {error, reason()}.
 get_prescription_by_id(Id) ->
-    gen_server:call(?MODULE, {get_prescription_by_id, Id}).
+    gen_server:call(?MODULE, {read, prescription, Id}).
 
 %% Fetches a list of prescriptions given a certain pharmacy ID.
 -spec get_pharmacy_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {get_pharmacy_prescriptions, Id}).
+    gen_server:call(?MODULE, {read, pharmacy, Id, prescriptions}).
 
 -spec get_processed_pharmacy_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {get_processed_pharmacy_prescriptions, Id}).
+    gen_server:call(?MODULE, {read, pharmacy, Id, processed_prescriptions}).
 
 %% Fetches prescription medication by ID.
 -spec get_prescription_medication(id()) -> [binary()] | {error, reason()}.
 get_prescription_medication(Id) ->
-    gen_server:call(?MODULE, {get_prescription_medication, Id}).
+    gen_server:call(?MODULE, {read, prescription, Id, [drugs]}).
 
 %% Fetches a staff member by ID.
 -spec get_staff_by_id(id()) -> staff() | {error, reason()}.
 get_staff_by_id(Id) ->
-    gen_server:call(?MODULE, {get_staff_by_id, Id}).
+    gen_server:call(?MODULE, {read, staff, Id}).
 
 %% Fetches a list of prescriptions given a certain staff member ID.
 -spec get_staff_prescriptions(id()) -> list(prescription() | binary()) | {error, reason()}.
 get_staff_prescriptions(Id) ->
-    gen_server:call(?MODULE, {get_staff_prescriptions, Id}).
+    gen_server:call(?MODULE, {read, staff, Id, prescriptions}).
 
 %%-----------------------------------------------------------------------------
 %% Update functions - no transactional context
@@ -230,29 +175,29 @@ get_staff_prescriptions(Id) ->
 %% Updates the personal details of a patient with a certain ID.
 -spec update_patient_details(id(), string(), string()) -> ok | {error, reason()}.
 update_patient_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update_patient_details, Id, Name, Address}).
+    gen_server:call(?MODULE, {update, patient, [Id, Name, Address]}).
 
 %% Updates the details of a pharmacy with a certain ID.
 -spec update_pharmacy_details(id(), string(), string()) -> ok | {error, reason()}.
 update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update_pharmacy_details, Id, Name, Address}).
+    gen_server:call(?MODULE, {update, pharmacy, [Id, Name, Address]}).
 
 %% Updates the details of a facility with a certain ID.
 -spec update_facility_details(id(), string(), string(), string()) -> ok | {error, reason()}.
 update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {update_facility_details, Id, Name, Address, Type}).
+    gen_server:call(?MODULE, {update, facility, [Id, Name, Address, Type]}).
 
 %% Updates the details of a staff member with a certain ID.
 -spec update_staff_details(id(), string(), string(), string()) -> ok | {error, reason()}.
 update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {update_staff_details, Id, Name, Address, Speciality}).
+    gen_server:call(?MODULE, {update, staff, [Id, Name, Address, Speciality]}).
 
 -spec update_prescription_medication(id(), atom(), [string()]) -> ok | {error, reason()}.
-update_prescription_medication(Id, Operation, Drugs) ->
-    gen_server:call(?MODULE, {update_prescription_medication, Id, Operation, Drugs}).
+update_prescription_medication(Id, _Operation, Drugs) ->
+    gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
 
 process_prescription(Id, Date) ->
-    gen_server:call(?MODULE, {process_prescription, Id, Date}).
+    gen_server:call(?MODULE, {update, prescription, Id, {date_processed, Date}}).
 
 %%-----------------------------------------------------------------------------
 %% Helper functions

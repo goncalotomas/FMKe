@@ -1,127 +1,43 @@
-%% TODO UPDATE PRESCRIPTION MEDICATION
-%% TODO PROCESS PRESCRIPTION
 -module(fmke_kv_adapter).
 
--behaviour(gen_fmke_adapter).
+-behaviour(gen_server).
 
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
 %% gen_server callbacks
 -export([
+    start_link/1,
+    stop/1,
     init/1,
     handle_call/3,
     handle_cast/2
 ]).
 
-%% gen_fmke_adapter callbacks
--export([
-    start/1,
-    stop/0,
-    create_patient/3,
-    create_pharmacy/3,
-    create_facility/4,
-    create_staff/4,
-    create_prescription/6,
-    get_facility_by_id/1,
-    get_patient_by_id/1,
-    get_pharmacy_by_id/1,
-    get_processed_pharmacy_prescriptions/1,
-    get_pharmacy_prescriptions/1,
-    get_prescription_by_id/1,
-    get_prescription_medication/1,
-    get_staff_by_id/1,
-    get_staff_prescriptions/1,
-    process_prescription/2,
-    update_patient_details/3,
-    update_pharmacy_details/3,
-    update_facility_details/4,
-    update_staff_details/4,
-    update_prescription_medication/3
-  ]).
-
 -type get_result() :: app_record() | {error, not_found}.
 -type db_entry() :: {key(), get_result()}.
 -type key_or_entry() :: key() | db_entry().
 
-start(Args) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, Args, []).
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
 
-stop() ->
-    gen_server:call(?MODULE, stop).
+stop(Pid) ->
+    gen_server:call(Pid, stop).
 
 init([Driver, DataModel]) ->
-    lager:info("~p will use the ~p module (~p data model)~n", [?MODULE, Driver, DataModel]),
+    lager:info("booted ~p process, using the ~p module (~p data model)~n", [?MODULE, Driver, DataModel]),
     {ok, {Driver, DataModel}}.
 
-create_patient(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, patient, [Id, Name, Address]}).
-
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?MODULE,
-        {create, prescription, [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}
-    ).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?MODULE, {read, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?MODULE, {read, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    F = fun(P) -> P#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE end,
-    gen_server:call(?MODULE, {read, pharmacy, Id, [prescriptions], F}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, [prescriptions]}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id, [drugs]}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?MODULE, {read, staff, Id}).
-
-get_staff_prescriptions(Id) ->
-  gen_server:call(?MODULE, {read, staff, Id, [prescriptions]}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {update, staff, [Id, Name, Address, Speciality]}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
-
-handle_cast(_Msg, State) ->
+handle_call(_Msg, _From, State) ->
     {noreply, State}.
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T] = Fields},
-        _From, {Driver, DataModel}) ->
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op, State),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
+
+call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T] = Fields}, {Driver, DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     PrescKey = gen_key(prescription, Id),
     PatKey = gen_key(patient, PatientId),
@@ -145,9 +61,9 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
         {true, non_nested} ->
             {WResult, Context3} = Driver:put([
                 {PrescKey, prescription, PrscObj},
-                {PatKey, patient, Patient#patient{prescriptions = [PrescKey | Patient#patient.prescriptions]}},
-                {StaffKey, staff, Staff#staff{prescriptions = [PrescKey | Staff#staff.prescriptions]}},
-                {PharmKey, pharmacy, Pharmacy#pharmacy{prescriptions = [PrescKey | Pharmacy#pharmacy.prescriptions]}}
+                {<<PatKey/binary, "_prescriptions">>, prescription_ref, PrescKey},
+                {<<StaffKey/binary, "_prescriptions">>, prescription_ref, PrescKey},
+                {<<PharmKey/binary, "_prescriptions">>, prescription_ref, PrescKey}
             ], Context2),
             {prsc_wrt_res(WResult), Context3};
         {{false, key_exists, PrescKey}, _} ->
@@ -162,13 +78,12 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId | _T
             {{error, Error}, Context2}
     end,
 
-    Reply = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Result;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Reply, {Driver, DataModel}};
+    end;
 
-handle_call({create, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
+call({create, Entity, [Id | _T] = Fields}, {Driver, _DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     Key = gen_key(Entity, Id),
     {[RResult], Context2} = Driver:get([{Key, Entity}], Context),
@@ -182,13 +97,12 @@ handle_call({create, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
         _Record when Entity =:= staff ->        {{error, staff_id_taken}, Context2}
     end,
 
-    Result = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Reply;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Result, {Driver, DataModel}};
+    end;
 
-handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
+call({update, prescription, Id, Action}, {Driver, DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     Key = gen_key(prescription, Id),
     {[RResult], Context2} = Driver:get([{Key, prescription}], Context),
@@ -206,7 +120,6 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
                     {WResult, Context3};
                 {?PRESCRIPTION_NOT_PROCESSED_VALUE, nested} ->
                     P = chg_presc(Record, Action),
-                    % io:format("fmke_kv_adapter: P= ~p", [P]),
                     PatKey = gen_key(patient, P#prescription.patient_id),
                     PharmKey = gen_key(pharmacy, P#prescription.pharmacy_id),
                     StaffKey = gen_key(staff, P#prescription.prescriber_id),
@@ -247,13 +160,12 @@ handle_call({update, prescription, Id, Action}, _From, {Driver, DataModel}) ->
             end
     end,
 
-    Result = case Driver:commit_transaction(Context5, []) of
+    case Driver:commit_transaction(Context5, []) of
         ok -> Reply;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Result, {Driver, DataModel}};
+    end;
 
-handle_call({update, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
+call({update, Entity, [Id | _T] = Fields}, {Driver, _DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     Key = gen_key(Entity, Id),
     {[RResult], Context2} = Driver:get([{Key, Entity}], Context),
@@ -267,95 +179,105 @@ handle_call({update, Entity, [Id | _T] = Fields}, _From, {Driver, DataModel}) ->
             {WResult, Context3}
     end,
 
-    Result = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Reply;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Result, {Driver, DataModel}};
+    end;
 
-handle_call({read, Entity, Id}, _From, {Driver, DataModel}) ->
+call({read, Entity, Id}, {Driver, _DataModel}) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
+    {ok, Context} = Driver:start_transaction([]),
+    Key = gen_key(Entity, Id),
+    {[RResult, Prescs], Context2} = Driver:get([{Key, Entity},
+                                        {<<Key/binary, "_prescriptions">>, prescription_ref}], Context),
+    Result = case RResult of
+        {error, not_found} -> {error, not_found};
+        X when is_record(X, patient) -> X#patient{prescriptions = Prescs};
+        X when is_record(X, pharmacy) -> X#pharmacy{prescriptions = Prescs};
+        X when is_record(X, staff) -> X#staff{prescriptions = Prescs}
+    end,
+    case Driver:commit_transaction(Context2, []) of
+        ok -> Result;
+        {error, Reason} -> {error, Reason}
+    end;
+
+call({read, Entity, Id}, {Driver, _DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     {[RResult], Context2} = Driver:get([{gen_key(Entity, Id), Entity}], Context),
-    Result = case Driver:commit_transaction(Context2, []) of
+    case Driver:commit_transaction(Context2, []) of
         ok -> RResult;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Result, {Driver, DataModel}};
+    end;
 
-handle_call({read, staff, Id, [prescriptions]}, _From, {Driver, DataModel}) ->
+
+call({read, Entity, Id, prescriptions}, {Driver, nested}) ->
     {ok, Context} = Driver:start_transaction([]),
-    {[ReadResult], Context2} = Driver:get([{gen_key(staff, Id), staff}], Context),
+    {[ReadResult], Context2} = Driver:get([{gen_key(Entity, Id), Entity}], Context),
     {Result, Context4} = case ReadResult of
         {error, not_found} ->
-            {{error, no_such_staff}, Context2};
+            {{error, no_such_entity(Entity)}, Context2};
+        Rec when is_record(Rec, patient) ->
+            {Rec#patient.prescriptions, Context2};
+        Rec when is_record(Rec, pharmacy) ->
+            {Rec#pharmacy.prescriptions, Context2};
         Rec when is_record(Rec, staff) ->
-            case DataModel of
-                nested ->
-                    %% within the staff record is a list of prescription objects
-                    {Rec#staff.prescriptions, Context2};
-                non_nested ->
-                    %% within the staff record is a list of keys
-                    Entries = lists:map(fun(P) -> {P, prescription} end, Rec#staff.prescriptions),
-                    Driver:get(Entries, Context2)
-            end
+            {Rec#staff.prescriptions, Context2}
     end,
-    Reply = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Result;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Reply, {Driver, DataModel}};
-
-handle_call({read, pharmacy, Id, [prescriptions]}, _From, {Driver, DataModel}) ->
+    end;
+call({read, Entity, Id, prescriptions}, {Driver, non_nested}) ->
     {ok, Context} = Driver:start_transaction([]),
-    {[ReadResult], Context2} = Driver:get([{gen_key(pharmacy, Id), pharmacy}], Context),
+    Key = gen_key(Entity, Id),
+    {[EntityObj, Prescriptions], Context2} = Driver:get([{Key, Entity},
+                                            {<<Key/binary, "_prescriptions">>, prescription_ref}], Context),
+    {Result, Context4} = case EntityObj of
+        {error, not_found} ->
+            {{error, no_such_entity(Entity)}, Context2};
+        _List ->
+            {Prescriptions, Context2}
+    end,
+    case Driver:commit_transaction(Context4, []) of
+        ok -> Result;
+        {error, Reason} -> {error, Reason}
+    end;
+
+call({read, Entity, Id, processed_prescriptions}, {Driver, nested}) ->
+    {ok, Context} = Driver:start_transaction([]),
+    {[ReadResult], Context2} = Driver:get([{gen_key(Entity, Id), Entity}], Context),
+    FilterFun = fun(P) -> P#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE end,
     {Result, Context4} = case ReadResult of
         {error, not_found} ->
             {{error, no_such_pharmacy}, Context2};
         Rec when is_record(Rec, pharmacy) ->
-            case DataModel of
-                nested ->
-                    %% within the pharmacy record is a list of prescription objects
-                    {Rec#pharmacy.prescriptions, Context2};
-                non_nested ->
-                    %% within the pharmacy record is a list of keys
-                    Entries = lists:map(fun(P) -> {P, prescription} end, Rec#pharmacy.prescriptions),
-                    Driver:get(Entries, Context2)
-            end
+            {lists:filter(FilterFun, Rec#pharmacy.prescriptions), Context2}
     end,
-    Reply = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Result;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Reply, {Driver, DataModel}};
-
-handle_call({read, pharmacy, Id, [prescriptions], FilterFun}, _From, {Driver, DataModel}) ->
+    end;
+call({read, Entity, Id, processed_prescriptions}, {Driver, non_nested}) ->
     {ok, Context} = Driver:start_transaction([]),
-    {[ReadResult], Context2} = Driver:get([{gen_key(pharmacy, Id), pharmacy}], Context),
-    {Result, Context4} = case ReadResult of
+    Key = gen_key(Entity, Id),
+    {[EntityObj, Prescriptions], Context2} = Driver:get([{gen_key(Entity, Id), Entity},
+                                            {<<Key/binary, "_prescriptions">>, prescription_ref}], Context),
+    FilterFun = fun(P) -> P#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE end,
+    {Result, Context4} = case EntityObj of
         {error, not_found} ->
-            {{error, no_such_pharmacy}, Context2};
-        Rec when is_record(Rec, pharmacy) ->
-            case DataModel of
-                nested ->
-                    %% within the pharmacy record is a list of prescription objects
-                    {lists:filter(FilterFun, Rec#pharmacy.prescriptions), Context2};
-                non_nested ->
-                    %% within the pharmacy record is a list of keys
-                    Entries = lists:map(fun(P) -> {P, prescription} end, Rec#pharmacy.prescriptions),
-                    {Prescs, Context3} = Driver:get(Entries, Context2),
-                    {lists:filter(FilterFun, Prescs), Context3}
-            end
+            {{error, no_such_entity(Entity)}, Context2};
+        _List ->
+            {Prescs, Context5} = Driver:get(lists:map(fun(K) -> {K, prescription} end, Prescriptions), Context),
+            {lists:filter(FilterFun, Prescs), Context5}
     end,
-    Reply = case Driver:commit_transaction(Context4, []) of
+    case Driver:commit_transaction(Context4, []) of
         ok -> Result;
         {error, Reason} -> {error, Reason}
-    end,
-    {reply, Reply, {Driver, DataModel}};
+    end;
 
-handle_call({read, prescription, Id, [drugs]}, _From, {Driver, DataModel}) ->
+call({read, prescription, Id, [drugs]}, {Driver, _DataModel}) ->
     {ok, Context} = Driver:start_transaction([]),
     {[RResult], Context2} = Driver:get([{gen_key(prescription, Id), prescription}], Context),
-    Result = case Driver:commit_transaction(Context2, []) of
+    case Driver:commit_transaction(Context2, []) of
         {error, Reason} ->
             {error, Reason};
         ok ->
@@ -365,8 +287,7 @@ handle_call({read, prescription, Id, [drugs]}, _From, {Driver, DataModel}) ->
                 Rec when is_record(Rec, prescription) ->
                     Rec#prescription.drugs
             end
-    end,
-    {reply, Result, {Driver, DataModel}}.
+    end.
 
 chg_presc(P, {drugs, add, Drugs}) ->
     P#prescription{drugs = P#prescription.drugs ++ Drugs};
@@ -422,3 +343,9 @@ binary_str_w_int(Str, Int) when is_binary(Int) ->
     list_to_binary(unicode:characters_to_list([Str, binary_to_list(Int)]));
 binary_str_w_int(Str, Int) when is_integer(Int) ->
     list_to_binary(unicode:characters_to_list([Str, integer_to_list(Int)])).
+
+no_such_entity(facility) ->     no_such_facility;
+no_such_entity(patient) ->      no_such_patient;
+no_such_entity(pharmacy) ->     no_such_pharmacy;
+no_such_entity(prescription) -> no_such_prescription;
+no_such_entity(staff) ->        no_such_staff.

@@ -36,7 +36,7 @@
 -type context() :: term().
 -type options() :: list({atom(), term()}).
 -type txn_result() :: ok | {error, term()}.
--type data_model() :: nested | non_nested.
+% -type data_model() :: nested | non_nested.
 
 %% ---------------------------------------------------------------------------------------------------------------------
 %% Setup and teardown callbacks
@@ -52,10 +52,10 @@
 %% prescription key inside the patient, and we consider this to be a "normalized" (non-nested) data layout.
 %% Implementing a driver may be done for a single data layout, ignoring the other completely. When test executions are
 %% run, only valid data model implementations are considered for performance results.
--callback start(DataModel::data_model()) -> {error, term()} | {ok, pid()}.
+% -callback start(DataModel::data_model()) -> {error, term()} | {ok, pid()}.
 
 %% Teardown hook, called when the application is stopped.
--callback stop() -> ok.
+% -callback stop() -> ok.
 
 %% ---------------------------------------------------------------------------------------------------------------------
 %% Transactional support callbacks

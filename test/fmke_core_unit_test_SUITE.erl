@@ -60,7 +60,8 @@ all() ->
 init_per_suite(Config) ->
     CTNodename = ct:get_config(ct_nodename, 'ct_core_suite@127.0.0.1'),
     FMKeNodename = ct:get_config(fmke_nodename, ?NODENAME),
-    Options = [target_database, driver, database_addresses, database_ports, connection_pool_size, http_port],
+    Options = [target_database, driver, database_addresses, database_ports,
+                connection_pool_size, http_port, data_model],
     ConfigSrc = get_initial_config_src(),
     ConfigVals = get_initial_config(Config),
     OptionValues = lists:map(

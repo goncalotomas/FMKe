@@ -23,19 +23,9 @@
 
 -behaviour(gen_fmke_kv_driver).
 
-%% gen_server exports
--export ([
-  init/1,
-  handle_call/3,
-  handle_cast/2
-]).
 
 %% API
 -export([
-    %% Setup and teardown functions
-    start/1,
-    stop/0,
-
     %% Transactional context functions
     start_transaction/1,
     commit_transaction/2,
@@ -47,6 +37,8 @@
 
 -define (SERVER, ?MODULE).
 -define (BUCKET_TYPE, <<"maps">>).
+-define (REF_BUCKET_TYPE, <<"sets">>).
+-define (PRESC_BUCKET, <<"prescriptions">>).
 -define (FAC_FIELDS, [{?FACILITY_ID_KEY, register}, {?FACILITY_NAME_KEY, register},
                       {?FACILITY_ADDRESS_KEY, register}, {?FACILITY_TYPE_KEY, register}]).
 -define (PAT_FIELDS, [{?PATIENT_ID_KEY, register},{?PATIENT_NAME_KEY, register},
@@ -65,93 +57,62 @@
 ]).
 
 %% -------------------------------------------------------------------
-%% Setup and teardown functions
-%% -------------------------------------------------------------------
-start(DataModel) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, DataModel, []).
-
-stop() ->
-    gen_server:call(?MODULE, stop).
-
-init(DataModel) ->
-    lager:info("~p starting with ~p data model~n", [?MODULE, DataModel]),
-    {ok, DataModel}.
-
-%% -------------------------------------------------------------------
 %% Riak transaction related exports (Transactional API)
 %% -------------------------------------------------------------------
 start_transaction(_Opts) ->
-    gen_server:call(?MODULE, start_transaction).
+    Pid = fmke_db_conn_manager:checkout(),
+    {ok, Pid}.
+
 
 commit_transaction(Pid, _Opts) ->
-    gen_server:call(?MODULE, {commit_transaction, Pid}).
+    fmke_db_conn_manager:checkin(Pid),
+    ok.
 
 %% -------------------------------------------------------------------
 %% Data access exports - Interaction with Riak KV
 %% -------------------------------------------------------------------
 get(Keys, Pid) ->
-    gen_server:call(?MODULE, {get, Keys, Pid}).
-
-put(Entries, Pid) ->
-    gen_server:call(?MODULE, {put, Entries, Pid}).
-
-%% gen server callbacks, contain driver logic
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
-
-handle_call(start_transaction, _From, DataModel) ->
-    %% Driver needs a Pid to request client operations, fetch Pid from fmke_db_conn_manager and put it in TxnContext
-    Pid = fmke_db_conn_manager:checkout(),
-    {reply, {ok, Pid}, DataModel};
-
-handle_call({commit_transaction, Pid}, _From, DataModel) ->
-    %% Interaction with database is complete for current operation, return pid to connection pool
-    fmke_db_conn_manager:checkin(Pid),
-    {reply, ok, DataModel};
-
-handle_call({get, Keys, Pid}, _From, DataModel) ->
+    {ok, DataModel} = application:get_env(?APP, data_model),
     Results = lists:map(
                     fun({Key, Type}) ->
-                        Bucket = get_bucket(Type),
-                        case riakc_pb_socket:fetch_type(Pid, {?BUCKET_TYPE, Bucket}, Key) of
+                        case riakc_pb_socket:fetch_type(Pid, get_riak_props(Type), Key) of
                             {error, {notfound, map}} ->
                                 {error, not_found};
+                            {error, {notfound, set}} ->
+                                [];
                             {ok, Value} ->
-                                pack(DataModel, Type, Value);
-                            Other ->
-                                lager:error("Got unrecognised value: ~p~n", [Other]),
-                                {error, unrecognised_value, Other}
+                                pack(Pid, DataModel, Type, Value)
                         end
                     end, Keys),
-    {reply, {Results, Pid}, DataModel};
+    {Results, Pid}.
 
-handle_call({put, Entries, Pid}, _From, DataModel) ->
+put(Entries, Pid) ->
+    {ok, DataModel} = application:get_env(?APP, data_model),
     Results = lists:map(
                     fun({Key, Type, Value}) ->
                         Bucket = get_bucket(Type),
                         UnpackedVal = unpack(DataModel, Type, Value),
                         riakc_pb_socket:update_type(Pid, {?BUCKET_TYPE, Bucket}, Key, riakc_map:to_op(UnpackedVal))
                     end, Entries),
-    {reply, {Results, Pid}, DataModel}.
+    {Results, Pid}.
 
 %% Parses a value obtained from Riak into a common application record format.
--spec pack(atom(), entity(), riakc_map:map()) -> app_record().
-pack(_, facility, Fac) ->
+-spec pack(pid(), atom(), entity(), riakc_map:map()) -> app_record().
+pack(_Pid, _, facility, Fac) ->
     [Id, Name, Address, Type] = lists:map(fun(F) -> riakc_map:fetch(F, Fac) end, ?FAC_FIELDS),
     #facility{id = Id, name = Name, address = Address, type = Type};
 
-pack(DataModel, patient, Pat) ->
+pack(Pid, DataModel, patient, Pat) ->
     [Id, Name, Address] = lists:map(fun(F) -> riakc_map:fetch(F, Pat) end, ?PAT_FIELDS),
-    Prescriptions = fetch_prescs(DataModel, Pat, ?PATIENT_PRESCRIPTIONS_KEY),
+    Prescriptions = fetch_prescs(DataModel, Pid, Pat, ?PATIENT_PRESCRIPTIONS_KEY),
     #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
 
-pack(DataModel, pharmacy, Pharm) ->
+pack(Pid, DataModel, pharmacy, Pharm) ->
     [Id, Name, Address] = lists:map(fun(F) -> riakc_map:fetch(F, Pharm) end, ?PHARM_FIELDS),
-    Prescriptions = fetch_prescs(DataModel, Pharm, ?PHARMACY_PRESCRIPTIONS_KEY),
+    Prescriptions = fetch_prescs(DataModel, Pid, Pharm, ?PHARMACY_PRESCRIPTIONS_KEY),
     #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions};
 
-pack(_, prescription, Presc) ->
+pack(_Pid, _DataModel, prescription, Presc) ->
     [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, DateProcessed, Drugs, IsProcessed] = lists:map(
             fun({Field, Type, Default}) -> fetch(Presc, Field, Type, Default) end, ?PRESC_FIELDS_W_DEFAULTS),
     #prescription{
@@ -165,10 +126,13 @@ pack(_, prescription, Presc) ->
         is_processed = IsProcessed
     };
 
-pack(DataModel, staff, Staff) ->
+pack(Pid, DataModel, staff, Staff) ->
     [Id, Name, Address, Speciality] = lists:map(fun(F) -> riakc_map:fetch(F, Staff) end, ?STAFF_FIELDS),
-    Prescriptions = fetch_prescs(DataModel, Staff, ?STAFF_PRESCRIPTIONS_KEY),
-    #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}.
+    Prescriptions = fetch_prescs(DataModel, Pid, Staff, ?STAFF_PRESCRIPTIONS_KEY),
+    #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions};
+
+pack(_Pid, non_nested, prescription_ref, Set) ->
+    riakc_set:value(Set).
 
 unpack(_, facility, #facility{id = Id, name = Name, address = Address, type = Type}) ->
     riakc_map:update({?FACILITY_ID_KEY, register}, update_reg(Id),
@@ -182,11 +146,10 @@ unpack(nested, patient, #patient{id = Id, name = Name, address = Address, prescr
     riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address),
     update_map(?PATIENT_PRESCRIPTIONS_KEY, Prescriptions))));
 
-unpack(non_nested, patient, #patient{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
+unpack(non_nested, patient, #patient{id = Id, name = Name, address = Address}) ->
     riakc_map:update({?PATIENT_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PATIENT_NAME_KEY, register}, update_reg(Name),
-    riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?PATIENT_PRESCRIPTIONS_KEY, set}, update_set(Prescriptions), riakc_map:new()))));
+    riakc_map:update({?PATIENT_ADDRESS_KEY, register}, update_reg(Address), riakc_map:new())));
 
 unpack(nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
@@ -194,11 +157,10 @@ unpack(nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, pres
     riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address),
     update_map(?PHARMACY_PRESCRIPTIONS_KEY, Prescriptions))));
 
-unpack(non_nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address, prescriptions = Prescriptions}) ->
+unpack(non_nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address}) ->
     riakc_map:update({?PHARMACY_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?PHARMACY_NAME_KEY, register}, update_reg(Name),
-    riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?PHARMACY_PRESCRIPTIONS_KEY, set}, update_set(Prescriptions), riakc_map:new()))));
+    riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address), riakc_map:new())));
 
 unpack(_, prescription, #prescription{id = Id, patient_id = PatientId, prescriber_id = PrescriberId,
                                         pharmacy_id = PharmacyId, date_prescribed = DatePrescribed,
@@ -221,12 +183,14 @@ unpack(nested, staff,
     update_map(?STAFF_PRESCRIPTIONS_KEY, Prescriptions)))));
 
 unpack(non_nested, staff,
-            #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}) ->
+            #staff{id = Id, name = Name, address = Address, speciality = Speciality}) ->
     riakc_map:update({?STAFF_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?STAFF_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?STAFF_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality),
-    riakc_map:update({?STAFF_PRESCRIPTIONS_KEY, set}, update_set(Prescriptions), riakc_map:new()))))).
+    riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality), riakc_map:new()))));
+
+unpack(non_nested, prescription_ref, Element) ->
+    riakc_set:add_element(Element, riakc_set:new()).
 
 update_reg(V) when is_list(V) -> fun(R) -> riakc_register:set(list_to_binary(V), R) end;
 update_reg(V) when is_binary(V) -> fun(R) -> riakc_register:set(V, R) end;
@@ -256,14 +220,13 @@ fetch(Map, Key, Type, DefaultVal) ->
         _:_ -> DefaultVal
     end.
 
-fetch_prescs(nested, Map, Key) ->
+fetch_prescs(nested, _Pid, Map, Key) ->
     parse_prescs(nested, fetch(Map, Key, map, []));
-fetch_prescs(non_nested, Map, Key) ->
-    parse_prescs(non_nested, fetch(Map, Key, set, [])).
+fetch_prescs(non_nested, _, _, _) ->
+    [].
 
 parse_prescs(nested, Prescs) ->
-    lists:map(fun({{_PrescId, register}, Bin}) -> binary_to_term(Bin) end, Prescs);
-parse_prescs(non_nested, Prescs) -> Prescs.
+    lists:map(fun({{_PrescId, register}, Bin}) -> binary_to_term(Bin) end, Prescs).
 
 %% Returns the name of the Riak bucket where entities of a certain type should be stored.
 -spec get_bucket(entity()) -> binary().
@@ -273,3 +236,8 @@ get_bucket(patient) ->          <<"patients">>;
 get_bucket(pharmacy) ->         <<"pharmacies">>;
 get_bucket(prescription) ->     <<"prescriptions">>;
 get_bucket(staff) ->            <<"staff">>.
+
+get_riak_props(prescription_ref) ->
+    {?REF_BUCKET_TYPE, ?PRESC_BUCKET};
+get_riak_props(Type) ->
+    {?BUCKET_TYPE, get_bucket(Type)}.
