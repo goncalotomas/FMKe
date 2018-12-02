@@ -428,29 +428,15 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
 %% A wrapper for Antidote's commit_transaction function
 -spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
 txn_commit({Pid, TxnDetails}) ->
-    Result = txn_commit_w_retry(Pid, TxnDetails, 0, ?ANTIDOTE_TRANSACTION_RETRIES),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
-
-txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
-    lager:error("Transaction ~p failed, aborting...~n"),
-    case antidotec_pb:abort_transaction(Pid, Txn) of
-        ok ->
-            {error, transaction_aborted_max_commit_attempts};
-        {error, Error} ->
-            lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
-            throw({error, transaction_failed_abort_failed})
-    end;
-
-txn_commit_w_retry(Pid, Txn, CurrTry, MaxTry) ->
-    case antidotec_pb:commit_transaction(Pid, Txn) of
+    Result = case antidotec_pb:commit_transaction(Pid, Txn) of
         {ok, _} ->
             ok;
         {error, Error} ->
-            lager:warning("Transaction commit failed for ~p: ~p, retrying...~n", [Txn, Error]),
-            txn_commit_w_retry(Pid, Txn, CurrTry + 1, MaxTry)
-    end.
-
+            lager:warning("Antidote transaction failed: ~p~n", [Error]),
+            {error, aborted}
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    Result.
 
 %% ------------------------------------------------------------------------------------------------
 %% Simple API - Recommended way to interact with Antidote
