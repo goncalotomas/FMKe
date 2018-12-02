@@ -116,8 +116,8 @@ call({update, prescription, Id, {drugs, add, Drugs}}) ->
           #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
               PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
               UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
-              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
-     end,
+              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn)
+    end,
     txn_commit(Txn);
 
 call({update, Entity, Fields}) ->
