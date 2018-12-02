@@ -62,9 +62,35 @@ ct:
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_nested.config --cover --cover_export_name=http_riak_simple_nested
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_non_nested.config --cover --cover_export_name=http_riak_simple_non_nested
 
+ct-antidote:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config
+
 ct-cassandra:
-	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=core_cassandra_non_nested_opt
-	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=http_cassandra_non_nested_opt
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config
+
+ct-ets:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_non_nested_data_model.config
+
+ct-redis-cluster:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config
+
+ct-redis:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_crdb_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_crdb_non_nested_data_model.config
+
+ct-riak:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_simple_nested.config
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_simple_non_nested.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_nested.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_simple_non_nested.config
 
 dialyzer:
 	${REBAR} dialyzer

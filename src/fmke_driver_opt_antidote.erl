@@ -150,7 +150,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
     Res = case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
         {true, Entity} ->
             txn_commit(Txn),
-            {error, no_such_entity_error(Entity)};
+            {error, no_such_entity(Entity)};
         false ->
             PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
             {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
@@ -215,7 +215,23 @@ handle_call({update, Entity, Fields}, _From, State) ->
     {reply, update_if_already_exists(Entity, Fields), State};
 
 handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
-    {reply, get_entity_with_prescriptions(Entity, Id), State};
+    Txn = txn_start(),
+    EntityKey = gen_key(Entity, Id),
+    BinaryEntity = list_to_binary(atom_to_list(Entity)),
+    [EntityFields, Prescriptions] = multi_read([
+        create_bucket(EntityKey, ?MAP),
+        create_bucket(<<EntityKey/binary, "_prescriptions">>, ?ORSET)
+    ], Txn),
+    Result = case Prescriptions of
+        {error, not_found} ->
+            build_app_record(Entity, EntityFields);
+        Keys ->
+            build_app_record(Entity, [
+                {{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, Keys} | EntityFields
+            ])
+    end,
+    txn_commit(Txn),
+    {reply, Result, State};
 
 handle_call({get, Entity, Id}, _From, State) ->
     {reply, build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP)), State};
@@ -225,7 +241,7 @@ handle_call({get, Entity, Id, prescriptions}, _From, State) ->
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
         {error, not_found} ->
-            {error, no_such_entity_error(Entity)};
+            {error, no_such_entity(Entity)};
         _ ->
             [Prescriptions] = multi_read([
               create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET)
@@ -243,7 +259,7 @@ handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
         {error, not_found} ->
-            {error, no_such_entity_error(Entity)};
+            {error, no_such_entity(Entity)};
         _ ->
             [Prescriptions] = multi_read([
               create_bucket(<<Key/binary, "_prescriptions">>, ?ORSET)
@@ -291,7 +307,7 @@ create_if_not_exists(Entity, Fields, Txn) ->
     Result =
       case check_id(Entity, Id, Txn) of
         taken ->
-            {error, list_to_atom(lists:flatten(io_lib:format("~p_id_taken", [Entity])))};
+            {error, id_taken(Entity)};
         free ->
             EntityKey = gen_key(Entity, Id),
             EntityUpdate = gen_entity_update(Entity, Fields),
@@ -306,7 +322,7 @@ update_if_already_exists(Entity, Fields) ->
     Result =
       case check_id(Entity, Id, Txn) of
         free ->
-            {error, list_to_atom(lists:flatten(io_lib:format("no_such_~p", [Entity])))};
+            {error, no_such_entity(Entity)};
         taken ->
             EntityKey = gen_key(Entity, Id),
             EntityUpdate = gen_entity_update(Entity, Fields),
@@ -322,8 +338,6 @@ check_id(Entity, Id, Txn) ->
         _Map -> taken
     end.
 
-gen_key(Entity, Id) ->
-    list_to_binary(lists:flatten(io_lib:format("~p_~p", [Entity, Id]))).
 
 gen_entity_update(patient, [Id, Name, Address]) ->
     IdOp = build_id_op(?PATIENT_ID_KEY, ?LWWREG, Id),
@@ -420,35 +434,6 @@ build_app_record(prescription, Object) ->
       drugs = Drugs,
       is_processed = IsProcessed
   }.
-
-get_entity_with_prescriptions(Entity, Id) ->
-    Txn = txn_start(),
-    Result = get_entity_with_prescriptions(Entity, Id, Txn),
-    txn_commit(Txn),
-    Result.
-
-get_entity_with_prescriptions(Entity, Id, Txn) ->
-    EntityKey = gen_key(Entity, Id),
-    BinaryEntity = list_to_binary(atom_to_list(Entity)),
-    [EntityFields, Prescriptions, ProcessedPrescriptions] = multi_read([
-        create_bucket(EntityKey, ?MAP),
-        create_bucket(<<EntityKey/binary, "_prescriptions">>, ?ORSET),
-        create_bucket(<<EntityKey/binary, "_prescriptions_processed">>, ?ORSET)
-    ], Txn),
-    case {Prescriptions, ProcessedPrescriptions} of
-        {{error, not_found}, {error, not_found}} -> build_app_record(Entity, EntityFields);
-        {{error, not_found}, PrescriptionKeys2} ->
-            build_app_record(Entity, [
-                {{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys2} | EntityFields
-            ]);
-        {PrescriptionKeys1, {error, not_found}} ->
-            build_app_record(Entity, [
-                {{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET}, PrescriptionKeys1} | EntityFields
-            ]);
-        {PrescriptionKeys1, PrescriptionKeys2} ->
-            build_app_record(Entity, [{{<<BinaryEntity/binary, "_prescriptions">>, ?ORSET},
-            lists:append(PrescriptionKeys1, PrescriptionKeys2)} | EntityFields])
-    end.
 
 multi_read(Objects, Txn) ->
   Results = txn_read_objects(Objects, Txn),
@@ -592,7 +577,25 @@ build_id_op(Key, KeyType, Id) ->
 build_lwwreg_op(Key, KeyType, Value) ->
     build_map_op(Key, KeyType, {assign, Value}).
 
-no_such_entity_error(facility) ->   no_such_facility;
-no_such_entity_error(patient) ->    no_such_patient;
-no_such_entity_error(pharmacy) ->   no_such_pharmacy;
-no_such_entity_error(staff) ->      no_such_staff.
+no_such_entity(facility) ->     no_such_facility;
+no_such_entity(patient) ->      no_such_patient;
+no_such_entity(pharmacy) ->     no_such_pharmacy;
+no_such_entity(prescription) -> no_such_prescription;
+no_such_entity(staff) ->        no_such_staff.
+
+id_taken(facility) ->       facility_id_taken;
+id_taken(patient) ->        patient_id_taken;
+id_taken(pharmacy) ->       pharmacy_id_taken;
+id_taken(prescription) ->   prescription_id_taken;
+id_taken(staff) ->          staff_id_taken.
+
+gen_key(facility, Id) ->        binary_str_w_int("facility_", Id);
+gen_key(patient, Id) ->         binary_str_w_int("patient_", Id);
+gen_key(pharmacy, Id) ->        binary_str_w_int("pharmacy_", Id);
+gen_key(prescription, Id) ->    binary_str_w_int("prescription_", Id);
+gen_key(staff, Id) ->           binary_str_w_int("staff_", Id).
+
+binary_str_w_int(Str, Int) when is_binary(Int) ->
+    list_to_binary(unicode:characters_to_list([Str, binary_to_list(Int)]));
+binary_str_w_int(Str, Int) when is_integer(Int) ->
+    list_to_binary(unicode:characters_to_list([Str, integer_to_list(Int)])).
