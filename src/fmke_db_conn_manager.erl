@@ -9,7 +9,7 @@
 -export([start_link/0]).
 
 %% gen_server callbacks
--export([init/1, handle_cast/2, handle_info/2, handle_call/3]).
+-export([init/1, handle_cast/2, handle_info/2, handle_call/3, terminate/2]).
 
 %% conn_manager API
 -export([checkout/0, checkin/1]).
@@ -54,10 +54,12 @@ handle_call({checkin, Pid}, _From, State) ->
             MapState = maps:remove(Pid, PidOwners),
             Result = poolboy:checkin(Owner, Pid),
             {reply, Result, State#state{pid_owners = MapState}}
-    end;
+    end.
 
-handle_call(_Msg, _From, State) ->
-    {noreply, State}.
+terminate(Reason, State) ->
+    lager:critical("FMKe DB Connection going down, reported reason: ~p~n", [Reason]),
+    lager:info("DB connection manager had state before crashing:~n~p~n", [State]),
+    ok.
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
     #state{pid_owners = PidOwners} = State,
