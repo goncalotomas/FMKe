@@ -38,17 +38,16 @@ handle_cast(_Msg, State) ->
 handle_call(checkout, _From, State) ->
     #state{pid_owners = PidOwners,
            queue = Queue} = State,
-    Pool = queue:head(Queue),
+    {{value, Pool}, Q1} = queue:out(Queue),
     Pid = poolboy:checkout(Pool),
     true = link(Pid),
-    MapState = maps:put(Pid, Pool, PidOwners),
-    QueueState = queue:snoc(queue:tail(Queue), Pool),
-    {reply, Pid, #state{queue = QueueState, pid_owners = MapState}};
+    {reply, Pid, #state{queue = queue:in(Pool, Q1), pid_owners = maps:put(Pid, Pool, PidOwners)}};
 
 handle_call({checkin, Pid}, _From, State) ->
     #state{pid_owners = PidOwners} = State,
     case maps:get(Pid, PidOwners, no_such_pid) of
         no_such_pid ->
+            lager:error("Cannot find owner of pid ~p~n", [Pid]),
             {reply, no_such_pid, State};
         Owner ->
             MapState = maps:remove(Pid, PidOwners),
