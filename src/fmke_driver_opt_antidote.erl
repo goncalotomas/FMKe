@@ -74,21 +74,14 @@ call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescr
             {error, no_such_entity(Entity)};
         false ->
             PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
-            {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
-
-            {Result, Txn3} = case HandleCreateOpResult of
-                ok ->
-                    %% build updates for patients, pharmacies, facilities and the prescriber
-                    %% these are already generated as buckets
-                    PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
-                    PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
-                    PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
-                    txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
-                    {ok, Txn2};
-                ErrorMessage -> {ErrorMessage, Txn2}
-            end,
-            txn_commit(Txn3),
-            Result
+            {_HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
+            %% build updates for patients, pharmacies, facilities and the prescriber
+            %% these are already generated as buckets
+            PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
+            PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
+            PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
+            txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
+            txn_commit(Txn2)
     end;
 
 call({create, Entity, Fields}) ->
@@ -98,7 +91,7 @@ call({update, prescription, Id, {date_processed, DateProcessed}}) ->
     %% process prescription
     Txn = txn_start(),
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)),
-    Result = case can_process_prescription(Prescription) of
+    case can_process_prescription(Prescription) of
         {false, Reason} ->
             {error, Reason};
         true ->
@@ -109,27 +102,23 @@ call({update, prescription, Id, {date_processed, DateProcessed}}) ->
 
             txn_update_objects([PrescriptionUpdate], Txn),
             ok
-      end,
-    ok = txn_commit(Txn),
-    Result;
+    end,
+    txn_commit(Txn);
 
 call({update, prescription, Id, {drugs, add, Drugs}}) ->
     %% process prescription
     Txn = txn_start(),
-    Result =
-          case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
-              {error, not_found} ->
-                  {error, no_such_prescription};
-              #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
-                  {error, prescription_already_processed};
-              #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
-                  PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
-                  UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
-                  put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
-                  ok
-         end,
-    ok = txn_commit(Txn),
-    Result;
+    case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
+          {error, not_found} ->
+              {error, no_such_prescription};
+          #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+              {error, prescription_already_processed};
+          #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+              PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
+              UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
+              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
+     end,
+    txn_commit(Txn);
 
 call({update, Entity, Fields}) ->
     update_if_already_exists(Entity, Fields);
