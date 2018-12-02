@@ -9,10 +9,6 @@
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
-%% antidotec_pb:commit_transaction has some typing issues.
-%% Leave this here until sure that function will not return this error.
--dialyzer({no_match, txn_commit_w_retry/4}).
-
 %% gen_server exports
 -export ([
     start_link/1,
@@ -428,7 +424,7 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
 %% A wrapper for Antidote's commit_transaction function
 -spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
 txn_commit({Pid, TxnDetails}) ->
-    Result = case antidotec_pb:commit_transaction(Pid, Txn) of
+    Result = case antidotec_pb:commit_transaction(Pid, TxnDetails) of
         {ok, _} ->
             ok;
         {error, Error} ->
