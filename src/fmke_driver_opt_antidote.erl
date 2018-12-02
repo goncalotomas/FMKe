@@ -3,7 +3,7 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_antidote).
 
--behaviour(fmke_gen_driver).
+% -behaviour(fmke_gen_driver).
 -behaviour(gen_server).
 
 -include("fmke.hrl").
@@ -12,30 +12,6 @@
 %% antidotec_pb:commit_transaction has some typing issues.
 %% Leave this here until sure that function will not return this error.
 -dialyzer({no_match, txn_commit_w_retry/4}).
-
-%% FMKE driver API
--export([
-  create_patient/3,
-  create_pharmacy/3,
-  create_facility/4,
-  create_staff/4,
-  create_prescription/6,
-  get_facility_by_id/1,
-  get_patient_by_id/1,
-  get_pharmacy_by_id/1,
-  get_processed_pharmacy_prescriptions/1,
-  get_pharmacy_prescriptions/1,
-  get_prescription_by_id/1,
-  get_prescription_medication/1,
-  get_staff_by_id/1,
-  get_staff_prescriptions/1,
-  process_prescription/2,
-  update_patient_details/3,
-  update_pharmacy_details/3,
-  update_facility_details/4,
-  update_staff_details/4,
-  update_prescription_medication/3
-]).
 
 %% gen_server exports
 -export ([
@@ -77,69 +53,18 @@ init([]) ->
     {ok, _Started} = application:ensure_all_started(antidotec_pb),
     {ok, []}.
 
-create_patient(Id, Name, Address) ->
-    gen_server:call(?SERVER, {create, patient, [Id, Name, Address]}).
+handle_call(_Msg, _From, State) ->
+    {noreply, State}.
 
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?SERVER, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?SERVER, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?SERVER, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?SERVER, {create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?SERVER, {read, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?SERVER, {read, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?SERVER, {read, pharmacy, Id}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?SERVER, {read, prescription, Id}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?SERVER, {read, staff, Id}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {read, pharmacy, Id, prescriptions}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {read, pharmacy, Id, processed_prescriptions}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?SERVER, {read, prescription, Id, drugs}).
-
-get_staff_prescriptions(Id) ->
-    gen_server:call(?SERVER, {read, staff, Id, prescriptions}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?SERVER, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?SERVER, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?SERVER, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?SERVER, {update, staff, [Id, Name, Address, Speciality]}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?SERVER, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?SERVER, {update, prescription, Id, {drugs, add, Drugs}}).
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
 
 %% handle_call callbacks
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
+call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}) ->
     %% gather required antidote keys
     PrescriptionKey = gen_key(prescription, Id),
     PatientKey = gen_key(patient, PatientId),
@@ -147,7 +72,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
     PrescriberKey = gen_key(staff, PrescriberId),
     Txn = txn_start(),
     %% check required pre-conditions
-    Res = case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
+    case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
         {true, Entity} ->
             txn_commit(Txn),
             {error, no_such_entity(Entity)};
@@ -168,13 +93,12 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
             end,
             txn_commit(Txn3),
             Result
-    end,
-    {reply, Res, State};
+    end;
 
-handle_call({create, Entity, Fields}, _From, State) ->
-    {reply, create_if_not_exists(Entity, Fields), State};
+call({create, Entity, Fields}) ->
+    create_if_not_exists(Entity, Fields);
 
-handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, State) ->
+call({update, prescription, Id, {date_processed, DateProcessed}}) ->
     %% process prescription
     Txn = txn_start(),
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)),
@@ -191,9 +115,9 @@ handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, 
             ok
       end,
     ok = txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({update, prescription, Id, {drugs, add, Drugs}}, _From, State) ->
+call({update, prescription, Id, {drugs, add, Drugs}}) ->
     %% process prescription
     Txn = txn_start(),
     Result =
@@ -209,12 +133,12 @@ handle_call({update, prescription, Id, {drugs, add, Drugs}}, _From, State) ->
                   ok
          end,
     ok = txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({update, Entity, Fields}, _From, State) ->
-    {reply, update_if_already_exists(Entity, Fields), State};
+call({update, Entity, Fields}) ->
+    update_if_already_exists(Entity, Fields);
 
-handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
+call({read, Entity, Id}) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
     Txn = txn_start(),
     EntityKey = gen_key(Entity, Id),
     BinaryEntity = list_to_binary(atom_to_list(Entity)),
@@ -231,12 +155,12 @@ handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:=
             ])
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id}, _From, State) ->
-    {reply, build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP)), State};
+call({read, Entity, Id}) ->
+    build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP));
 
-handle_call({read, Entity, Id, prescriptions}, _From, State) ->
+call({read, Entity, Id, prescriptions}) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -252,9 +176,9 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
             end
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
+call({read, Entity, Id, processed_prescriptions}) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -276,18 +200,14 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
             end
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, prescription, Id, drugs}, _From, State) ->
+call({read, prescription, Id, drugs}) ->
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP)),
-    Result = case Prescription of
+    case Prescription of
         {error, _} -> {error, no_such_prescription};
         _ -> Prescription#prescription.drugs
-    end,
-    {reply, Result, State}.
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+    end.
 
 missing_keys([]) ->
     false;
