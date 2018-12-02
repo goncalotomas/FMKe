@@ -122,8 +122,8 @@ get_handler_pool_size() ->
     end.
 
 get_num_db_pools() ->
-    Hostnames = application:get_env(?APP, database_addresses),
-    PortNums = application:get_env(?APP, database_ports),
+    {ok, Hostnames} = application:get_env(?APP, database_addresses),
+    {ok, PortNums} = application:get_env(?APP, database_ports),
     {Hosts, _} = make_same_len(Hostnames, PortNums),
     length(Hosts).
 
