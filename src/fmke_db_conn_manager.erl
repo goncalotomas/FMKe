@@ -23,6 +23,7 @@ start_link() ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 init([]) ->
+    process_flag(trap_exit, true),
     {ok, Pools} = application:get_env(?APP, pools),
     {ok, #state{queue = queue:from_list(Pools), pid_owners = #{}}}.
 
