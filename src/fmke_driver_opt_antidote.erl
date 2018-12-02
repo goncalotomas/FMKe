@@ -90,18 +90,18 @@ call({create, Entity, Fields}) ->
 call({update, prescription, Id, {date_processed, DateProcessed}}) ->
     %% process prescription
     Txn = txn_start(),
-    Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)),
-    Result = case can_process_prescription(Prescription) of
-        {false, Reason} ->
-            {error, Reason};
-        true ->
-            PrescriptionKey =  gen_key(prescription, Id),
-            IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_PROCESSED_VALUE),
-            ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, DateProcessed),
-            PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
-
-            txn_update_objects([PrescriptionUpdate], Txn),
-            ok
+    PrescriptionKey = gen_key(prescription, Id),
+    Result = case build_app_record(prescription, process_get_request(PrescriptionKey, ?MAP, Txn)) of
+          {error, not_found} ->
+              {error, no_such_prescription};
+          #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+              {error, prescription_already_processed};
+          #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+              IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_PROCESSED_VALUE),
+              ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, DateProcessed),
+              PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
+              txn_update_objects([PrescriptionUpdate], Txn),
+              ok
     end,
     case txn_commit(Txn) of
         ok ->
@@ -363,14 +363,6 @@ check_keys(Context, [H|T]) ->
         {error, not_found} -> [{free, H}] ++ check_keys(Context, T);
         _Object -> [{taken, H}] ++ check_keys(Context, T)
     end.
-
-can_process_prescription({error, not_found}) ->
-    {false, no_such_prescription};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
-    {false, prescription_already_processed};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
-    true.
-
 
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
