@@ -91,7 +91,7 @@ call({update, prescription, Id, {date_processed, DateProcessed}}) ->
     %% process prescription
     Txn = txn_start(),
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)),
-    case can_process_prescription(Prescription) of
+    Result = case can_process_prescription(Prescription) of
         {false, Reason} ->
             {error, Reason};
         true ->
@@ -103,12 +103,17 @@ call({update, prescription, Id, {date_processed, DateProcessed}}) ->
             txn_update_objects([PrescriptionUpdate], Txn),
             ok
     end,
-    txn_commit(Txn);
+    case txn_commit(Txn) of
+        ok ->
+            Result;
+        Other ->
+            Other
+    end;
 
 call({update, prescription, Id, {drugs, add, Drugs}}) ->
     %% process prescription
     Txn = txn_start(),
-    case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
+    Result = case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
           {error, not_found} ->
               {error, no_such_prescription};
           #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
@@ -116,9 +121,15 @@ call({update, prescription, Id, {drugs, add, Drugs}}) ->
           #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
               PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
               UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
-              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn)
+              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
+              ok
     end,
-    txn_commit(Txn);
+    case txn_commit(Txn) of
+        ok ->
+            Result;
+        Other ->
+            Other
+    end;
 
 call({update, Entity, Fields}) ->
     update_if_already_exists(Entity, Fields);
