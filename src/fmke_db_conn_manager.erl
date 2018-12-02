@@ -57,8 +57,11 @@ handle_call({checkin, Pid}, _From, State) ->
     end.
 
 terminate(Reason, State) ->
-    lager:critical("FMKe DB Connection going down, reported reason: ~p~n", [Reason]),
-    lager:info("DB connection manager had state before crashing:~n~p~n", [State]),
+    #state{pid_owners = PidOwners,
+           queue = Queue} = State,
+    lager:critical("fmke db connection manager going down, reported reason: ~p~n", [Reason]),
+    lager:error("fmke db connection manager crashing with next queue '~p' and ~p pids checked out.~n",
+                [Queue, maps:size(PidOwners)]),
     ok.
 
 handle_info({'EXIT', Pid, _Reason}, State) ->
