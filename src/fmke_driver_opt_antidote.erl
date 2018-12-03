@@ -74,14 +74,20 @@ call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescr
             {error, no_such_entity(Entity)};
         false ->
             PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
-            {_HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
-            %% build updates for patients, pharmacies, facilities and the prescriber
-            %% these are already generated as buckets
-            PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
-            PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
-            PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
-            txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
-            txn_commit(Txn2)
+            {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
+            case HandleCreateOpResult of
+                ok ->
+                    %% build updates for patients, pharmacies, facilities and the prescriber
+                    %% these are already generated as buckets
+                    PatientUpdate = gen_entity_update(add_entity_prescription, [PatientKey, PrescriptionKey]),
+                    PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
+                    PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
+                    txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
+                    txn_commit(Txn2);
+                Error ->
+                    txn_commit(Txn2),
+                    Error
+            end
     end;
 
 call({create, Entity, Fields}) ->
