@@ -64,8 +64,8 @@
 
 
 start_link(_) ->
-    {ok, Hosts} = application:get_env(?APP, hosts),
-    {ok, Ports} = application:get_env(?APP, ports),
+    {ok, Hosts} = application:get_env(?APP, database_addresses),
+    {ok, Ports} = application:get_env(?APP, database_ports),
     {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
     gen_server:start_link(?MODULE, [Hosts, Ports, PoolSize], []).
 
