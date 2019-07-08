@@ -162,6 +162,9 @@ unpack(non_nested, pharmacy, #pharmacy{id = Id, name = Name, address = Address})
     riakc_map:update({?PHARMACY_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?PHARMACY_ADDRESS_KEY, register}, update_reg(Address), riakc_map:new())));
 
+unpack(non_nested, prescription, Element) ->
+    riakc_set:add_element(Element, riakc_set:new());
+
 unpack(_, prescription, #prescription{id = Id, patient_id = PatientId, prescriber_id = PrescriberId,
                                         pharmacy_id = PharmacyId, date_prescribed = DatePrescribed,
                                         date_processed = DateProcessed, drugs = Drugs, is_processed = IsProcessed}) ->
@@ -187,10 +190,7 @@ unpack(non_nested, staff,
     riakc_map:update({?STAFF_ID_KEY, register}, update_reg(Id),
     riakc_map:update({?STAFF_NAME_KEY, register}, update_reg(Name),
     riakc_map:update({?STAFF_ADDRESS_KEY, register}, update_reg(Address),
-    riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality), riakc_map:new()))));
-
-unpack(non_nested, prescription_ref, Element) ->
-    riakc_set:add_element(Element, riakc_set:new()).
+    riakc_map:update({?STAFF_SPECIALITY_KEY, register}, update_reg(Speciality), riakc_map:new())))).
 
 update_reg(V) when is_list(V) -> fun(R) -> riakc_register:set(list_to_binary(V), R) end;
 update_reg(V) when is_binary(V) -> fun(R) -> riakc_register:set(V, R) end;

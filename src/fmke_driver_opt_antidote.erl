@@ -394,7 +394,7 @@ parse_read_result(_) -> erlang:error(unknown_object_type).
 -spec txn_start() -> txid().
 txn_start() ->
     Pid = fmke_db_conn_manager:checkout(),
-    {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, ignore, {}),
+    {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, ignore),
     {Pid, TxnDetails}.
 
 %% A wrapper for Antidote's read_objects function, with a single object being read.

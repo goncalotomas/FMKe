@@ -90,8 +90,7 @@
 %% Returns a triple with {ok, GetResult, NextOperationContext} if the operation was executed successfully or
 %% {error, Reason, NextOperationContext} otherwise.
 -callback get(list({Key::key(), Type::entity()}), OperationContext::context()) ->
-    {ok, list(Result::app_record() | {error, not_found}), NextOpContext::context()} |
-    {error, Reason::term(), NextOpContext::context()}.
+    {list(app_record() | {error, term()}), context()}.
 
 %% put/3 - Adds a list of key-value entries to the database.
 %% To provide context, some information about the each entry being added is included, and additionally the operation
@@ -109,4 +108,4 @@
 %% 2. value() is either an application record (in which case it is considered that every field is supposed to stay under
 %% the same key, )
 -callback put(list({Key::key(), Type::entity(), Value::value()}), OperationContext::context()) ->
-    {ok, NextOperationContext::context()} | {error, Reason::term(), NextOperationContext::context()}.
+    {list(ok | {error, term()}), context()}.

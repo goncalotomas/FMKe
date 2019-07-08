@@ -5,4 +5,4 @@
 -setcookie ${COOKIE}
 
 ## Directories with compiled modules
--pa ./_build/default/lib/*/ebin
+-pa ./_build/default/lib/*/ebin releases/${REL_VSN}/consolidated

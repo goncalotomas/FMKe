@@ -75,7 +75,7 @@ start_antidote(Port) ->
     0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
     %% we are using a timer sleep here aside from the TCP wait because after
     %% AntidoteDB is performing actions after binding to the TCP socket.
-    timer:sleep(4000),
+    timer:sleep(60000),
     ok.
 
 stop_antidote() ->

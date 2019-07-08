@@ -74,6 +74,7 @@
                       #prescription{} |
                       #staff{} |
                       list(key()).
+
 -type entity() :: facility | patient | pharmacy | prescription | staff.
 
 -type facility() :: #facility{}.
