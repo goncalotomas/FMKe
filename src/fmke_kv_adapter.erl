@@ -272,7 +272,7 @@ call({read, Entity, Id, processed_prescriptions}, {Driver, non_nested}) ->
             {Prescs, Context5} = Driver:get(lists:map(fun(K) -> {K, prescription} end, Prescriptions), Context),
             {lists:filter(FilterFun, Prescs), Context5};
         _List ->
-            {[], Context2};
+            {[], Context2}
     end,
     case Driver:commit_transaction(Context4, []) of
         ok -> Result;
