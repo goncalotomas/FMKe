@@ -191,9 +191,10 @@ call({read, Entity, Id}, {Driver, _DataModel}) when Entity =:= patient; Entity =
                                         {<<Key/binary, "_prescriptions">>, prescription_ref}], Context),
     Result = case RResult of
         {error, not_found} -> {error, not_found};
-        X when is_record(X, patient) -> X#patient{prescriptions = Prescs};
-        X when is_record(X, pharmacy) -> X#pharmacy{prescriptions = Prescs};
-        X when is_record(X, staff) -> X#staff{prescriptions = Prescs}
+        X when is_record(X, patient), is_list(Prescs) -> X#patient{prescriptions = Prescs};
+        X when is_record(X, pharmacy), is_list(Prescs) -> X#pharmacy{prescriptions = Prescs};
+        X when is_record(X, staff), is_list(Prescs) -> X#staff{prescriptions = Prescs};
+        BaseRecord -> BaseRecord
     end,
     case Driver:commit_transaction(Context2, []) of
         ok -> Result;
@@ -234,8 +235,10 @@ call({read, Entity, Id, prescriptions}, {Driver, non_nested}) ->
     {Result, Context4} = case EntityObj of
         {error, not_found} ->
             {{error, no_such_entity(Entity)}, Context2};
+        _List when is_list(Prescriptions)->
+            {Prescriptions, Context2};
         _List ->
-            {Prescriptions, Context2}
+            {[], Context2}
     end,
     case Driver:commit_transaction(Context4, []) of
         ok -> Result;
@@ -265,9 +268,11 @@ call({read, Entity, Id, processed_prescriptions}, {Driver, non_nested}) ->
     {Result, Context4} = case EntityObj of
         {error, not_found} ->
             {{error, no_such_entity(Entity)}, Context2};
-        _List ->
+        _List when is_list(Prescriptions) ->
             {Prescs, Context5} = Driver:get(lists:map(fun(K) -> {K, prescription} end, Prescriptions), Context),
-            {lists:filter(FilterFun, Prescs), Context5}
+            {lists:filter(FilterFun, Prescs), Context5};
+        _List ->
+            {[], Context2};
     end,
     case Driver:commit_transaction(Context4, []) of
         ok -> Result;

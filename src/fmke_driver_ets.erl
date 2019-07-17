@@ -32,10 +32,12 @@ put(Entries, Context) ->
     {lists:map(fun({Key, Type, Value}) ->
                  case Type of
                      prescription_ref ->
-                         case ets:lookup(?ETS_TABLE_NAME, Key) of
+                         Val = case ets:lookup(?ETS_TABLE_NAME, Key) of
                              [] ->               [Value];
                              [{Key, List}] ->   [Value | List]
-                         end;
+                         end,
+                         true = ets:insert(?ETS_TABLE_NAME, {Key, Val}),
+                         ok
                      _Other ->
                          true = ets:insert(?ETS_TABLE_NAME, {Key, unpack(nested, Type, Value)}),
                          ok
@@ -61,7 +63,9 @@ pack(_, {Id, PatientId, PrescriberId, PharmacyId,
         ,is_processed = IsProcessed
     };
 pack(_, {Id, Name, Address, Speciality, Prescriptions}, staff) ->
-    #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions}.
+    #staff{id = Id, name = Name, address = Address, speciality = Speciality, prescriptions = Prescriptions};
+pack(non_nested, List, prescription_ref) ->
+    List.
 
 unpack(_, facility, #facility{id = Id, name = Name, address = Address, type = Type}) ->
     {Id, Name, Address, Type};
