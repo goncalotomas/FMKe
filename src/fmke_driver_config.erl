@@ -35,11 +35,9 @@
 
 %% Add your driver to this list if you wish to use FMKe's connection manager
 -define(REQUIRE_CONN_MANAGER, [
-    fmke_driver_antidote,
     fmke_driver_opt_antidote,
     fmke_driver_opt_redis_crdb,
-    fmke_driver_opt_riak_kv,
-    fmke_driver_riak_kv
+    fmke_driver_opt_riak_kv
 ]).
 
 %% Add your driver to this list if you wish to have an ETS table created at boot
@@ -51,9 +49,7 @@
 %% interface and not the entire FMKe API. Drivers that are not on this list
 %% or on the SIMPLE_SQL_DRIVERS are assumed to implement the entire FMKe API.
 -define(SIMPLE_KV_DRIVERS, [
-    fmke_driver_antidote,
-    fmke_driver_ets,
-    fmke_driver_riak_kv
+    fmke_driver_ets
 ]).
 
 -spec selected_driver() -> module().
@@ -86,11 +82,9 @@ requires_ets_table(Driver) ->
     lists:member(Driver, ?REQUIRE_ETS).
 
 -spec get_client_lib(Driver::module()) -> atom().
-get_client_lib(fmke_driver_antidote) ->             antidotec_pb_socket;
 get_client_lib(fmke_driver_opt_antidote) ->         antidotec_pb_socket;
 get_client_lib(fmke_driver_opt_redis_crdb) ->       eredis;
-get_client_lib(fmke_driver_opt_riak_kv) ->          riakc_pb_socket;
-get_client_lib(fmke_driver_riak_kv) ->              riakc_pb_socket.
+get_client_lib(fmke_driver_opt_riak_kv) ->          riakc_pb_socket.
 
 -spec driver_adapter(Driver::module()) -> module().
 driver_adapter(Driver) ->
@@ -102,9 +96,7 @@ driver_adapter(Driver) ->
     end.
 
 db_from_driver(fmke_driver_ets) -> ets;
-db_from_driver(fmke_driver_antidote) -> antidote;
 db_from_driver(fmke_driver_opt_antidote) -> antidote;
-db_from_driver(fmke_driver_riak_kv) -> riak;
 db_from_driver(fmke_driver_opt_riak_kv) -> riak;
 db_from_driver(fmke_driver_opt_cassandra) -> cassandra;
 db_from_driver(fmke_driver_opt_redis_crdb) -> redis_crdb;
