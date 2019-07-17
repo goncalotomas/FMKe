@@ -5,8 +5,7 @@
 -type database() :: atom().
 
 -define(KV_ADAPTER, fmke_kv_adapter).
--define(SQL_ADAPTER, fmke_sql_adapter).
--define(PT_ADAPTER, fmke_pt_adapter).
+
 
 -export([
     db_from_driver/1,
@@ -92,7 +91,7 @@ driver_adapter(Driver) ->
         false ->
             ?KV_ADAPTER;
         true ->
-            ?PT_ADAPTER
+            Driver
     end.
 
 db_from_driver(fmke_driver_ets) -> ets;
