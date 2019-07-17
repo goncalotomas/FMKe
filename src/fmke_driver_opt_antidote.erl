@@ -3,47 +3,19 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_antidote).
 
--behaviour(fmke_gen_driver).
+% -behaviour(fmke_gen_driver).
 -behaviour(gen_server).
 
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
-%% antidotec_pb:commit_transaction has some typing issues.
-%% Leave this here until sure that function will not return this error.
--dialyzer({no_match, txn_commit_w_retry/4}).
-
-%% FMKE driver API
--export([
-  start/1,
-  stop/1,
-  create_patient/3,
-  create_pharmacy/3,
-  create_facility/4,
-  create_staff/4,
-  create_prescription/6,
-  get_facility_by_id/1,
-  get_patient_by_id/1,
-  get_pharmacy_by_id/1,
-  get_processed_pharmacy_prescriptions/1,
-  get_pharmacy_prescriptions/1,
-  get_prescription_by_id/1,
-  get_prescription_medication/1,
-  get_staff_by_id/1,
-  get_staff_prescriptions/1,
-  process_prescription/2,
-  update_patient_details/3,
-  update_pharmacy_details/3,
-  update_facility_details/4,
-  update_staff_details/4,
-  update_prescription_medication/3
-]).
-
 %% gen_server exports
 -export ([
-    init/1
-    ,handle_call/3
-    ,handle_cast/2
+    start_link/1,
+    stop/1,
+    init/1,
+    handle_call/3,
+    handle_cast/2
 ]).
 
 -define(SERVER, ?MODULE).
@@ -67,79 +39,28 @@
 % -type map_field_op() ::  {remove, field()}.
 % -type map_op() :: {update, {[map_field_update() | map_field_op()], actorordot()}}.
 
-start(_) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
 
-stop(_) ->
-    gen_server:stop(?SERVER).
+stop(Pid) ->
+    gen_server:stop(Pid).
 
 init([]) ->
     {ok, _Started} = application:ensure_all_started(antidotec_pb),
     {ok, []}.
 
-create_patient(Id, Name, Address) ->
-    gen_server:call(?SERVER, {create, patient, [Id, Name, Address]}).
+handle_call(_Msg, _From, State) ->
+    {noreply, State}.
 
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?SERVER, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?SERVER, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?SERVER, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?SERVER, {create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?SERVER, {get, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?SERVER, {get, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?SERVER, {get, prescription, Id}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?SERVER, {get, staff, Id}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id, prescriptions}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, pharmacy, Id, processed_prescriptions}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?SERVER, {get, prescription, Id, drugs}).
-
-get_staff_prescriptions(Id) ->
-    gen_server:call(?SERVER, {get, staff, Id, prescriptions}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?SERVER, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?SERVER, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?SERVER, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?SERVER, {update, staff, [Id, Name, Address, Speciality]}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?SERVER, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?SERVER, {update, prescription, Id, {drugs, add, Drugs}}).
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
 
 %% handle_call callbacks
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
+call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}) ->
     %% gather required antidote keys
     PrescriptionKey = gen_key(prescription, Id),
     PatientKey = gen_key(patient, PatientId),
@@ -147,15 +68,14 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
     PrescriberKey = gen_key(staff, PrescriberId),
     Txn = txn_start(),
     %% check required pre-conditions
-    Res = case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
+    case missing_keys(check_keys(Txn, [{patient, PatientId}, {pharmacy, PharmacyId}, {staff, PrescriberId}])) of
         {true, Entity} ->
             txn_commit(Txn),
             {error, no_such_entity(Entity)};
         false ->
             PrescriptionFields = [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs],
             {HandleCreateOpResult, Txn2} = create_if_not_exists(prescription, PrescriptionFields, Txn),
-
-            {Result, Txn3} = case HandleCreateOpResult of
+            case HandleCreateOpResult of
                 ok ->
                     %% build updates for patients, pharmacies, facilities and the prescriber
                     %% these are already generated as buckets
@@ -163,58 +83,64 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
                     PharmacyUpdate = gen_entity_update(add_entity_prescription, [PharmacyKey, PrescriptionKey]),
                     PrescriberUpdate = gen_entity_update(add_entity_prescription, [PrescriberKey, PrescriptionKey]),
                     txn_update_objects([PharmacyUpdate, PrescriberUpdate, PatientUpdate], Txn2),
-                    {ok, Txn2};
-                ErrorMessage -> {ErrorMessage, Txn2}
-            end,
-            txn_commit(Txn3),
-            Result
+                    txn_commit(Txn2);
+                Error ->
+                    txn_commit(Txn2),
+                    Error
+            end
+    end;
+
+call({create, Entity, Fields}) ->
+    create_if_not_exists(Entity, Fields);
+
+call({update, prescription, Id, {date_processed, DateProcessed}}) ->
+    %% process prescription
+    Txn = txn_start(),
+    PrescriptionKey = gen_key(prescription, Id),
+    Result = case build_app_record(prescription, process_get_request(PrescriptionKey, ?MAP, Txn)) of
+          {error, not_found} ->
+              {error, no_such_prescription};
+          #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+              {error, prescription_already_processed};
+          #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+              IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_PROCESSED_VALUE),
+              ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, DateProcessed),
+              PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
+              txn_update_objects([PrescriptionUpdate], Txn),
+              ok
     end,
-    {reply, Res, State};
+    case txn_commit(Txn) of
+        ok ->
+            Result;
+        Other ->
+            Other
+    end;
 
-handle_call({create, Entity, Fields}, _From, State) ->
-    {reply, create_if_not_exists(Entity, Fields), State};
-
-handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, State) ->
+call({update, prescription, Id, {drugs, add, Drugs}}) ->
     %% process prescription
     Txn = txn_start(),
-    Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)),
-    Result = case can_process_prescription(Prescription) of
-        {false, Reason} ->
-            {error, Reason};
-        true ->
-            PrescriptionKey =  gen_key(prescription, Id),
-            IsProcessedOp = build_lwwreg_op(?PRESCRIPTION_IS_PROCESSED_KEY, ?LWWREG, ?PRESCRIPTION_PROCESSED_VALUE),
-            ProcessedOp = build_lwwreg_op(?PRESCRIPTION_DATE_PROCESSED_KEY, ?LWWREG, DateProcessed),
-            PrescriptionUpdate = {create_bucket(PrescriptionKey, ?MAP), update, [IsProcessedOp, ProcessedOp]},
+    Result = case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
+          {error, not_found} ->
+              {error, no_such_prescription};
+          #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
+              {error, prescription_already_processed};
+          #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
+              PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
+              UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
+              put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
+              ok
+    end,
+    case txn_commit(Txn) of
+        ok ->
+            Result;
+        Other ->
+            Other
+    end;
 
-            txn_update_objects([PrescriptionUpdate], Txn),
-            ok
-      end,
-    ok = txn_commit(Txn),
-    {reply, Result, State};
+call({update, Entity, Fields}) ->
+    update_if_already_exists(Entity, Fields);
 
-handle_call({update, prescription, Id, {drugs, add, Drugs}}, _From, State) ->
-    %% process prescription
-    Txn = txn_start(),
-    Result =
-          case build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP, Txn)) of
-              {error, not_found} ->
-                  {error, no_such_prescription};
-              #prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE} ->
-                  {error, prescription_already_processed};
-              #prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE} ->
-                  PrescriptionSetOp = {add_all, lists:map(fun(Drug) -> list_to_binary(Drug) end, Drugs)},
-                  UpdateOperation = [build_map_op(?PRESCRIPTION_DRUGS_KEY, ?ORSET, PrescriptionSetOp)],
-                  put(gen_key(prescription, Id), ?MAP, update, UpdateOperation, Txn),
-                  ok
-         end,
-    ok = txn_commit(Txn),
-    {reply, Result, State};
-
-handle_call({update, Entity, Fields}, _From, State) ->
-    {reply, update_if_already_exists(Entity, Fields), State};
-
-handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
+call({read, Entity, Id}) when Entity =:= patient; Entity =:= pharmacy; Entity =:= staff ->
     Txn = txn_start(),
     EntityKey = gen_key(Entity, Id),
     BinaryEntity = list_to_binary(atom_to_list(Entity)),
@@ -231,12 +157,12 @@ handle_call({get, Entity, Id}, _From, State) when Entity =:= patient; Entity =:=
             ])
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({get, Entity, Id}, _From, State) ->
-    {reply, build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP)), State};
+call({read, Entity, Id}) ->
+    build_app_record(Entity, process_get_request(gen_key(Entity, Id), ?MAP));
 
-handle_call({get, Entity, Id, prescriptions}, _From, State) ->
+call({read, Entity, Id, prescriptions}) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -252,9 +178,9 @@ handle_call({get, Entity, Id, prescriptions}, _From, State) ->
             end
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
+call({read, Entity, Id, processed_prescriptions}) ->
     Key = gen_key(Entity, Id),
     Txn = txn_start(),
     Result = case build_app_record(Entity, process_get_request(Key, ?MAP, Txn)) of
@@ -276,18 +202,14 @@ handle_call({get, Entity, Id, processed_prescriptions}, _From, State) ->
             end
     end,
     txn_commit(Txn),
-    {reply, Result, State};
+    Result;
 
-handle_call({get, prescription, Id, drugs}, _From, State) ->
+call({read, prescription, Id, drugs}) ->
     Prescription = build_app_record(prescription, process_get_request(gen_key(prescription, Id), ?MAP)),
-    Result = case Prescription of
+    case Prescription of
         {error, _} -> {error, no_such_prescription};
         _ -> Prescription#prescription.drugs
-    end,
-    {reply, Result, State}.
-
-handle_cast(_Msg, State) ->
-    {noreply, State}.
+    end.
 
 missing_keys([]) ->
     false;
@@ -448,14 +370,6 @@ check_keys(Context, [H|T]) ->
         _Object -> [{taken, H}] ++ check_keys(Context, T)
     end.
 
-can_process_prescription({error, not_found}) ->
-    {false, no_such_prescription};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_PROCESSED_VALUE}) ->
-    {false, prescription_already_processed};
-can_process_prescription(#prescription{is_processed=?PRESCRIPTION_NOT_PROCESSED_VALUE}) ->
-    true.
-
-
 %%-----------------------------------------------------------------------------
 %% Internal auxiliary functions - simplifying calls to external modules
 %%-----------------------------------------------------------------------------
@@ -480,7 +394,7 @@ parse_read_result(_) -> erlang:error(unknown_object_type).
 -spec txn_start() -> txid().
 txn_start() ->
     Pid = fmke_db_conn_manager:checkout(),
-    {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, ignore, {}),
+    {ok, TxnDetails} = antidotec_pb:start_transaction(Pid, ignore),
     {Pid, TxnDetails}.
 
 %% A wrapper for Antidote's read_objects function, with a single object being read.
@@ -508,29 +422,15 @@ txn_update_objects(ObjectUpdates, {Pid, TxnDetails}) ->
 %% A wrapper for Antidote's commit_transaction function
 -spec txn_commit(TxnDetails :: txid()) -> ok | {error, term()}.
 txn_commit({Pid, TxnDetails}) ->
-    Result = txn_commit_w_retry(Pid, TxnDetails, 0, ?ANTIDOTE_TRANSACTION_RETRIES),
-    fmke_db_conn_manager:checkin(Pid),
-    Result.
-
-txn_commit_w_retry(Pid, Txn, MaxTry, MaxTry) ->
-    lager:error("Transaction ~p failed, aborting...~n"),
-    case antidotec_pb:abort_transaction(Pid, Txn) of
-        ok ->
-            {error, transaction_aborted_max_commit_attempts};
-        {error, Error} ->
-            lager:error("Transaction ~p could not be aborted, error returned: ~p~n", [Txn, Error]),
-            throw({error, transaction_failed_abort_failed})
-    end;
-
-txn_commit_w_retry(Pid, Txn, CurrTry, MaxTry) ->
-    case antidotec_pb:commit_transaction(Pid, Txn) of
+    Result = case antidotec_pb:commit_transaction(Pid, TxnDetails) of
         {ok, _} ->
             ok;
         {error, Error} ->
-            lager:warning("Transaction commit failed for ~p: ~p, retrying...~n", [Txn, Error]),
-            txn_commit_w_retry(Pid, Txn, CurrTry + 1, MaxTry)
-    end.
-
+            lager:warning("Antidote transaction failed: ~p~n", [Error]),
+            {error, aborted}
+    end,
+    fmke_db_conn_manager:checkin(Pid),
+    Result.
 
 %% ------------------------------------------------------------------------------------------------
 %% Simple API - Recommended way to interact with Antidote

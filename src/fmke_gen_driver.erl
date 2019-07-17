@@ -23,8 +23,8 @@
 -type context() :: term().
 -type crdt() :: term().
 
--callback start(State::term()) -> {ok, term()} | {error, term()}.
--callback stop(State::term()) -> {ok, term()} | {error, term()}.
+-callback start_link(term()) -> {ok, pid()} | {error, term()}.
+-callback stop(pid()) -> ok | {error, term()}.
 
 %%-----------------------------------------------------------------------------
 %% Create Operations

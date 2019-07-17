@@ -1,7 +1,7 @@
 dist: xenial
 language: erlang
 otp_release:
-  - 21.1
+  - 22.0
 services:
   - docker
 addons:

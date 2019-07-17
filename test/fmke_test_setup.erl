@@ -41,7 +41,7 @@
 -define(DOCKER_CMD_STOP_ALL, "docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
 
 -define(DOCKER_CMD_START_ANTIDOTE(Port), "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
-                                   "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" mweber/antidotedb").
+                                   "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" antidotedb/antidote").
 
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
                                 "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
@@ -75,7 +75,7 @@ start_antidote(Port) ->
     0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
     %% we are using a timer sleep here aside from the TCP wait because after
     %% AntidoteDB is performing actions after binding to the TCP socket.
-    timer:sleep(4000),
+    timer:sleep(60000),
     ok.
 
 stop_antidote() ->

@@ -16,7 +16,7 @@
 -define (COOKIE, fmke).
 
 suite() ->
-    [{timetrap, {minutes, 1}}].
+    [{timetrap, {minutes, 3}}].
 
 %%--------------------------------------------------------------------
 %% Function: init_per_suite(Config0) ->

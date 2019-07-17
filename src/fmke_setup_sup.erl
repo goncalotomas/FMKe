@@ -26,7 +26,6 @@ start_link(Args) ->
 init([]) ->
     %% Driver, adapter, data_model and connection_pool_size are assumed to be defined at this point by fmke_sup.
     Driver = fmke_driver_config:selected_driver(),
-    Adapter = fmke_driver_config:selected_adapter(),
     {ok, DataModel} = application:get_env(?APP, data_model),
     {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
     %% these remaining 2 options may be undefined if working with Mnesia, ETS, or other types of connections that don't
@@ -52,7 +51,7 @@ init([]) ->
             RequestedDataModel
     end,
 
-    BaseChildren = [adapter_spec(Adapter, Driver, DataModel), driver_spec(Driver, DataModel)],
+    BaseChildren = [handler_pool_spec()],
 
     Children = case {Hostnames, PortNums} of
         {undefined, undefined} ->
@@ -86,24 +85,6 @@ init([]) ->
 
     {ok, {RestartStrategy, Children}}.
 
--spec adapter_spec(module(), module(), atom()) -> supervisor:child_spec().
-adapter_spec(Adapter, Driver, DataModel) ->
-    #{
-        id => fmke,
-        start => {Adapter, start, [[Driver, DataModel]]},
-        restart => permanent,
-        type => worker
-    }.
-
--spec driver_spec(Driver::module(), DataModel::atom()) -> supervisor:child_spec().
-driver_spec(Driver, DataModel) ->
-  #{
-      id => driver,
-      start => {Driver, start, [DataModel]},
-      restart => permanent,
-      type => worker
-  }.
-
 -spec conn_mgr_sup_spec(Args::list(term())) -> supervisor:child_spec().
 conn_mgr_sup_spec(Args) ->
   #{
@@ -112,6 +93,39 @@ conn_mgr_sup_spec(Args) ->
       restart => permanent,
       type => supervisor
   }.
+
+-spec handler_pool_spec() -> supervisor:child_spec().
+handler_pool_spec() ->
+    Driver = fmke_driver_config:selected_driver(),
+    {Module, WorkerArgs} = case fmke_driver_config:is_simple_kv_driver(Driver) of
+        false ->
+            {Driver, []};
+        true ->
+            {ok, DataModel} = application:get_env(?APP, data_model),
+            {fmke_kv_adapter, [Driver, DataModel]}
+    end,
+    Name = handlers,
+    NumHandlers = get_handler_pool_size(),
+    lager:info("Handler pool will have ~p procs.", [NumHandlers]),
+    SizeArgs = [{size, NumHandlers}, {max_overflow, 0}],
+    PoolArgs = [{name, {local, Name}}, {worker_module, Module}] ++ SizeArgs,
+    poolboy:child_spec(Name, PoolArgs, WorkerArgs).
+
+get_handler_pool_size() ->
+    Driver = fmke_driver_config:selected_driver(),
+    {ok, ConnPoolSize} = application:get_env(?APP, connection_pool_size),
+    case fmke_driver_config:requires_conn_manager(Driver) of
+        false ->
+            ConnPoolSize;
+        true ->
+            ConnPoolSize * get_num_db_pools()
+    end.
+
+get_num_db_pools() ->
+    {ok, Hostnames} = application:get_env(?APP, database_addresses),
+    {ok, PortNums} = application:get_env(?APP, database_ports),
+    {Hosts, _} = make_same_len(Hostnames, PortNums),
+    length(Hosts).
 
 -spec gen_pool_names(list(list()), list(non_neg_integer())) -> list(atom()).
 gen_pool_names(Addrs, Ports) ->

@@ -7,61 +7,42 @@
 %% warnings were disabled only for this module.
 -dialyzer([no_match, no_unused, no_return]).
 
--behaviour(fmke_gen_driver).
+% -behaviour(fmke_gen_driver).
 -behaviour(gen_server).
 
 -include("fmke.hrl").
 -include("fmke_kv.hrl").
 
-%% API
-
--export([
-  start/1
-  ,stop/1
-  ,create_patient/3
-  ,create_pharmacy/3
-  ,create_facility/4
-  ,create_staff/4
-  ,create_prescription/6
-  ,get_facility_by_id/1
-  ,get_patient_by_id/1
-  ,get_pharmacy_by_id/1
-  ,get_processed_pharmacy_prescriptions/1
-  ,get_pharmacy_prescriptions/1
-  ,get_prescription_by_id/1
-  ,get_prescription_medication/1
-  ,get_staff_by_id/1
-  ,get_staff_prescriptions/1
-  ,process_prescription/2
-  ,update_patient_details/3
-  ,update_pharmacy_details/3
-  ,update_facility_details/4
-  ,update_staff_details/4
-  ,update_prescription_medication/3
-]).
-
 %% gen_server exports
 -export ([
-    init/1
+    start_link/1
+    ,stop/1
+    ,init/1
     ,handle_cast/2
     ,handle_call/3
 ]).
 
 -define(SERVER, ?MODULE).
 
-start(_) ->
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+start_link(Args) ->
+    gen_server:start_link(?MODULE, Args, []).
 
-stop(_) ->
-    gen_server:stop(?SERVER).
+stop(Pid) ->
+    gen_server:stop(Pid).
 
 init([]) ->
     {ok, []}.
 
-handle_cast(_Msg, State) ->
+handle_call(_Msg, _From, State) ->
     {noreply, State}.
 
-handle_call({update, prescription, Id, Action}, _From, State) ->
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
+
+call({update, prescription, Id, Action}) ->
     %% facility, patient, pharmacy, staff
     PKey = gen_key(prescription, Id),
     Pid = fmke_db_conn_manager:checkout(),
@@ -102,9 +83,9 @@ handle_call({update, prescription, Id, Action}, _From, State) ->
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({update, Entity, [Id | _Fs] = Fields}, _From, State) ->
+call({update, Entity, [Id | _Fs] = Fields}) ->
     %% facility, patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     {ok, ListFields} = eredis:q(Pid, ["HGETALL", gen_key(Entity, Id)]),
@@ -116,9 +97,9 @@ handle_call({update, Entity, [Id | _Fs] = Fields}, _From, State) ->
             ok
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id}, _From, State) ->
+call({read, Entity, Id}) ->
     %% facility, patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     {ok, ListFields} = eredis:q(Pid, ["HGETALL", gen_key(Entity, Id)]),
@@ -133,9 +114,9 @@ handle_call({read, Entity, Id}, _From, State) ->
             parse_fields(Entity, ListFields ++ [entity_prescriptions_key(Entity), Prescs])
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id, prescriptions}, _From, State) ->
+call({read, Entity, Id, prescriptions}) ->
     %% patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     {ok, ListFields} = eredis:q(Pid, ["HGETALL", gen_key(Entity, Id)]),
@@ -147,9 +128,9 @@ handle_call({read, Entity, Id, prescriptions}, _From, State) ->
             Prescs
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
+call({read, Entity, Id, processed_prescriptions}) ->
     %% patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     {ok, ListFields} = eredis:q(Pid, ["HGETALL", gen_key(Entity, Id)]),
@@ -170,9 +151,9 @@ handle_call({read, Entity, Id, processed_prescriptions}, _From, State) ->
             end
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({create, prescription, [Id, PatId, DocId, PharmId | _Fs] = Fields}, _From, State) ->
+call({create, prescription, [Id, PatId, DocId, PharmId | _Fs] = Fields}) ->
     %% facility, patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     [{ok, Presc}, {ok, Pat}, {ok, Doc}, {ok, Pharm}] = eredis:qp(Pid, [
@@ -201,9 +182,9 @@ handle_call({create, prescription, [Id, PatId, DocId, PharmId | _Fs] = Fields}, 
             ok
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State};
+    Result;
 
-handle_call({create, Entity, [Id | _Fs] = Fields}, _From, State) ->
+call({create, Entity, [Id | _Fs] = Fields}) ->
     %% facility, patient, pharmacy, staff
     Pid = fmke_db_conn_manager:checkout(),
     {ok, ListFields} = eredis:q(Pid, ["HGETALL", gen_key(Entity, Id)]),
@@ -215,7 +196,7 @@ handle_call({create, Entity, [Id | _Fs] = Fields}, _From, State) ->
             {error, id_taken(Entity)}
     end,
     fmke_db_conn_manager:checkin(Pid),
-    {reply, Result, State}.
+    Result.
 
 new_rec(facility) ->        #facility{};
 new_rec(patient) ->         #patient{};
@@ -330,68 +311,6 @@ bin_or_int_to_list(Id) when is_integer(Id) ->
     integer_to_list(Id);
 bin_or_int_to_list(Id) when is_binary(Id) ->
     binary_to_list(Id).
-
-create_patient(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, patient, [Id, Name, Address]}).
-
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?MODULE,
-        {create, prescription, [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}
-    ).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?MODULE, {read, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?MODULE, {read, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, processed_prescriptions}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, prescriptions}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id, [drugs]}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?MODULE, {read, staff, Id}).
-
-get_staff_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, staff, Id, prescriptions}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {update, staff, [Id, Name, Address, Speciality]}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
 
 gen_key(Entity, Id) ->
     atom_to_list(Entity) ++ "_" ++ bin_or_int_to_list(Id).

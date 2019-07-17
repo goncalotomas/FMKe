@@ -3,7 +3,7 @@
 %% ---------------------------------------------------------------------------------------------------------------------
 -module(fmke_driver_opt_cassandra).
 
--behaviour(fmke_gen_driver).
+% -behaviour(fmke_gen_driver).
 -behaviour(gen_server).
 
 -include("fmke.hrl").
@@ -11,36 +11,11 @@
 
 -include_lib("erlcass/include/erlcass.hrl").
 
-% API
-
--export([
-  start/1
-  ,stop/1
-  ,create_patient/3
-  ,create_pharmacy/3
-  ,create_facility/4
-  ,create_staff/4
-  ,create_prescription/6
-  ,get_facility_by_id/1
-  ,get_patient_by_id/1
-  ,get_pharmacy_by_id/1
-  ,get_processed_pharmacy_prescriptions/1
-  ,get_pharmacy_prescriptions/1
-  ,get_prescription_by_id/1
-  ,get_prescription_medication/1
-  ,get_staff_by_id/1
-  ,get_staff_prescriptions/1
-  ,process_prescription/2
-  ,update_patient_details/3
-  ,update_pharmacy_details/3
-  ,update_facility_details/4
-  ,update_staff_details/4
-  ,update_prescription_medication/3
-]).
-
 %% gen_server exports
 -export ([
-    init/1
+    start_link/1
+    ,stop/1
+    ,init/1
     ,handle_cast/2
     ,handle_call/3
 ]).
@@ -88,14 +63,14 @@
                         {<<"pharmid">>, int}, {<<"dateprescribed">>, timestamp}, {<<"dateprocessed">>, timestamp}]).
 
 
-start(_) ->
-    {ok, Hosts} = application:get_env(?APP, hosts),
-    {ok, Ports} = application:get_env(?APP, ports),
+start_link(_) ->
+    {ok, Hosts} = application:get_env(?APP, database_addresses),
+    {ok, Ports} = application:get_env(?APP, database_ports),
     {ok, PoolSize} = application:get_env(?APP, connection_pool_size),
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [Hosts, Ports, PoolSize], []).
+    gen_server:start_link(?MODULE, [Hosts, Ports, PoolSize], []).
 
-stop(_) ->
-    gen_server:call(?MODULE, stop).
+stop(Pid) ->
+    gen_server:call(Pid, stop).
 
 init([Hosts, Ports, PoolSize]) ->
     %% TODO remove load_balance_dc_aware if only using 1 DC
@@ -144,73 +119,17 @@ init([Hosts, Ports, PoolSize]) ->
 
     {ok, {}}.
 
-handle_cast(_Msg, State) ->
+handle_call(_Msg, _From, State) ->
     {noreply, State}.
 
-create_patient(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, patient, [Id, Name, Address]}).
+handle_cast({Op, Client}, State) ->
+    Reply = call(Op),
+    gen_server:reply(Client, Reply),
+    poolboy:checkin(handlers, self()),
+    {noreply, State}.
 
-create_pharmacy(Id, Name, Address) ->
-    gen_server:call(?MODULE, {create, pharmacy, [Id, Name, Address]}).
-
-create_facility(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {create, facility, [Id, Name, Address, Type]}).
-
-create_staff(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {create, staff, [Id, Name, Address, Speciality]}).
-
-create_prescription(PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs) ->
-    gen_server:call(?MODULE,
-        {create, prescription, [PrescriptionId, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}
-    ).
-
-get_facility_by_id(Id) ->
-    gen_server:call(?MODULE, {read, facility, Id}).
-
-get_patient_by_id(Id) ->
-    gen_server:call(?MODULE, {read, patient, Id}).
-
-get_pharmacy_by_id(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id}).
-
-get_processed_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, processed_prescriptions}).
-
-get_pharmacy_prescriptions(Id) ->
-    gen_server:call(?MODULE, {read, pharmacy, Id, prescriptions}).
-
-get_prescription_by_id(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id}).
-
-get_prescription_medication(Id) ->
-    gen_server:call(?MODULE, {read, prescription, Id, [drugs]}).
-
-get_staff_by_id(Id) ->
-    gen_server:call(?MODULE, {read, staff, Id}).
-
-get_staff_prescriptions(Id) ->
-  gen_server:call(?MODULE, {read, staff, Id, prescriptions}).
-
-process_prescription(Id, DateProcessed) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {date_processed, DateProcessed}}).
-
-update_patient_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, patient, [Id, Name, Address]}).
-
-update_pharmacy_details(Id, Name, Address) ->
-    gen_server:call(?MODULE, {update, pharmacy, [Id, Name, Address]}).
-
-update_facility_details(Id, Name, Address, Type) ->
-    gen_server:call(?MODULE, {update, facility, [Id, Name, Address, Type]}).
-
-update_staff_details(Id, Name, Address, Speciality) ->
-    gen_server:call(?MODULE, {update, staff, [Id, Name, Address, Speciality]}).
-
-update_prescription_medication(Id, add_drugs, Drugs) ->
-    gen_server:call(?MODULE, {update, prescription, Id, {drugs, add, Drugs}}).
-
-handle_call({read, patient, Id}, _From, State) ->
-    Result = case parse_result(patient, erlcass:execute(read_patient, [Id])) of
+call({read, patient, Id}) ->
+    case parse_result(patient, erlcass:execute(read_patient, [Id])) of
         {error, Reason} ->
             {error, Reason};
         #patient{} = P ->
@@ -222,11 +141,10 @@ handle_call({read, patient, Id}, _From, State) ->
                     List
             end,
             P#patient{prescriptions = PrescriptionIds}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, pharmacy, Id}, _From, State) ->
-    Result = case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
+call({read, pharmacy, Id}) ->
+    case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
         {error, Reason} ->
             {error, Reason};
         #pharmacy{} = P ->
@@ -238,15 +156,13 @@ handle_call({read, pharmacy, Id}, _From, State) ->
                     List
             end,
             P#pharmacy{prescriptions = PrescriptionIds}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, facility, Id}, _From, State) ->
-    Result = parse_result(facility, erlcass:execute(read_facility, [Id])),
-    {reply, Result, State};
+call({read, facility, Id}) ->
+    parse_result(facility, erlcass:execute(read_facility, [Id]));
 
-handle_call({read, staff, Id}, _From, State) ->
-    Result = case parse_result(staff, erlcass:execute(read_staff, [Id])) of
+call({read, staff, Id}) ->
+    case parse_result(staff, erlcass:execute(read_staff, [Id])) of
         {error, Reason} ->
             {error, Reason};
         #staff{} = P ->
@@ -258,83 +174,74 @@ handle_call({read, staff, Id}, _From, State) ->
                     List
             end,
             P#staff{prescriptions = PrescriptionIds}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({create, facility, [Id, Name, Address, Type]}, _From, State) ->
-    Result = case parse_result(facility, erlcass:execute(read_facility, [Id])) of
+call({create, facility, [Id, Name, Address, Type]}) ->
+    case parse_result(facility, erlcass:execute(read_facility, [Id])) of
         {error, _Reason} ->
             erlcass:execute(create_facility, [Id, Name, Address, Type]);
         #facility{} ->
             {error, id_taken(facility)}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, facility, [Id, Name, Address, Type]}, _From, State) ->
-    Result = case parse_result(facility, erlcass:execute(read_facility, [Id])) of
+call({update, facility, [Id, Name, Address, Type]}) ->
+    case parse_result(facility, erlcass:execute(read_facility, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(facility)};
         #facility{} ->
             erlcass:execute(update_facility, [Name, Address, Type, Id])
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({create, patient, [Id, Name, Address]}, _From, State) ->
-    Result = case parse_result(patient, erlcass:execute(read_patient, [Id])) of
+call({create, patient, [Id, Name, Address]}) ->
+    case parse_result(patient, erlcass:execute(read_patient, [Id])) of
         {error, _Reason} ->
             erlcass:execute(create_patient, [Id, Name, Address]);
         #patient{} ->
             {error, id_taken(patient)}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, patient, [Id, Name, Address]}, _From, State) ->
-    Result = case parse_result(patient, erlcass:execute(read_patient, [Id])) of
+call({update, patient, [Id, Name, Address]}) ->
+    case parse_result(patient, erlcass:execute(read_patient, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(patient)};
         #patient{} ->
             erlcass:execute(update_patient, [Name, Address, Id])
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({create, pharmacy, [Id, Name, Address]}, _From, State) ->
-    Result = case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
+call({create, pharmacy, [Id, Name, Address]}) ->
+    case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
         {error, _Reason} ->
             erlcass:execute(create_pharmacy, [Id, Name, Address]);
         #pharmacy{} ->
             {error, id_taken(pharmacy)}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, pharmacy, [Id, Name, Address]}, _From, State) ->
-    Result = case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
+call({update, pharmacy, [Id, Name, Address]}) ->
+    case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(pharmacy)};
         #pharmacy{} ->
             erlcass:execute(update_pharmacy, [Name, Address, Id])
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({create, staff, [Id, Name, Address, Speciality]}, _From, State) ->
-    Result = case parse_result(staff, erlcass:execute(read_staff, [Id])) of
+call({create, staff, [Id, Name, Address, Speciality]}) ->
+    case parse_result(staff, erlcass:execute(read_staff, [Id])) of
         {error, _Reason} ->
             erlcass:execute(create_staff, [Id, Name, Address, Speciality]);
         #staff{} ->
             {error, id_taken(staff)}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, staff, [Id, Name, Address, Speciality]}, _From, State) ->
-    Result = case parse_result(staff, erlcass:execute(read_staff, [Id])) of
+call({update, staff, [Id, Name, Address, Speciality]}) ->
+    case parse_result(staff, erlcass:execute(read_staff, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(staff)};
         #staff{} ->
             erlcass:execute(update_staff, [Name, Address, Speciality, Id])
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, staff, Id, prescriptions}, _From, State) ->
-    Result = case parse_result(staff, erlcass:execute(read_staff, [Id])) of
+call({read, staff, Id, prescriptions}) ->
+    case parse_result(staff, erlcass:execute(read_staff, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(staff)};
         #staff{} ->
@@ -349,11 +256,10 @@ handle_call({read, staff, Id, prescriptions}, _From, State) ->
                         Presc#prescription{drugs = Drugs}
                     end, ListIDs)
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, pharmacy, Id, prescriptions}, _From, State) ->
-    Result = case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
+call({read, pharmacy, Id, prescriptions}) ->
+    case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(pharmacy)};
         #pharmacy{} ->
@@ -368,11 +274,10 @@ handle_call({read, pharmacy, Id, prescriptions}, _From, State) ->
                         Presc#prescription{drugs = Drugs}
                     end, ListIDs)
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, pharmacy, Id, processed_prescriptions}, _From, State) ->
-    Result = case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
+call({read, pharmacy, Id, processed_prescriptions}) ->
+    case parse_result(pharmacy, erlcass:execute(read_pharmacy, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(pharmacy)};
         #pharmacy{} ->
@@ -391,11 +296,10 @@ handle_call({read, pharmacy, Id, processed_prescriptions}, _From, State) ->
                         Presc#prescription.is_processed == ?PRESCRIPTION_PROCESSED_VALUE
                     end, Prescriptions)
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, prescription, Id}, _From, State) ->
-    Result = case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
+call({read, prescription, Id}) ->
+    case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
         {error, not_found} ->
             {error, not_found};
         #prescription{} = P ->
@@ -407,11 +311,10 @@ handle_call({read, prescription, Id}, _From, State) ->
                     ListDrugs
             end,
             P#prescription{drugs = Drugs}
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({read, prescription, Id, [drugs]}, _From, State) ->
-    Result = case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
+call({read, prescription, Id, [drugs]}) ->
+    case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(prescription)};
         #prescription{} ->
@@ -423,11 +326,10 @@ handle_call({read, prescription, Id, [drugs]}, _From, State) ->
                 [_H|_T] = Drugs ->
                     Drugs
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, State) ->
-    Result = case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
+call({update, prescription, Id, {date_processed, DateProcessed}}) ->
+    case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(prescription)};
         #prescription{} = P ->
@@ -438,11 +340,10 @@ handle_call({update, prescription, Id, {date_processed, DateProcessed}}, _From, 
                     Date = erlcass_time:date_from_epoch(calendar:rfc3339_to_system_time(DateProcessed ++ "T00:00:00")),
                     ok = erlcass:execute(process_prescription, [Date, Id])
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({update, prescription, Id, {drugs, add, Drugs}}, _From, State) ->
-    Result = case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
+call({update, prescription, Id, {drugs, add, Drugs}}) ->
+    case parse_result(prescription, erlcass:execute(read_prescription, [Id])) of
         {error, _Reason} ->
             {error, no_such_entity(prescription)};
         #prescription{} = P ->
@@ -455,13 +356,12 @@ handle_call({update, prescription, Id, {drugs, add, Drugs}}, _From, State) ->
                     end, Drugs),
                     ok
             end
-    end,
-    {reply, Result, State};
+    end;
 
-handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}, _From, State) ->
+call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, DatePrescribed, Drugs]}) ->
     CheckResult = check_keys([{prescription, Id}], [{patient, PatientId},
                               {pharmacy, PharmacyId}, {staff, PrescriberId}]),
-    Result = case CheckResult of
+    case CheckResult of
         ok ->
             {ok, Stm1} = erlcass:bind_prepared_statement(create_prescription),
             Date = erlcass_time:date_from_epoch(calendar:rfc3339_to_system_time(DatePrescribed ++ "T00:00:00")),
@@ -488,14 +388,7 @@ handle_call({create, prescription, [Id, PatientId, PrescriberId, PharmacyId, Dat
             {error, id_taken(prescription)};
         {missing, [{Entity, _EntityId} | _T]} ->
             {error, no_such_entity(Entity)}
-    end,
-    {reply, Result, State};
-
-% handle_call({read, Entity, Id, prescriptions}, _From, State) ->
-%     {reply, Result, State};
-
-handle_call(_, _, State) ->
-    {reply, ok, State}.
+    end.
 
 check_keys([], []) -> ok;
 check_keys([], ShouldExist) ->
