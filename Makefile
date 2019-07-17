@@ -6,30 +6,8 @@ all: compile rel
 attach:
 	./_build/default/rel/fmke/bin/env attach
 
-bench: compile
-	./travis.sh bench short antidote
-	./travis.sh bench short antidote_norm
-	./travis.sh bench short redis
-	./travis.sh bench short riak
-	./travis.sh bench short riak_norm
-
-bench-antidote: rel
-	./travis.sh bench normal antidote
-
-bench-antidote-norm: rel
-	./travis.sh bench normal antidote_norm
-
-bench-redis: rel
-	./travis.sh bench normal redis
-
 bench-results:
 	Rscript --vanilla _build/test/lib/lasp_bench/priv/summary.r -i tests/current
-
-bench-riak: rel
-	./travis.sh bench normal riak
-
-bench-riak-norm: rel
-	./travis.sh bench normal riak_norm
 
 compile:
 	${REBAR} as test compile
@@ -100,9 +78,6 @@ eunit:
 
 lint:
 	rebar3 as lint lint
-
-populate: compile
-	./scripts/populate_fmke.erl "antidote" "../config/fmke_travis.config" "fmke@127.0.0.1"
 
 rel: relclean
 	rm -rf _build/default/rel/
