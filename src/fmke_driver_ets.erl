@@ -37,7 +37,7 @@ put(Entries, Context) ->
                              [{Key, List}] ->   [Value | List]
                          end,
                          true = ets:insert(?ETS_TABLE_NAME, {Key, Val}),
-                         ok
+                         ok;
                      _Other ->
                          true = ets:insert(?ETS_TABLE_NAME, {Key, unpack(nested, Type, Value)}),
                          ok
