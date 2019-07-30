@@ -19,7 +19,11 @@
 -export([init/1]).
 
 %% useful config funs
--import (fmke_driver_config, [driver_adapter/1, default_driver/1]).
+-import(fmke_driver_config, [
+    driver_adapter/1,
+    default_driver/1,
+    db_from_driver/1
+]).
 
 -define(SERVER, ?MODULE).
 
@@ -126,7 +130,7 @@ config(Config) ->
         {target_database, Database},
         {connection_pool_size, PoolSize},
         {database_addresses, Addresses},
-        {database_ports, Config},
+        {database_ports, Ports},
         {http_port, HttpPort},
         {data_model, Model}
     ]).
@@ -134,10 +138,10 @@ config(Config) ->
 set_opts([]) ->
     ok;
 
-set_opts([{_Opt, undefined} | Rest]) -?
-    set_opts(Rest).
+set_opts([{_Opt, undefined} | Rest]) ->
+    set_opts(Rest);
 
-set_opts([{Opt, Val}] | Rest) ->
+set_opts([{Opt, Val} | Rest]) ->
     config(Opt, Val),
     set_opts(Rest).
 
@@ -148,13 +152,13 @@ config(http_port, HttpPort) ->
 config(target_database, Database) ->
     maybe_config(target_database, Database),
     Driver = default_driver(Database),
-    maybe_config(driver, Driver);
+    maybe_config(driver, Driver),
     case driver_adapter(Driver) of
         none ->
             ok;
         Adapter ->
-            maybe_config(adapter, Adapter),
-    end,
+            maybe_config(adapter, Adapter)
+    end;
 config(database_ports, Ports) ->
     maybe_config(database_ports, Ports);
 config(database_addresses, Addresses) ->
@@ -169,9 +173,9 @@ config(driver, Driver) ->
         none ->
             ok;
         Adapter ->
-            maybe_config(adapter, Adapter),
+            maybe_config(adapter, Adapter)
     end,
-    maybe_config(target_database, driver_db(Driver)).
+    maybe_config(target_database, db_from_driver(Driver)).
 
 maybe_config(Key, Val) ->
     case application:get_env(?APP, Key) of
