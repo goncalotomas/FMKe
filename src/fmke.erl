@@ -44,6 +44,9 @@
 start_link(Args) ->
     gen_server:start_link({local, ?SERVER}, ?MODULE, Args, []).
 
+init([none]) ->
+    lager:info("~p is booting in passthrough mode (no adapter)", [?MODULE]),
+    {ok, undefined};
 init([Adapter]) ->
     lager:info("~p will use the ~p adapter~n", [?MODULE, Adapter]),
     {ok, Adapter}.

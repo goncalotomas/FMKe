@@ -163,7 +163,7 @@ config(database_ports, Ports) ->
     maybe_config(database_ports, Ports);
 config(database_addresses, Addresses) ->
     maybe_config(database_addresses, Addresses);
-config(pool_size, Size) ->
+config(connection_pool_size, Size) ->
     maybe_config(connection_pool_size, Size);
 config(adapter, Adapter) ->
     maybe_config(adapter, Adapter);
