@@ -91,7 +91,7 @@ driver_adapter(Driver) ->
         false ->
             ?KV_ADAPTER;
         true ->
-            Driver
+            none
     end.
 
 db_from_driver(fmke_driver_ets) -> ets;

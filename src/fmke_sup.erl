@@ -18,6 +18,9 @@
 %% Supervisor callbacks
 -export([init/1]).
 
+%% useful config funs
+-import (fmke_driver_config, [driver_adapter/1, default_driver/1]).
+
 -define(SERVER, ?MODULE).
 
 -define(KV_ADAPTER, fmke_kv_adapter).
@@ -118,40 +121,67 @@ config(Config) ->
     Ports = get_option(database_ports, Config),
     HttpPort = get_option(http_port, Config),
     Model = get_option(data_model, Config),
-    config(driver, {Driver, Database}),
-    config(adapter, {driver, Driver}),
-    config(target_database, fmke_driver_config:db_from_driver(Driver)),
-    config(pool_size, PoolSize),
-    config(database_addresses, Addresses),
-    config(database_ports, Ports),
-    config(http_port, HttpPort),
-    config(data_model, Model).
+    set_opts([
+        {driver, Driver},
+        {target_database, Database},
+        {connection_pool_size, PoolSize},
+        {database_addresses, Addresses},
+        {database_ports, Config},
+        {http_port, HttpPort},
+        {data_model, Model}
+    ]).
+
+set_opts([]) ->
+    ok;
+
+set_opts([{_Opt, undefined} | Rest]) -?
+    set_opts(Rest).
+
+set_opts([{Opt, Val}] | Rest) ->
+    config(Opt, Val),
+    set_opts(Rest).
 
 config(data_model, Model) ->
     maybe_config(data_model, Model);
 config(http_port, HttpPort) ->
     maybe_config(http_port, HttpPort);
 config(target_database, Database) ->
-    maybe_config(target_database, Database);
+    maybe_config(target_database, Database),
+    Driver = default_driver(Database),
+    maybe_config(driver, Driver);
+    case driver_adapter(Driver) of
+        none ->
+            ok;
+        Adapter ->
+            maybe_config(adapter, Adapter),
+    end,
 config(database_ports, Ports) ->
     maybe_config(database_ports, Ports);
 config(database_addresses, Addresses) ->
     maybe_config(database_addresses, Addresses);
 config(pool_size, Size) ->
     maybe_config(connection_pool_size, Size);
-config(adapter, {driver, Driver}) ->
-    maybe_config(adapter, fmke_driver_config:driver_adapter(Driver));
-config(driver, {undefined, Database}) ->
-    maybe_config(driver, fmke_driver_config:default_driver(Database));
-config(driver, {Driver, _Database}) ->
-    maybe_config(driver, Driver).
+config(adapter, Adapter) ->
+    maybe_config(adapter, Adapter);
+config(driver, Driver) ->
+    maybe_config(driver, Driver),
+    case driver_adapter(Driver) of
+        none ->
+            ok;
+        Adapter ->
+            maybe_config(adapter, Adapter),
+    end,
+    maybe_config(target_database, driver_db(Driver)).
 
-maybe_config(Key, undefined) ->
-    lager:info("Unable to set ~p (value undefined)~n", [Key]),
-    ok;
 maybe_config(Key, Val) ->
-    lager:info("Setting FMKe option ~p = ~p~n", [Key, Val]),
-    ok = application:set_env(?APP, Key, Val).
+    case application:get_env(?APP, Key) of
+        undefined ->
+            lager:info("Setting FMKe option ~p = ~p~n", [Key, Val]),
+            ok = application:set_env(?APP, Key, Val);
+        {ok, Predefined} ->
+            lager:info("Setting FMKe option ~p failed (already defined as ~p)~n", [Key, Predefined]),
+            already_defined
+    end.
 
 get_option(Opt, Config) ->
     {_Source, Val} = get_value(os:getenv(atom_to_list(Opt)),
