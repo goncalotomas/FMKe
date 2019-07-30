@@ -165,8 +165,6 @@ config(database_addresses, Addresses) ->
     maybe_config(database_addresses, Addresses);
 config(connection_pool_size, Size) ->
     maybe_config(connection_pool_size, Size);
-config(adapter, Adapter) ->
-    maybe_config(adapter, Adapter);
 config(driver, Driver) ->
     maybe_config(driver, Driver),
     case driver_adapter(Driver) of
