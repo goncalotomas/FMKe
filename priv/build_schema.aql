@@ -1,0 +1,71 @@
+---------------------------------------------------------------
+-- Database schema used when benchmarking AQL. Based on the
+-- schema used for cassandra, see build_schema.cql.
+--
+-- AQL is an SQL-like interface for the AntidoteDB data store.
+-- For more information and documentation see AQL's repository:
+--   https://github.com/mrshankly/secure-aql
+---------------------------------------------------------------
+
+CREATE UPDATE-WINS TABLE FmkePatients (
+    ID int PRIMARY KEY,
+    Name varchar,
+    Address varchar
+);
+
+CREATE UPDATE-WINS TABLE FmkePharmacies (
+    ID int PRIMARY KEY,
+    Name varchar,
+    Address varchar
+);
+
+CREATE UPDATE-WINS TABLE FmkeMedicalStaff (
+    ID int PRIMARY KEY,
+    Name varchar,
+    Address varchar,
+    Speciality varchar
+);
+
+CREATE UPDATE-WINS TABLE FmkeTreatmentFacilities (
+    ID int PRIMARY KEY,
+    Name varchar,
+    Address varchar,
+    Type varchar
+);
+
+CREATE UPDATE-WINS TABLE FmkePrescriptions (
+    ID int PRIMARY KEY,
+    PatID int,
+    DocID int,
+    PharmID int,
+    DatePrescribed varchar,
+    DateProcessed varchar
+);
+
+CREATE UPDATE-WINS TABLE FmkePatientPrescriptions (
+    ID int PRIMARY KEY,
+    PatientID int,
+    PrescriptionID int
+);
+CREATE INDEX FmkePatientPrescriptionsPatientIdx ON FmkePatientPrescriptions (PatientID);
+
+CREATE UPDATE-WINS TABLE FmkePharmacyPrescriptions (
+    ID int PRIMARY KEY,
+    PharmacyID int,
+    PrescriptionID int
+);
+CREATE INDEX FmkePharmacyPrescriptionsPharmacyIdx ON FmkePharmacyPrescriptions (PharmacyID);
+
+CREATE UPDATE-WINS TABLE FmkeStaffPrescriptions (
+    ID int PRIMARY KEY,
+    StaffID int,
+    PrescriptionID int
+);
+CREATE INDEX FmkeStaffPrescriptionsStaffIdx ON FmkeStaffPrescriptions (StaffID);
+
+CREATE UPDATE-WINS TABLE FmkePrescriptionDrugs (
+    ID int PRIMARY KEY,
+    PrescriptionID int,
+    Drug varchar
+);
+CREATE INDEX FmkePrescriptionDrugsPrescriptionIdx ON FmkePrescriptionDrugs (PrescriptionID);
