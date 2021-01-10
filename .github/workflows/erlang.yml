@@ -35,7 +35,7 @@ jobs:
           # Opens tcp port 8098 on the host and service container
           - 8098:8098
       antidote:
-        image: antidotedb/antidote
+        image: mweber/antidotedb
         env:
           NODE_NAME: antidote@127.0.0.1
         ports:

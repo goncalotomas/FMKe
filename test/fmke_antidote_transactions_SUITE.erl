@@ -33,6 +33,7 @@ init_per_suite(Config) ->
       _ ->
         fmke_test_setup:launch_fmke_only(?NODENAME,
                                          [{target_database, antidote},
+                                          {database_addresses, ["localhost"]},
                                           {database_ports, [4367]}])
     end,
     true = erlang:set_cookie(TestNode, ?COOKIE),
