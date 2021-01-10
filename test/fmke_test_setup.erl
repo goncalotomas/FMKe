@@ -31,7 +31,7 @@
     riak_pb
 ]).
 
--define(ANTIDOTE_PORT, 8087).
+-define(ANTIDOTE_PORT, 4367).
 -define(RIAK_PORT, 8087).
 -define(REDIS_PORT, 6379).
 -define(REDIS_CLUSTER_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
