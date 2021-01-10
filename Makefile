@@ -19,7 +19,7 @@ coverage: eunit ct
 	${REBAR} cover --verbose
 
 ct:
-	${REBAR} ct --suite fmke_antidote_transactions_SUITE.erl --cover --cover_export_name=antidote_txn_check
+	# ${REBAR} ct --suite fmke_antidote_transactions_SUITE.erl --cover --cover_export_name=antidote_txn_check
 	${REBAR} ct --suite fmke_db_conn_manager_SUITE.erl --cover --cover_export_name=db_conn_manager
 	${REBAR} ct --suite fmke_unstable_db_conn_SUITE.erl --cover --cover_export_name=unstable_db_conn
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=core_antidote_non_nested_opt
