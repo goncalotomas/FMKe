@@ -31,7 +31,7 @@
     riak_pb
 ]).
 
--define(ANTIDOTE_PORT, 8087).
+-define(ANTIDOTE_PORT, 4367).
 -define(RIAK_PORT, 8087).
 -define(REDIS_PORT, 6379).
 -define(REDIS_CLUSTER_PORTS, [7000, 7001, 7002, 7003, 7004, 7005]).
@@ -41,7 +41,7 @@
 -define(DOCKER_CMD_STOP_ALL, "docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
 
 -define(DOCKER_CMD_START_ANTIDOTE(Port), "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
-                                   "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" antidotedb/antidote").
+                                   "\"4368:4368\" -p \"" ++ integer_to_list(Port) ++ ":8087\" mweber/antidotedb").
 
 -define(DOCKER_CMD_START_RIAK(Port), "docker run -d --name riak -p \"" ++ integer_to_list(Port) ++ ":8087\" "
                                 "-p \"8098:8098\" -e NODE_NAME=riak@127.0.0.1 goncalotomas/riak").
@@ -182,7 +182,12 @@ launch_fmke(Nodename, Config) ->
     io:format("Got config = ~p~n", [Config]),
     Database = proplists:get_value(target_database, Config),
     Ports = proplists:get_value(database_ports, Config),
-    ok = start_db(Database, Ports),
+    case proplists:get_value(start_docker_container, Config) of
+      true ->
+        ok = start_db(Database, Ports);
+      _ ->
+        ok
+    end,
     start_node(Nodename, Config).
 
 launch_fmke_only(Nodename, Config) ->

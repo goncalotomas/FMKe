@@ -27,8 +27,16 @@ suite() ->
 init_per_suite(Config) ->
     TestNode = 'fmke_antidote_ct@127.0.0.1',
     ok = fmke_test_setup:ensure_start_dist_node(TestNode),
+    case ?config(start_docker_container, Config) of
+      true ->
+        fmke_test_setup:start_node_with_antidote_backend(?NODENAME);
+      _ ->
+        fmke_test_setup:launch_fmke_only(?NODENAME,
+                                         [{target_database, antidote},
+                                          {database_addresses, ["0.0.0.0"]},
+                                          {database_ports, [4367]}])
+    end,
     true = erlang:set_cookie(TestNode, ?COOKIE),
-    fmke_test_setup:start_node_with_antidote_backend(?NODENAME),
     true = erlang:set_cookie(?NODENAME, ?COOKIE),
     Config.
 

@@ -1,0 +1,68 @@
+name: Erlang CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Service containers to run with `container-job`
+    services:
+      # Label used to access the service container
+      redis:
+        image: redis
+        ports:
+          # Opens tcp port 6379 on the host and service container
+          - 6379:6379
+      redis_cluster:
+        image: bitnami/redis-cluster:latest
+        env:
+          ALLOW_EMPTY_PASSWORD: yes
+          REDIS_NODES: 127.0.0.1
+        ports:
+          # Opens tcp port 6380 on the host that maps to port 6379 on the service container
+          - 6380:6379
+      riak:
+        image: goncalotomas/riak
+        env:
+          NODE_NAME: riak@127.0.0.1
+        ports:
+          # Opens tcp port 8097 on the host that maps to port 8087 on the service container
+          - 8097:8087
+          # Opens tcp port 8098 on the host and service container
+          - 8098:8098
+      antidote:
+        image: mweber/antidotedb
+        env:
+          NODE_NAME: antidote@127.0.0.1
+        ports:
+          # Opens tcp port 4367 on the host that maps to port 8087 on the service container
+          - 4367:8087
+          # Opens tcp port 4368 on the host and service container
+          - 4368:4368
+      cassandra:
+        image: rinscy/cassandra
+        ports:
+          # Opens tcp port 9042 on the host and service container
+          - 9042:9042
+    container:
+      image: erlang:22.1
+    steps:
+      - uses: actions/checkout@v2
+      - name: Start EPMD
+        run: epmd -daemon
+      - name: Install Dependencies
+        run: apt update && apt install -y g++ make cmake libuv1-dev libssl-dev
+      - name: Compile
+        run: rebar3 as test compile
+      - name: Cross-Reference Check
+        run: rebar3 xref
+      - name: Dialyzer
+        run: rebar3 dialyzer
+      - name: Lint
+        run: rebar3 as lint lint
+      - name: Run Tests and Check Code Coverage
+        run: make coverage
