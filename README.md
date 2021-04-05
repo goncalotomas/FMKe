@@ -37,10 +37,14 @@ Firstly, separating the application server from the workload generation componen
 We have a generic interface for key-value stores (implemented as an Erlang behaviour) that is well specified, which makes supporting a new database as simple as writing a driver for it. Furthermore, pull requests with new drivers or optimizations for existing ones are accepted and welcomed.
 
 ## Supported data stores
-- AntidoteDB
+- AntidoteDB (the SQL-like interface offered by [AQL][11] is also supported)
 - Cassandra
 - Redis
 - Riak KV
+
+### Note about AQL schema:
+
+When running the benchmark to evaluate the performance of AQL you have two options regarding the database schema. The file [priv/build_schema.aql](priv/build_schema.aql) creates the tables without foreign keys, and thus, the referential integrity mechanism of AQL is not used. To use the referential integrity mechanism, use the file [priv/build_schema_fk.aql](priv/build_schema_fk.aql), this version creates the tables with foreign keys.
 
 ## How the benchmark is deployed
 By default FMKe keeps a connection pool to a single database node, and the workload generation is performed by [Lasp Bench][4].  
@@ -67,3 +71,4 @@ Please check [the wiki](https://github.com/goncalotomas/FMKe/wiki) for detailed 
 [8]: https://github.com/goncalotomas/FMKe/blob/master/doc/FMK_DataModel.pdf
 [9]: http://www.erlang.org/downloads
 [10]: http://www.rebar3.org/
+[11]: https://github.com/mrshankly/secure-aql

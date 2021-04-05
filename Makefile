@@ -29,6 +29,7 @@ ct:
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config --cover --cover_export_name=core_redis_cluster_non_nested_opt
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/redis_crdb_non_nested_data_model.config --cover --cover_export_name=core_redis_crdb_non_nested_opt
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=core_riak_non_nested_opt
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/aql_non_nested_data_model.config --cover --cover_export_name=core_aql_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config --cover --cover_export_name=http_antidote_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/cassandra_non_nested_data_model.config --cover --cover_export_name=http_cassandra_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/ets_nested_data_model.config --cover --cover_export_name=http_ets_nested
@@ -36,6 +37,7 @@ ct:
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_cluster_non_nested_data_model.config --cover --cover_export_name=http_redis_cluster_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/redis_crdb_non_nested_data_model.config --cover --cover_export_name=http_redis_crdb_non_nested_opt
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config --cover --cover_export_name=http_riak_non_nested_opt
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/aql_non_nested_data_model.config --cover --cover_export_name=http_aql_non_nested_opt
 
 ct-antidote:
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/antidote_non_nested_data_model.config
@@ -62,6 +64,10 @@ ct-redis:
 ct-riak:
 	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config
 	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/riak_non_nested_data_model.config
+
+ct-aql:
+	${REBAR} ct --suite fmke_core_unit_test_SUITE.erl --config test/fmke_configs/aql_non_nested_data_model.config
+	${REBAR} ct --suite fmke_http_api_SUITE.erl --config test/fmke_configs/aql_non_nested_data_model.config
 
 dialyzer:
 	${REBAR} dialyzer

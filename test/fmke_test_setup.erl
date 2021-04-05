@@ -7,6 +7,7 @@
     start_antidote/0,
     start_riak/0,
     start_redis/0,
+    start_aql/0,
     start_node_with_antidote_backend/1,
     start_node_with_ets_backend/2,
     start_node_with_redis_backend/1,
@@ -19,6 +20,7 @@
     stop_antidote/0,
     stop_riak/0,
     stop_redis/0,
+    stop_aql/0,
     stop_node/1
 ]).
 
@@ -28,7 +30,8 @@
     eredis,
     eredis_cluster,
     erlcass,
-    riak_pb
+    riak_pb,
+    aqlc
 ]).
 
 -define(ANTIDOTE_PORT, 8087).
@@ -38,6 +41,7 @@
 -define(DOCKER_CMD_STOP_ANTIDOTE, "docker stop antidote && docker rm antidote").
 -define(DOCKER_CMD_STOP_RIAK, "docker stop riak && docker rm riak").
 -define(DOCKER_CMD_STOP_REDIS, "docker stop redis && docker rm redis").
+-define(DOCKER_CMD_STOP_AQL, "docker stop aql && docker rm aql").
 -define(DOCKER_CMD_STOP_ALL, "docker stop $(docker ps -aq) && docker rm $(docker ps -aq)").
 
 -define(DOCKER_CMD_START_ANTIDOTE(Port), "docker run -d --name antidote -e NODE_NAME=antidote@127.0.0.1 -p "
@@ -59,6 +63,11 @@
 
 -define(DOCKER_CMD_START_CASSANDRA(Port), "docker run -d --name cassandra "
                                         "-p \"" ++ integer_to_list(Port) ++ ":9042\" rinscy/cassandra").
+
+-define(DOCKER_CMD_START_AQL(Port, PrivDir), "docker run -d --name aql "
+                                             "-p \"" ++ integer_to_list(Port) ++ ":8321\" "
+                                             "-v \"" ++ PrivDir ++ ":/aql/priv\" "
+                                             "jbmarques/aql:fmke").
 
 -define(WAIT_CMD_TCP(Port), "until ruby -rsocket -e 's=TCPSocket.new(\"localhost\"," ++ integer_to_list(Port) ++
                             ")' 2> /dev/null; do sleep 0.5; done").
@@ -119,6 +128,32 @@ start_redis_cluster(Port) ->
 
 stop_redis() ->
     0 = cmd:run(?DOCKER_CMD_STOP_REDIS, return_code),
+    ok.
+
+start_aql() ->
+    start_aql(8321).
+
+start_aql(Port) ->
+    % Start AQL and bind the local priv directory to /aql/priv,
+    % allowing us to build the database schema.
+    {ok, PrivDir} = file:read_link(code:priv_dir(?APP)),
+    AbsPrivDir = filename:absname(PrivDir),
+    0 = cmd:run(?DOCKER_CMD_START_AQL(Port, AbsPrivDir), return_code),
+    ct:pal("Started AQL."),
+
+    0 = cmd:run(?WAIT_CMD_TCP(Port), return_code),
+    timer:sleep(10000),
+
+    % Build database schema.
+    0 = cmd:run(
+        "docker exec -i aql /aql/bin/env eval 'aql:read_file(\"/aql/priv/build_schema.aql\").'",
+        return_code
+    ),
+    ct:pal("Built database schema."),
+    ok.
+
+stop_aql() ->
+    0 = cmd:run(?DOCKER_CMD_STOP_AQL, return_code),
     ok.
 
 stop_all() ->
@@ -254,7 +289,9 @@ start_db(redis_crdb, Port) ->
 start_db(redis_cluster, Port) ->
     start_redis_cluster(Port);
 start_db(riak, Port) ->
-    start_riak(Port).
+    start_riak(Port);
+start_db(aql, Port) ->
+    start_aql(Port).
 
 start_cassandra(Port) ->
     0 = cmd:run(?DOCKER_CMD_START_CASSANDRA(Port), return_code),
